@@ -1,0 +1,35 @@
+plugins {
+    id 'nebula.release'
+    id 'base'
+
+    id "com.github.hierynomus.license"
+    id 'org.ajoberstar.git-publish'
+    id 'org.ajoberstar.grgit'
+    id "com.github.ben-manes.versions"
+    id "io.github.gradle-nexus.publish-plugin"
+}
+ext {
+    groovyVersion = project.findProperty("groovyVersion") ?: '2.4.21'
+    // groovyVersion = '4.0.12'
+}
+
+group 'com.blackbuild.annodocimal'
+
+description 'Create javadoc from annotations'
+
+nexusPublishing {
+    repositories {
+        sonatype()
+    }
+}
+
+releaseCheck.doLast {
+    if (!gradle.includedBuilds.isEmpty())
+        throw new GradleException("Releasing is not allowed with composite builds. Please release $gradle.includedBuilds separately")
+
+    if (JavaVersion.current() != JavaVersion.VERSION_11)
+        throw new GradleException("Releasing must be done with JDK 11")
+
+    if (!project.ext.groovyVersion.startsWith("2."))
+        throw new GradleException("Releasing must be done with Groovy 2.4")
+}

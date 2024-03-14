@@ -1,0 +1,17 @@
+/.sonar_lock
+# Eclipse
+/.project
+/.classpath
+/.settings/
+# SublimeText3
+/*.sublime-project
+/*.sublime-workspace
+# Gradle
+/.gradle
+/build/
+# IDEA
+*.iml
+/.idea
+/out
+.DS_Store
+/*/build/
