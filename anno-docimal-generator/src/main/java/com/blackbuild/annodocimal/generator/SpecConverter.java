@@ -28,10 +28,7 @@ import com.squareup.javapoet.*;
 
 import javax.lang.model.element.Modifier;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.Member;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.*;
 import java.util.EnumSet;
 
 /**
@@ -66,9 +63,18 @@ public class SpecConverter {
             builder.addMethod(toMethodSpec(method));
         }
 
+        for (Constructor<?> constructor : type.getDeclaredConstructors()) {
+            if (shouldIgnore(constructor)) continue;
+            builder.addMethod(toMethodSpec(constructor));
+        }
+
         for (Field field : type.getDeclaredFields()) {
             if (shouldIgnore(field)) continue;
             builder.addField(toFieldSpec(field));
+        }
+
+        for (Class<?> declaredClass : type.getDeclaredClasses()) {
+            builder.addType(toTypeSpec(declaredClass));
         }
 
         return builder.build();
@@ -90,10 +96,12 @@ public class SpecConverter {
         return builder.build();
     }
 
-    public static MethodSpec toMethodSpec(Method method) {
+    public static MethodSpec toMethodSpec(Executable method) {
         MethodSpec.Builder builder = MethodSpec.methodBuilder(method.getName())
-                .addModifiers(getModifiers(method.getModifiers()))
-                .returns(method.getReturnType());
+                .addModifiers(getModifiers(method.getModifiers()));
+
+        if (method instanceof Method)
+                builder.returns(((Method) method).getReturnType());
 
         for (Annotation annotation : method.getAnnotations())
             if (annotation instanceof Javadocs)
@@ -102,7 +110,7 @@ public class SpecConverter {
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
         for (Parameter param : method.getParameters())
-            builder.addParameter(param.getType(), param.getName(), SpecConverter.getModifiers(param.getModifiers()));
+            builder.addParameter(toParameterSpec(param));
 
         return builder.build();
     }

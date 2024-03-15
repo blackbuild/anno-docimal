@@ -86,9 +86,44 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
  */
 public class TestClass'''
 
-        source.find { it.startsWith("public class TestClass ") }
         source.find { it.contains("implements GroovyObject") }
         trimmed.contains( "public void method() {" )
+    }
+
+    def "basic test with static inner class"() {
+        given:
+        def clazz = createClass("""
+            package dummy
+     
+            import com.blackbuild.annodocimal.annotations.Javadocs
+            
+            class TestClass {
+                void method() {
+                    println "Hello"
+                }
+                
+                static class InnerClass {
+                    void innerMethod() {
+                        println "Hello"
+                    }
+                }
+            }
+        """)
+        StringBuilder output = new StringBuilder()
+
+        when:
+        AnnoDocGenerator.generate(clazz, output)
+
+        def sourceText = output.toString()
+        def source = sourceText.readLines()
+        def trimmed = source*.trim()
+
+        then:
+        noExceptionThrown()
+        source.contains("package dummy;")
+        trimmed.find { it.startsWith("public class TestClass") }
+        trimmed.find { it.startsWith("public static class InnerClass") }
+        trimmed.contains( "public void innerMethod() {" )
     }
 
 
