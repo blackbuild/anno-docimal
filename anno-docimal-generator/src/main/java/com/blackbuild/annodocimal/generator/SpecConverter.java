@@ -58,9 +58,9 @@ public class SpecConverter {
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
-        for (Method method : type.getDeclaredMethods()) {
-            if (shouldIgnore(method)) continue;
-            builder.addMethod(toMethodSpec(method));
+        for (Field field : type.getDeclaredFields()) {
+            if (shouldIgnore(field)) continue;
+            builder.addField(toFieldSpec(field));
         }
 
         for (Constructor<?> constructor : type.getDeclaredConstructors()) {
@@ -68,9 +68,9 @@ public class SpecConverter {
             builder.addMethod(toMethodSpec(constructor));
         }
 
-        for (Field field : type.getDeclaredFields()) {
-            if (shouldIgnore(field)) continue;
-            builder.addField(toFieldSpec(field));
+        for (Method method : type.getDeclaredMethods()) {
+            if (shouldIgnore(method)) continue;
+            builder.addMethod(toMethodSpec(method));
         }
 
         for (Class<?> declaredClass : type.getDeclaredClasses()) {
@@ -97,8 +97,9 @@ public class SpecConverter {
     }
 
     public static MethodSpec toMethodSpec(Executable method) {
-        MethodSpec.Builder builder = MethodSpec.methodBuilder(method.getName())
-                .addModifiers(getModifiers(method.getModifiers()));
+        MethodSpec.Builder builder = method instanceof Method ? MethodSpec.methodBuilder(method.getName()) : MethodSpec.constructorBuilder();
+
+        builder.addModifiers(getModifiers(method.getModifiers()));
 
         if (method instanceof Method)
                 builder.returns(((Method) method).getReturnType());

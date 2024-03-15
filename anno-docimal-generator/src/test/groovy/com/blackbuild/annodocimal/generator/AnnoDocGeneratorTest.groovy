@@ -21,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+//file:noinspection GrPackage
+//file:noinspection GrMethodMayBeStatic
 package com.blackbuild.annodocimal.generator
 
 class AnnoDocGeneratorTest extends ClassGeneratingTest {
@@ -40,15 +42,31 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
         when:
         AnnoDocGenerator.generate(clazz, output)
-        def source = output.toString().readLines()
-        def trimmed = source*.trim()
+        def source = output.toString().trim()
+
 
         then:
         noExceptionThrown()
-        source.contains("package dummy;")
-        source.find { it.startsWith("public class TestClass ") }
-        source.find { it.contains("implements GroovyObject") }
-        trimmed.contains( "public void method() {" )
+        source == '''
+package dummy;
+
+import groovy.lang.GroovyObject;
+import java.lang.String;
+
+public class TestClass implements GroovyObject {
+  public TestClass() {
+  }
+
+  public void method() {
+  }
+
+  public String getField() {
+  }
+
+  public void setField(String arg0) {
+  }
+}
+'''.trim()
     }
 
     def "basic test with generated documentation"() {
@@ -73,21 +91,36 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
         when:
         AnnoDocGenerator.generate(clazz, output)
-
-        def sourceText = output.toString()
-        def source = sourceText.readLines()
-        def trimmed = source*.trim()
+        def sourceText = output.toString().trim()
 
         then:
         noExceptionThrown()
-        source.contains("package dummy;")
-        sourceText.contains '''/**
+        sourceText == '''
+package dummy;
+
+import groovy.lang.GroovyObject;
+import java.lang.String;
+
+/**
  * This is a test class
  */
-public class TestClass'''
+public class TestClass implements GroovyObject {
+  public TestClass() {
+  }
 
-        source.find { it.contains("implements GroovyObject") }
-        trimmed.contains( "public void method() {" )
+  /**
+   * This is a method
+   */
+  public void method() {
+  }
+
+  public String getField() {
+  }
+
+  public void setField(String arg0) {
+  }
+}
+'''.trim()
     }
 
     def "basic test with static inner class"() {
@@ -114,18 +147,27 @@ public class TestClass'''
         when:
         AnnoDocGenerator.generate(clazz, output)
 
-        def sourceText = output.toString()
-        def source = sourceText.readLines()
-        def trimmed = source*.trim()
+        def sourceText = output.toString().trim()
 
         then:
         noExceptionThrown()
-        source.contains("package dummy;")
-        trimmed.find { it.startsWith("public class TestClass") }
-        trimmed.find { it.startsWith("public static class InnerClass") }
-        trimmed.contains( "public void innerMethod() {" )
+        sourceText == '''
+package dummy;
+
+import groovy.lang.GroovyObject;
+
+public class TestClass implements GroovyObject {
+  public TestClass() {
+  }
+
+  public void method() {
+  }
+
+  public static class InnerClass implements GroovyObject {
+    public void innerMethod() {
     }
-
-
-
+  }
+}
+'''.trim()
+    }
 }
