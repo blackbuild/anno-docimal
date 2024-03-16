@@ -35,6 +35,7 @@ abstract class ClassGeneratingTest extends Specification {
     ClassLoader oldLoader
     GroovyClassLoader loader
     CompilerConfiguration compilerConfiguration
+    Class<?> clazz
 
     def setup() {
         oldLoader = Thread.currentThread().contextClassLoader
@@ -55,9 +56,11 @@ abstract class ClassGeneratingTest extends Specification {
         Thread.currentThread().contextClassLoader = oldLoader
     }
 
-    Class<?> createClass(@Language("groovy") String code) {
-        return loader.parseClass(code)
+    void createClass(@Language("groovy") String code) {
+        clazz = loader.parseClass(code)
     }
+
+
 
 
 

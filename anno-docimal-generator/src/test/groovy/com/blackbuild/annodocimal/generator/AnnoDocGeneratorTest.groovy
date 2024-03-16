@@ -27,9 +27,12 @@ package com.blackbuild.annodocimal.generator
 
 class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
+    String generatedSource
+    SourceBlock generated
+
     def "basic conversion"() {
         given:
-        def clazz = createClass("""
+        createClass("""
             package dummy
             class TestClass {
                 String field
@@ -38,40 +41,24 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
                 }
             }
         """)
-        StringBuilder output = new StringBuilder()
 
         when:
-        AnnoDocGenerator.generate(clazz, output)
-        def source = output.toString().trim()
-
+        generateSource()
 
         then:
-        noExceptionThrown()
-        source == '''
-package dummy;
-
-import groovy.lang.GroovyObject;
-import java.lang.String;
-
-public class TestClass implements GroovyObject {
-  public TestClass() {
-  }
-
-  public void method() {
-  }
-
-  public String getField() {
-  }
-
-  public void setField(String arg0) {
-  }
-}
-'''.trim()
+        generated.packageName == "dummy"
+        generated.imports == ["groovy.lang.GroovyObject", "java.lang.String"]
+        generated.text == "public class TestClass implements GroovyObject"
+        generated.innerBlocks.size() == 4
+        generated.getBlock("public TestClass()")
+        generated.getBlock("public void method()")
+        generated.getBlock("public String getField()")
+        generated.getBlock("public void setField(String arg0)")
     }
 
     def "basic test with generated documentation"() {
         given:
-        def clazz = createClass("""
+        createClass("""
             package dummy
      
             import com.blackbuild.annodocimal.annotations.Javadocs
@@ -87,45 +74,25 @@ public class TestClass implements GroovyObject {
                 }
             }
         """)
-        StringBuilder output = new StringBuilder()
 
         when:
-        AnnoDocGenerator.generate(clazz, output)
-        def sourceText = output.toString().trim()
+        generateSource()
 
         then:
-        noExceptionThrown()
-        sourceText == '''
-package dummy;
-
-import groovy.lang.GroovyObject;
-import java.lang.String;
-
-/**
- * This is a test class
- */
-public class TestClass implements GroovyObject {
-  public TestClass() {
-  }
-
-  /**
-   * This is a method
-   */
-  public void method() {
-  }
-
-  public String getField() {
-  }
-
-  public void setField(String arg0) {
-  }
-}
-'''.trim()
+        generated.packageName == "dummy"
+        generated.imports == ["groovy.lang.GroovyObject", "java.lang.String"]
+        generated.text == "public class TestClass implements GroovyObject"
+        generated.javaDoc == "This is a test class"
+        generated.innerBlocks.size() == 4
+        generated.getBlock("public TestClass()")
+        generated.getBlock("public void method()").javaDoc == "This is a method"
+        generated.getBlock("public String getField()")
+        generated.getBlock("public void setField(String arg0)")
     }
 
     def "basic test with static inner class"() {
         given:
-        def clazz = createClass("""
+        createClass("""
             package dummy
      
             import com.blackbuild.annodocimal.annotations.Javadocs
@@ -142,32 +109,28 @@ public class TestClass implements GroovyObject {
                 }
             }
         """)
-        StringBuilder output = new StringBuilder()
 
         when:
-        AnnoDocGenerator.generate(clazz, output)
-
-        def sourceText = output.toString().trim()
+        generateSource()
 
         then:
-        noExceptionThrown()
-        sourceText == '''
+        generatedSource.startsWith('''
 package dummy;
 
 import groovy.lang.GroovyObject;
 
-public class TestClass implements GroovyObject {
-  public TestClass() {
-  }
-
-  public void method() {
-  }
-
-  public static class InnerClass implements GroovyObject {
-    public void innerMethod() {
+public class TestClass implements GroovyObject {'''.trim())
+        generated.innerBlocks.size() == 3
+        generated.getBlock("public TestClass()")
+        generated.getBlock("public void method()")
+        generated.getBlock("public static class InnerClass implements GroovyObject").innerBlocks.size() == 1
+        generated.getBlock("public static class InnerClass implements GroovyObject").getBlock("public void innerMethod()")
     }
-  }
-}
-'''.trim()
+
+    void generateSource() {
+        StringBuilder builder = new StringBuilder()
+        AnnoDocGenerator.generate(clazz, builder)
+        generatedSource = builder.toString()
+        generated = SourceBlock.fromtext(generatedSource)
     }
 }
