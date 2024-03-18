@@ -15,9 +15,16 @@ Anno-Docimal consists of three modules:
 2. `anno-docimal-ast` contains a groovy AST transformation that converts existing javadoc comments into `@Javadoc` annotations. It also contains helper code to simplify conversion and creation of JavaDoc annotations. This is necessary if the actual generator creates additional methods or inner classes. It only needs to be present at compile time, usually as a dependency of the generating library.
 3. `anno-docimal-generator` contains the main tool that reads the `@Javadoc` annotations and creates the stub files. It is meant to be included in the build process (and will eventually be packed as a gradle and/or maven plugin).
 
+## Source Extractors
+
+If the transformation using anno-docimal enhances existing code, i.e. adds methods or, as in the case of "klum-ast", the result is a mix of source based and annotation based javadoc comments. To generate the final documentation, two approaches are possible:
+
+- a custom doclet that is able to parse annotation based javadoc comments as well as source based comments
+
+
 Roadmap:
 
-- [ ] Implement ast transformation
+- [x] Implement ast transformation
 - [x] support for inner classes
 - [ ] support for diverse javadoc formats (like asciidoc or markdown)
 - [ ] helper methods to simplify the creation of `@Javadoc` annotations
