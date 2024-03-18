@@ -24,7 +24,7 @@ If the transformation using anno-docimal enhances existing code, i.e. adds metho
 
 Roadmap:
 
-- [ ] Implement ast transformation
+- [x] Implement ast transformation
 - [x] support for inner classes
 - [ ] support for diverse javadoc formats (like asciidoc or markdown)
 - [ ] helper methods to simplify the creation of `@Javadoc` annotations
