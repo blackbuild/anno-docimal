@@ -29,6 +29,7 @@ import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.codehaus.groovy.control.SourceUnit;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 public class InlineJavadocVisitor extends ClassCodeVisitorSupport {
     private final SourceUnit sourceUnit;
@@ -55,6 +56,10 @@ public class InlineJavadocVisitor extends ClassCodeVisitorSupport {
     public void visitClass(ClassNode node) {
         addJavadocAsAnnotation(node);
         node.visitContents(this);
+        for (Iterator<InnerClassNode> it = node.getInnerClasses(); it.hasNext(); ) {
+            InnerClassNode innerClassNode = it.next();
+            visitClass(innerClassNode);
+        }
     }
 
     @Override

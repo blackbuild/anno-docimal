@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+//file:noinspection GrPackage
 package com.blackbuild.annodocimal.ast
 
 import com.blackbuild.annodocimal.annotations.Javadocs
@@ -88,16 +89,30 @@ class TestClass {
      * A method
      */ 
     void method() {}
+    
+    /**
+     * Inner class
+     */
+    static class InnerClass {
+        /**
+         * Inner class method
+         */
+        void innerMethod() {}
+    }
 }
 '''
 
         then:
-        clazz.getAnnotation(Javadocs) != null
         clazz.getAnnotation(Javadocs).value() == 'This is a test class'
-        clazz.getMethod("method").getAnnotation(Javadocs) != null
         clazz.getMethod("method").getAnnotation(Javadocs).value() == 'A method'
-        clazz.getDeclaredField("name").getAnnotation(Javadocs) != null
         clazz.getDeclaredField("name").getAnnotation(Javadocs).value() == 'A name'
+
+        when:
+        def innerClass = clazz.getDeclaredClasses().find { it.simpleName == "InnerClass" }
+
+        then:
+        innerClass.getAnnotation(Javadocs).value() == 'Inner class'
+        innerClass.getMethod("innerMethod").getAnnotation(Javadocs).value() == 'Inner class method'
     }
 
 

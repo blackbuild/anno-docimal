@@ -110,7 +110,7 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
     }
 
     private String getJavaDocForField(FieldNode node) {
-        GroovyClassDoc classDoc = rootDoc.classNamed(null, getGroovyDocClassName(node.getDeclaringClass()));
+        GroovyClassDoc classDoc = getClassDoc(node.getDeclaringClass());
         return Arrays.stream(classDoc.properties())
                 .filter(fieldDoc -> fieldDoc.name().equals(node.getName()))
                 .findFirst()
@@ -119,7 +119,7 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
     }
 
     private String getJavaDocForMethod(MethodNode node) {
-        GroovyClassDoc classDoc = rootDoc.classNamed(null, getGroovyDocClassName(node.getDeclaringClass()));
+        GroovyClassDoc classDoc = getClassDoc(node.getDeclaringClass());
         return Arrays.stream(classDoc.methods())
                 .filter(methodDoc -> matches(node, methodDoc))
                 .findFirst()
@@ -139,15 +139,20 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
     }
 
     private String getJavaDocForClass(ClassNode node) {
-        GroovyClassDoc classDoc = rootDoc.classNamed(null, getGroovyDocClassName(node));
+        GroovyClassDoc classDoc = getClassDoc(node);
         return classDoc.commentText();
+    }
+
+    private GroovyClassDoc getClassDoc(ClassNode node) {
+        return rootDoc.classNamed(null, getGroovyDocClassName(node));
     }
 
     private static String getGroovyDocClassName(ClassNode node) {
         String packageName = node.getPackageName();
-        if (packageName == null)
-            return "DefaultPackage/" + node.getName();
+        if (packageName == null || packageName.isEmpty())
+            return "DefaultPackage/" + node.getName().replace('$', '.');
 
-        return packageName.replace('.', '/') + "/" + node.getName().substring(packageName.length() + 1);
+        String simpleClassName = node.getName().substring(packageName.length() + 1).replace('$', '.');
+        return packageName.replace('.', '/') + "/" + simpleClassName;
     }
 }
