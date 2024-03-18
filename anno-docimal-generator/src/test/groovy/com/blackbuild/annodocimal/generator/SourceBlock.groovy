@@ -28,11 +28,17 @@ package com.blackbuild.annodocimal.generator
  * This is by no ways complete and only works for a very limited set of cases.
  */
 class SourceBlock {
+    // Groovy 3+ adds additional annotations and their imports
+    public static final ArrayList<String> GROOVY3_IGNORED_IMPORTS = ["groovy.lang.MetaClass",
+                                                                     "groovy.transform.Generated",
+                                                                     "groovy.transform.Internal",
+                                                                     "java.beans.Transient"]
     List<String> javaDocLines
     String text
     String packageName
     List<String> imports
     List<SourceBlock> innerBlocks
+    List<String> annotations
     SourceBlock parent
     int indent
 
@@ -45,7 +51,7 @@ class SourceBlock {
             currentBlock = currentBlock.addLine(line)
         }
 
-        rootBlock.cleanEmptyBlocks()
+        rootBlock.cleanEmptyAndIgnoredBlocks()
         return rootBlock
     }
 
@@ -60,12 +66,18 @@ class SourceBlock {
 
         if (line.startsWith("import ")) {
             if (imports == null) imports = []
-            imports.add(line[7..-2])
+            def importPackage = line[7..-2]
+            if (!GROOVY3_IGNORED_IMPORTS.contains(importPackage))
+                imports.add(importPackage)
             return this
         }
 
         if (trimmedLine.startsWith("/**") || trimmedLine.startsWith("* ") || trimmedLine.startsWith("*/")) {
             addJavaDoc(line)
+            return this
+        }
+        if (trimmedLine.startsWith("@")) {
+            addAnnotation(trimmedLine)
             return this
         }
         if (trimmedLine.endsWith("{")) {
@@ -137,10 +149,13 @@ class SourceBlock {
         return result
     }
 
-    void cleanEmptyBlocks() {
+    void cleanEmptyAndIgnoredBlocks() {
         if (innerBlocks) {
-            innerBlocks.each { it.cleanEmptyBlocks() }
-            innerBlocks = innerBlocks.findAll { it.text }
+            innerBlocks.each { it.cleanEmptyAndIgnoredBlocks() }
+            innerBlocks.removeAll {
+                // Groovy 3+ adds additional methods to classes, we ignore the as well as empty blocks
+                !it.text || it.text.contains(" setMetaClass(") || it.text.contains(" getMetaClass()")
+            }
         }
     }
 
@@ -166,5 +181,10 @@ class SourceBlock {
             return "$type: $text $innerBlocks"
         else
             return "$type: $text"
+    }
+
+    void addAnnotation(String annotation) {
+        if (annotations == null) annotations = []
+        annotations.add(annotation)
     }
 }

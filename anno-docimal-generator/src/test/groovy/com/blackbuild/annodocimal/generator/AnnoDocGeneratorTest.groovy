@@ -114,12 +114,9 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generateSource()
 
         then:
-        generatedSource.startsWith('''
-package dummy;
-
-import groovy.lang.GroovyObject;
-
-public class TestClass implements GroovyObject {'''.trim())
+        generated.packageName == "dummy"
+        generated.imports == ["groovy.lang.GroovyObject"]
+        generated.text == "public class TestClass implements GroovyObject"
         generated.innerBlocks.size() == 3
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()")
