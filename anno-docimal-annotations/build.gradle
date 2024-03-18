@@ -22,6 +22,10 @@ java {
     }
 }
 
+dependencies {
+    compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
+}
+
 test {
     if (!rootProject.ext.groovyVersion.startsWith("2."))
         useJUnitPlatform()
