@@ -40,6 +40,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.stream.Collectors;
 
 public class GroovyDocToolSourceExtractor implements SourceExtractor {
 
@@ -92,11 +93,10 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
             minIndent = Math.min(minIndent, indent);
         }
 
-        for (int i = 0; i < lines.length; i++) {
-            if (lines[i].length() >= minIndent)
-                lines[i] = lines[i].substring(minIndent);
-        }
-        String joined = String.join("\n", lines);
+        int finalMinIndent = minIndent;
+        String joined = Arrays.stream(lines)
+                .map(line -> line.length() >= finalMinIndent ? line.substring(finalMinIndent) : "")
+                .collect(Collectors.joining("\n"));
 
         int start = 0;
         while (start < joined.length() && joined.charAt(start) == '\n')

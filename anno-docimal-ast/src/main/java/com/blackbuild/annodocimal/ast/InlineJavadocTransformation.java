@@ -39,10 +39,6 @@ public class InlineJavadocTransformation extends AbstractASTTransformation {
         ClassNode target = (ClassNode) nodes[1];
 
         new InlineJavadocVisitor(source).visitClass(target);
-
-        // Access the Javadoc of the class
-
-        // Rest of your code...
     }
 
 

@@ -31,10 +31,14 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.EnumSet;
 
+import static java.util.Arrays.stream;
+
 /**
  * Converts real reflection elements to their JavaPoet Spec counterparts.
  */
 public class SpecConverter {
+
+    private static final String INTERNAL_ANNOTATION = "groovy.transform.Internal";
 
     private SpecConverter() {
         // static only
@@ -47,48 +51,63 @@ public class SpecConverter {
     public static TypeSpec toTypeSpec(Class<?> type) {
         TypeSpec.Builder builder = TypeSpec.classBuilder(type.getSimpleName())
                 .superclass(type.getSuperclass())
-                .addModifiers(getModifiers(type.getModifiers()));
+                .addModifiers(decodeModifiers(type.getModifiers()));
 
-        for (Class<?> aClass : type.getInterfaces())
-            builder.addSuperinterface(aClass);
+        stream(type.getInterfaces())
+                .forEach(builder::addSuperinterface);
 
         for (Annotation annotation : type.getAnnotations())
-            if (annotation instanceof Javadocs)
+            if (isJavadocs(annotation))
                 builder.addJavadoc(((Javadocs) annotation).value());
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
-        for (Field field : type.getDeclaredFields()) {
-            if (shouldIgnore(field)) continue;
-            builder.addField(toFieldSpec(field));
-        }
+        stream(type.getDeclaredFields())
+                .filter(SpecConverter::shouldBeIncluded)
+                .map(SpecConverter::toFieldSpec)
+                .forEach(builder::addField);
 
-        for (Constructor<?> constructor : type.getDeclaredConstructors()) {
-            if (shouldIgnore(constructor)) continue;
-            builder.addMethod(toMethodSpec(constructor));
-        }
+        stream(type.getDeclaredConstructors())
+                .filter(SpecConverter::shouldBeIncluded)
+                .map(SpecConverter::toMethodSpec)
+                .forEach(builder::addMethod);
 
-        for (Method method : type.getDeclaredMethods()) {
-            if (shouldIgnore(method)) continue;
-            builder.addMethod(toMethodSpec(method));
-        }
+        stream(type.getDeclaredMethods())
+                .filter(SpecConverter::shouldBeIncluded)
+                .map(SpecConverter::toMethodSpec)
+                .forEach(builder::addMethod);
 
-        for (Class<?> declaredClass : type.getDeclaredClasses()) {
-            builder.addType(toTypeSpec(declaredClass));
-        }
+        stream(type.getDeclaredClasses())
+                .map(SpecConverter::toTypeSpec)
+                .forEach(builder::addType);
 
         return builder.build();
     }
 
-    private static boolean shouldIgnore(Member member) {
-        return member.isSynthetic() || (member.getModifiers() & 1) == 0 || member.getName().contains("$");
+    private static boolean isJavadocs(Annotation annotation) {
+        return annotation.annotationType().equals(Javadocs.class);
+    }
+
+    private static boolean shouldBeIncluded(Member member) {
+        return !member.isSynthetic()
+                && (member.getModifiers() & 1) != 0
+                && !member.getName().contains("$")
+                && !isInternal(member);
+    }
+
+    // Need to use type name since the annotations are not present in Groovy 2.4
+    // FIXME #2
+    private static boolean isInternal(Member member) {
+        if (!(member instanceof AnnotatedElement)) return false;
+        return stream(((AnnotatedElement) member).getAnnotations())
+                .anyMatch(annotation -> annotation.annotationType().getName().equals(SpecConverter.INTERNAL_ANNOTATION));
     }
 
     public static FieldSpec toFieldSpec(Field field) {
-        FieldSpec.Builder builder = FieldSpec.builder(field.getType(), field.getName(), getModifiers(field.getModifiers()));
+        FieldSpec.Builder builder = FieldSpec.builder(field.getType(), field.getName(), decodeModifiers(field.getModifiers()));
 
         for (Annotation annotation : field.getAnnotations())
-            if (annotation instanceof Javadocs)
+            if (isJavadocs(annotation))
                 builder.addJavadoc(((Javadocs) annotation).value());
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
@@ -96,28 +115,29 @@ public class SpecConverter {
         return builder.build();
     }
 
-    public static MethodSpec toMethodSpec(Executable method) {
-        MethodSpec.Builder builder = method instanceof Method ? MethodSpec.methodBuilder(method.getName()) : MethodSpec.constructorBuilder();
+    public static MethodSpec toMethodSpec(Executable constructorOrMethod) {
+        MethodSpec.Builder builder = constructorOrMethod instanceof Method ? MethodSpec.methodBuilder(constructorOrMethod.getName()) : MethodSpec.constructorBuilder();
 
-        builder.addModifiers(getModifiers(method.getModifiers()));
+        builder.addModifiers(decodeModifiers(constructorOrMethod.getModifiers()));
 
-        if (method instanceof Method)
-                builder.returns(((Method) method).getReturnType());
+        if (constructorOrMethod instanceof Method)
+            builder.returns(((Method) constructorOrMethod).getReturnType());
 
-        for (Annotation annotation : method.getAnnotations())
-            if (annotation instanceof Javadocs)
+        for (Annotation annotation : constructorOrMethod.getAnnotations())
+            if (isJavadocs(annotation))
                 builder.addJavadoc(((Javadocs) annotation).value());
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
-        for (Parameter param : method.getParameters())
-            builder.addParameter(toParameterSpec(param));
+        stream(constructorOrMethod.getParameters())
+                .map(SpecConverter::toParameterSpec)
+                .forEach(builder::addParameter);
 
         return builder.build();
     }
 
     public static ParameterSpec toParameterSpec(Parameter parameter) {
-        ParameterSpec.Builder builder = ParameterSpec.builder(parameter.getType(), parameter.getName(), getModifiers(parameter.getModifiers()));
+        ParameterSpec.Builder builder = ParameterSpec.builder(parameter.getType(), parameter.getName(), decodeModifiers(parameter.getModifiers()));
         if (parameter.isAnnotationPresent(Javadocs.class))
             builder.addJavadoc(parameter.getAnnotation(Javadocs.class).value());
         for (Annotation annotation : parameter.getAnnotations())
@@ -129,7 +149,7 @@ public class SpecConverter {
         return AnnotationSpec.get(annotation);
     }
 
-    static Modifier[] getModifiers(int mod) {
+    static Modifier[] decodeModifiers(int mod) {
         EnumSet<Modifier> result = EnumSet.noneOf(Modifier.class);
 
         if ((mod & 0x0001) != 0) result.add(Modifier.PUBLIC);
