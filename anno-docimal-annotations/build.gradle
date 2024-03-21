@@ -1,20 +1,15 @@
 plugins {
     id 'java-library'
-    id 'nebula.maven-publish'
-    id 'nebula.javadoc-jar'
-    id 'nebula.source-jar'
-    id 'nebula.release'
-    id 'nebula.contacts'
-// id'nebula.info'
     id 'groovy'
     id 'jacoco'
     id 'signing'
     id 'com.github.hierynomus.license'
+    id 'maven-publish'
 }
 
 description "Annontations for AnnoDocimal"
 
-group 'com.blackbuild.annodocimal'
+group rootProject.group
 
 java {
     toolchain {
@@ -30,29 +25,13 @@ test {
     if (!rootProject.ext.groovyVersion.startsWith("2."))
         useJUnitPlatform()
 }
-contacts {
-    'stephan@blackbuild.com' {
-        moniker 'Stephan Pauxberger'
-        github 'pauxus'
-    }
-}
 
 publishing {
     publications {
-        nebula(MavenPublication) {
-            pom {
-                url = "https://github.com/blackbuild/anno-docimal"
-                licenses {
-                    license {
-                        name = 'The MIT License (MIT)'
-                        url = 'http://opensource.org/licenses/MIT'
-                    }
-                }
-                scm {
-                    connection = 'scm:git:git@github.com:blackbuild/anno-docimal.git'
-                    developerConnection = 'scm:git:git@github.com:blackbuild/anno-docimal.git'
-                    url = 'https://github.com/blackbuild/anno-docimal'
-                }
+        mavenJava(MavenPublication) {
+            from(components.java)
+            pom { pom ->
+                rootProject.configurePom(pom, project)
             }
         }
     }
@@ -60,7 +39,7 @@ publishing {
 
 signing {
     required { gradle.taskGraph.hasTask("publish") || gradle.taskGraph.hasTask("publishToMavenLocal") }
-    sign publishing.publications.nebula
+    sign publishing.publications.mavenJava
 }
 
 license {

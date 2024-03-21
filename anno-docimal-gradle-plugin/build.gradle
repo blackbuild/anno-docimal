@@ -1,5 +1,6 @@
 plugins {
-    id 'java-library'
+    id 'com.gradle.plugin-publish'
+    id 'java-gradle-plugin'
     id 'groovy'
     id 'jacoco'
     id 'signing'
@@ -7,11 +8,35 @@ plugins {
     id 'maven-publish'
 }
 
-description "compileOnly part of AnnoDocimal"
+description "AnnoDocimal Stub Generator Gradle Plugin"
 
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
+gradlePlugin {
+
+    plugins {
+        annoDocimalPlugin {
+            id = 'com.blackbuild.annodocimal.plugin'
+            displayName = 'AnnoDocimal Plugin'
+            description = 'Create Javadocs for generated code'
+            implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalPlugin'
+            tags.addAll 'testing', 'groovy', 'cps', 'jenkins'
+        }
+    }
+
+    website = 'https://github.com/blackbuild/anno-docimal'
+    vcsUrl = 'https://github.com/blackbuild/anno-docimal.git'
+    description = project.description
+
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
     }
 }
 
@@ -23,8 +48,7 @@ group rootProject.group
 
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
-    api project(':anno-docimal-annotations')
-    api "com.squareup:javapoet:1.13.0"
+    api project(':anno-docimal-generator')
     testImplementation "org.jetbrains:annotations:16.0.2"
 
     compileOnly "org.jetbrains:annotations:16.0.2"
@@ -55,18 +79,18 @@ test {
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
-            from(components.java)
-            pom { pom ->
-                rootProject.configurePom(pom, project)
-            }
+        pluginMaven(MavenPublication)
+    }
+    publications.configureEach { publication ->
+        publication.pom { pom ->
+            rootProject.configurePom(pom, project)
         }
     }
 }
 
 signing {
     required { gradle.taskGraph.hasTask("publish") || gradle.taskGraph.hasTask("publishToMavenLocal") }
-    sign publishing.publications.mavenJava
+    sign publishing.publications.pluginMaven
 }
 
 license {
