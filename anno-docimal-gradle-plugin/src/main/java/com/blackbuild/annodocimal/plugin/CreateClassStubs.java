@@ -26,46 +26,57 @@ package com.blackbuild.annodocimal.plugin;
 import com.blackbuild.annodocimal.generator.AnnoDocGenerator;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileVisitDetails;
-import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.OutputDirectory;
-import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.tasks.*;
 import org.jetbrains.annotations.NotNull;
 
+import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-
+@CacheableTask
 public abstract class CreateClassStubs extends DefaultTask {
 
     private ClassLoader classLoader;
+    private FileCollection classpath;
 
-    @Input
-    public abstract Property<SourceSet> getSourceSet();
+    @CompileClasspath
+    public FileCollection getClasspath() {
+        return classpath;
+    }
+
+    public void setClasspath(FileCollection classpath) {
+        this.classpath = classpath;
+    }
+
+    @InputDirectory
+    @CompileClasspath
+    public abstract DirectoryProperty getClassesDir();
 
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
 
     @TaskAction
     public void execute() {
-        FileCollection classesDirs = getSourceSet().get().getOutput().getClassesDirs();
-        FileCollection runtimeClasspath = getSourceSet().get().getCompileClasspath().plus(classesDirs);
+        ConfigurableFileCollection runtimeClasspath = getObjectFactory().fileCollection();
+        runtimeClasspath.setFrom(getClassesDir(), getClasspath());
 
         createClassLoader(runtimeClasspath);
 
-        classesDirs.getAsFileTree()
+        getClassesDir().getAsFileTree()
                 .matching(f -> f.exclude("**/*$*").include("**/*.class"))
                 .visit(this::handleClassFile);
     }
 
     private void handleClassFile(FileVisitDetails fileVisitDetails) {
+        if (fileVisitDetails.isDirectory()) return;
         try {
             Class<?> clazz = classLoader.loadClass(toClassName(fileVisitDetails));
             AnnoDocGenerator.generate(clazz, getOutputDirectory().get().getAsFile());
@@ -93,6 +104,11 @@ public abstract class CreateClassStubs extends DefaultTask {
                 })
                 .toArray(URL[]::new);
         classLoader = new URLClassLoader(classpath);
+    }
+
+    @Inject
+    protected ObjectFactory getObjectFactory() {
+        throw new UnsupportedOperationException("Injected by Gradle");
     }
 
 }

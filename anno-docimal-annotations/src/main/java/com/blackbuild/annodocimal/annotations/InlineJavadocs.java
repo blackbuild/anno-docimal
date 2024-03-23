@@ -40,5 +40,5 @@ import java.lang.annotation.Target;
  */
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 @Retention(RetentionPolicy.SOURCE)
-@GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocTransformation")
+@GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")
 public @interface InlineJavadocs {}

@@ -24,14 +24,15 @@
 //file:noinspection GrPackage
 package com.blackbuild.annodocimal.ast
 
-import com.blackbuild.annodocimal.annotations.Javadocs
+
+import com.blackbuild.annodocimal.annotations.AnnoDoc
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.intellij.lang.annotations.Language
 import org.junit.Rule
 import org.junit.rules.TestName
 import spock.lang.Specification
 
-class InlineJavadocTransformationTest extends Specification {
+class InlineJavadocsTransformationTest extends Specification {
     @Rule TestName testName = new TestName()
     ClassLoader oldLoader
     GroovyClassLoader loader
@@ -42,7 +43,7 @@ class InlineJavadocTransformationTest extends Specification {
     def setup() {
         oldLoader = Thread.currentThread().contextClassLoader
         compilerConfiguration = new CompilerConfiguration()
-        //compilerConfiguration.addCompilationCustomizers(new ASTTransformationCustomizer(new InlineJavadocTransformation()))
+        //compilerConfiguration.addCompilationCustomizers(new ASTTransformationCustomizer(new InlineJavadocsTransformation()))
         def outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")
         outputDirectory.deleteDir()
         outputDirectory.mkdirs()
@@ -103,16 +104,16 @@ class TestClass {
 '''
 
         then:
-        clazz.getAnnotation(Javadocs).value() == 'This is a test class'
-        clazz.getMethod("method").getAnnotation(Javadocs).value() == 'A method'
-        clazz.getDeclaredField("name").getAnnotation(Javadocs).value() == 'A name'
+        clazz.getAnnotation(AnnoDoc).value() == 'This is a test class'
+        clazz.getMethod("method").getAnnotation(AnnoDoc).value() == 'A method'
+        clazz.getDeclaredField("name").getAnnotation(AnnoDoc).value() == 'A name'
 
         when:
         def innerClass = clazz.getDeclaredClasses().find { it.simpleName == "InnerClass" }
 
         then:
-        innerClass.getAnnotation(Javadocs).value() == 'Inner class'
-        innerClass.getMethod("innerMethod").getAnnotation(Javadocs).value() == 'Inner class method'
+        innerClass.getAnnotation(AnnoDoc).value() == 'Inner class'
+        innerClass.getMethod("innerMethod").getAnnotation(AnnoDoc).value() == 'Inner class method'
     }
 
 

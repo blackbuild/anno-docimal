@@ -31,14 +31,14 @@ import org.codehaus.groovy.transform.AbstractASTTransformation;
 import org.codehaus.groovy.transform.GroovyASTTransformation;
 
 @GroovyASTTransformation(phase = CompilePhase.SEMANTIC_ANALYSIS)
-public class InlineJavadocTransformation extends AbstractASTTransformation {
+public class InlineJavadocsTransformation extends AbstractASTTransformation {
 
     @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
         init(nodes, source);
         ClassNode target = (ClassNode) nodes[1];
 
-        new InlineJavadocVisitor(source).visitClass(target);
+        new InlineJavadocsVisitor(source).visitClass(target);
     }
 
 

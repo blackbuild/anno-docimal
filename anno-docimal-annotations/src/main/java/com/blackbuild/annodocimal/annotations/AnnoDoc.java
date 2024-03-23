@@ -28,6 +28,6 @@ import java.lang.annotation.Retention;
 
 @java.lang.annotation.Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
 @Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
-public @interface Javadocs {
+public @interface AnnoDoc {
     String value();
 }
