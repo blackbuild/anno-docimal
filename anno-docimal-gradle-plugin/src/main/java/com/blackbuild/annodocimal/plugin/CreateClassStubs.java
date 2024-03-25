@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.plugin;
 
+import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.blackbuild.annodocimal.generator.AnnoDocGenerator;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
@@ -93,7 +94,7 @@ public abstract class CreateClassStubs extends DefaultTask {
     }
 
     private void createClassLoader(FileCollection runtimeClasspath) {
-        URL[] classpath = runtimeClasspath.getFiles().stream()
+        URL[] classpathArray = runtimeClasspath.getFiles().stream()
                 .map(File::toURI)
                 .map(uri -> {
                     try {
@@ -103,7 +104,9 @@ public abstract class CreateClassStubs extends DefaultTask {
                     }
                 })
                 .toArray(URL[]::new);
-        classLoader = new URLClassLoader(classpath);
+        // parent must be own class loader, since the runtime classpath usually also contains
+        // the AnnoDoc annotation which would lead to the class check and casting to fail
+        classLoader = new URLClassLoader(classpathArray, AnnoDoc.class.getClassLoader());
     }
 
     @Inject
