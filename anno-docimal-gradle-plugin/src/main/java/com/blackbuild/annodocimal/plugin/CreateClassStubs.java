@@ -31,11 +31,9 @@ import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileVisitDetails;
-import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.tasks.*;
 import org.jetbrains.annotations.NotNull;
 
-import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -46,28 +44,50 @@ import java.net.URLClassLoader;
 public abstract class CreateClassStubs extends DefaultTask {
 
     private ClassLoader classLoader;
-    private FileCollection classpath;
+    private final ConfigurableFileCollection classpath = getProject().getObjects().fileCollection();
+    private final ConfigurableFileCollection classesDirs = getProject().getObjects().fileCollection();
 
     @CompileClasspath
     public FileCollection getClasspath() {
         return classpath;
     }
 
-    public void setClasspath(FileCollection classpath) {
-        this.classpath = classpath;
+    public void classpath(FileCollection classpath) {
+        this.classpath.from(classpath);
     }
 
-    @InputDirectory
     @CompileClasspath
-    public abstract DirectoryProperty getClassesDir();
+    public FileCollection getClassesDir() {
+        return classesDirs;
+    }
 
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
 
+    public void javaSource(SourceSet sourceSet) {
+        classesDirs.from(sourceSet.getJava().getClassesDirectory());
+        addSourceSet(sourceSet);
+    }
+
+    public void groovySource(SourceSet sourceSet) {
+        classesDirs.from(sourceSet.getExtensions().getByType(GroovySourceDirectorySet.class).getClassesDirectory());
+        addSourceSet(sourceSet);
+    }
+
+    public void sourceSet(SourceSet sourceSet) {
+        classesDirs.from(sourceSet.getOutput().getClassesDirs().getSingleFile());
+        addSourceSet(sourceSet);
+    }
+
+    private void addSourceSet(SourceSet sourceSet) {
+        classpath(sourceSet.getCompileClasspath());
+        getOutputDirectory().set(getProject().getLayout().getBuildDirectory().dir("generated/annodocimal/" + sourceSet.getName()));
+    }
+
     @TaskAction
     public void execute() {
-        ConfigurableFileCollection runtimeClasspath = getObjectFactory().fileCollection();
-        runtimeClasspath.setFrom(getClassesDir(), getClasspath());
+        ConfigurableFileCollection runtimeClasspath = getProject().getObjects().fileCollection();
+        runtimeClasspath.from(classesDirs, classpath);
 
         createClassLoader(runtimeClasspath);
 
@@ -108,10 +128,4 @@ public abstract class CreateClassStubs extends DefaultTask {
         // the AnnoDoc annotation which would lead to the class check and casting to fail
         classLoader = new URLClassLoader(classpathArray, AnnoDoc.class.getClassLoader());
     }
-
-    @Inject
-    protected ObjectFactory getObjectFactory() {
-        throw new UnsupportedOperationException("Injected by Gradle");
-    }
-
 }

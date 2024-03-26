@@ -26,19 +26,16 @@ package com.blackbuild.annodocimal.plugin;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPluginExtension;
-import org.gradle.api.tasks.GroovySourceDirectorySet;
-import org.gradle.api.tasks.javadoc.Javadoc;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.javadoc.Javadoc;
 
 public class AnnoDocimalPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         TaskProvider<CreateClassStubs> provider = project.getTasks().register("createClassStubs", CreateClassStubs.class, task -> {
             SourceSet mainSourceSet = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-            task.getClassesDir().set(mainSourceSet.getExtensions().getByType(GroovySourceDirectorySet.class).getClassesDirectory());
-            task.setClasspath(mainSourceSet.getCompileClasspath());
-            task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("generated/annodocimal/" + SourceSet.MAIN_SOURCE_SET_NAME));
+            task.groovySource(mainSourceSet);
         });
 
         project.getTasks().named("javadoc", task -> {
