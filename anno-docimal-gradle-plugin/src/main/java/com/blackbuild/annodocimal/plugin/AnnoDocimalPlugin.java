@@ -21,24 +21,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.annotations;
+package com.blackbuild.annodocimal.plugin;
 
-import org.codehaus.groovy.transform.GroovyASTTransformationClass;
+import org.gradle.api.Plugin;
+import org.gradle.api.Project;
+import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.javadoc.Javadoc;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+public class AnnoDocimalPlugin implements Plugin<Project> {
+    @Override
+    public void apply(Project project) {
+        TaskProvider<CreateClassStubs> provider = project.getTasks().register("createClassStubs", CreateClassStubs.class, task -> {
+            SourceSet mainSourceSet = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+            task.groovySource(mainSourceSet);
+        });
 
-/**
- * This annotation triggers an AST transformation that converts source code javadoc comments into
- * Javadoc annotations.
- * <p>
- *     Usually, this will be initiated by custom annotation or via a global transformation, so this
- *     annotations is mostly used for testing purposes or special corner cases.
- * </p>
- */
-@Target({ElementType.PACKAGE, ElementType.TYPE})
-@Retention(RetentionPolicy.SOURCE)
-@GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")
-public @interface InlineJavadocs {}
+        project.getTasks().named("javadoc", task -> {
+            task.dependsOn(provider);
+            ((Javadoc) task).setSource(provider.flatMap(CreateClassStubs::getOutputDirectory));
+        });
+
+
+    }
+}

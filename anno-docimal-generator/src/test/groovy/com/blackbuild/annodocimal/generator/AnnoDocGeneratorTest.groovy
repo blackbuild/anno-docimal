@@ -61,14 +61,14 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         createClass("""
             package dummy
      
-            import com.blackbuild.annodocimal.annotations.Javadocs
+            import com.blackbuild.annodocimal.annotations.AnnoDoc
             
-            @Javadocs("This is a test class")
+            @AnnoDoc("This is a test class")
             class TestClass {
-                @Javadocs("This is a field")
+                @AnnoDoc("This is a field")
                 String field
                 
-                @Javadocs("This is a method")
+                @AnnoDoc("This is a method")
                 void method() {
                     println "Hello"
                 }
@@ -95,7 +95,7 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         createClass("""
             package dummy
      
-            import com.blackbuild.annodocimal.annotations.Javadocs
+            import com.blackbuild.annodocimal.annotations.AnnoDoc
             
             class TestClass {
                 void method() {

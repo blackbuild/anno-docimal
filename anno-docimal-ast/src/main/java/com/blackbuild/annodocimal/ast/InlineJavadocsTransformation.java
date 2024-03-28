@@ -21,24 +21,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.annotations;
+package com.blackbuild.annodocimal.ast;
 
-import org.codehaus.groovy.transform.GroovyASTTransformationClass;
+import org.codehaus.groovy.ast.ASTNode;
+import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.control.CompilePhase;
+import org.codehaus.groovy.control.SourceUnit;
+import org.codehaus.groovy.transform.AbstractASTTransformation;
+import org.codehaus.groovy.transform.GroovyASTTransformation;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+@GroovyASTTransformation(phase = CompilePhase.SEMANTIC_ANALYSIS)
+public class InlineJavadocsTransformation extends AbstractASTTransformation {
 
-/**
- * This annotation triggers an AST transformation that converts source code javadoc comments into
- * Javadoc annotations.
- * <p>
- *     Usually, this will be initiated by custom annotation or via a global transformation, so this
- *     annotations is mostly used for testing purposes or special corner cases.
- * </p>
- */
-@Target({ElementType.PACKAGE, ElementType.TYPE})
-@Retention(RetentionPolicy.SOURCE)
-@GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")
-public @interface InlineJavadocs {}
+    @Override
+    public void visit(ASTNode[] nodes, SourceUnit source) {
+        init(nodes, source);
+        ClassNode target = (ClassNode) nodes[1];
+
+        new InlineJavadocsVisitor(source).visitClass(target);
+    }
+
+
+}

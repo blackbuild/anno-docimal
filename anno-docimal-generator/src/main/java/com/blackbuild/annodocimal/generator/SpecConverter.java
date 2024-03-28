@@ -23,7 +23,7 @@
  */
 package com.blackbuild.annodocimal.generator;
 
-import com.blackbuild.annodocimal.annotations.Javadocs;
+import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.squareup.javapoet.*;
 
 import javax.lang.model.element.Modifier;
@@ -58,7 +58,7 @@ public class SpecConverter {
 
         for (Annotation annotation : type.getAnnotations())
             if (isJavadocs(annotation))
-                builder.addJavadoc(((Javadocs) annotation).value());
+                builder.addJavadoc(((AnnoDoc) annotation).value());
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -85,7 +85,7 @@ public class SpecConverter {
     }
 
     private static boolean isJavadocs(Annotation annotation) {
-        return annotation.annotationType().equals(Javadocs.class);
+        return annotation.annotationType().equals(AnnoDoc.class);
     }
 
     private static boolean shouldBeIncluded(Member member) {
@@ -108,7 +108,7 @@ public class SpecConverter {
 
         for (Annotation annotation : field.getAnnotations())
             if (isJavadocs(annotation))
-                builder.addJavadoc(((Javadocs) annotation).value());
+                builder.addJavadoc(((AnnoDoc) annotation).value());
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -125,7 +125,7 @@ public class SpecConverter {
 
         for (Annotation annotation : constructorOrMethod.getAnnotations())
             if (isJavadocs(annotation))
-                builder.addJavadoc(((Javadocs) annotation).value());
+                builder.addJavadoc(((AnnoDoc) annotation).value());
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -138,8 +138,8 @@ public class SpecConverter {
 
     public static ParameterSpec toParameterSpec(Parameter parameter) {
         ParameterSpec.Builder builder = ParameterSpec.builder(parameter.getType(), parameter.getName(), decodeModifiers(parameter.getModifiers()));
-        if (parameter.isAnnotationPresent(Javadocs.class))
-            builder.addJavadoc(parameter.getAnnotation(Javadocs.class).value());
+        if (parameter.isAnnotationPresent(AnnoDoc.class))
+            builder.addJavadoc(parameter.getAnnotation(AnnoDoc.class).value());
         for (Annotation annotation : parameter.getAnnotations())
             builder.addAnnotation(toAnnotationSpec(annotation));
         return builder.build();

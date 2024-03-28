@@ -3,8 +3,6 @@ plugins {
     id 'base'
 
     id "com.github.hierynomus.license"
-    id 'org.ajoberstar.git-publish'
-    id 'org.ajoberstar.grgit'
     id "com.github.ben-manes.versions"
     id "io.github.gradle-nexus.publish-plugin"
 }
@@ -23,13 +21,34 @@ nexusPublishing {
     }
 }
 
-releaseCheck.doLast {
-    if (!gradle.includedBuilds.isEmpty())
-        throw new GradleException("Releasing is not allowed with composite builds. Please release $gradle.includedBuilds separately")
+def configurePom(pom, Project module) {
+    pom.name = module.name
+    pom.description = module.description
 
-    if (JavaVersion.current() != JavaVersion.VERSION_11)
-        throw new GradleException("Releasing must be done with JDK 11")
+    pom.url = 'https://github.com/blackbuild/anno-docimal.git'
 
-    if (!project.ext.groovyVersion.startsWith("2."))
-        throw new GradleException("Releasing must be done with Groovy 2.4")
+    pom.scm {
+        url = 'https://github.com/blackbuild/anno-docimal.git'
+        connection = 'scm:git:https://github.com/blackbuild/anno-docimal.git'
+        developerConnection = 'scm:git:https://github.com/blackbuild/anno-docimal.git'
+    }
+
+    pom.licenses {
+        license {
+            name = 'MIT License (MIT)'
+            url = 'https://opensource.org/licenses/MIT'
+            distribution = 'repo'
+        }
+    }
+
+    pom.developers {
+        developer {
+            id = 'pauxus'
+            name = 'Stephan Pauxberger'
+            email = 'stephan@blackbuild.com'
+            url = 'https://github.com/pauxus'
+        }
+    }
 }
+
+

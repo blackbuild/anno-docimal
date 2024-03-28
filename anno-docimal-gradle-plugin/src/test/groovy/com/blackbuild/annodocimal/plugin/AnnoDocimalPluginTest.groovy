@@ -21,25 +21,43 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.ast;
+package com.blackbuild.annodocimal.plugin
 
-import org.codehaus.groovy.ast.ASTNode;
-import org.codehaus.groovy.ast.ClassNode;
-import org.codehaus.groovy.control.CompilePhase;
-import org.codehaus.groovy.control.SourceUnit;
-import org.codehaus.groovy.transform.AbstractASTTransformation;
-import org.codehaus.groovy.transform.GroovyASTTransformation;
+import org.gradle.testkit.runner.BuildResult
+import org.gradle.testkit.runner.GradleRunner
+import spock.lang.Shared
+import spock.lang.Specification
 
-@GroovyASTTransformation(phase = CompilePhase.SEMANTIC_ANALYSIS)
-public class InlineJavadocTransformation extends AbstractASTTransformation {
+class AnnoDocimalPluginTest extends Specification {
 
-    @Override
-    public void visit(ASTNode[] nodes, SourceUnit source) {
-        init(nodes, source);
-        ClassNode target = (ClassNode) nodes[1];
+    @Shared File scenarioRoot = new File("src/test/scenarios")
+    @Shared File target = new File("build/test-scenarios")
 
-        new InlineJavadocVisitor(source).visitClass(target);
+    TestScenario scenario
+
+    def "test scenario #name"(String name) {
+        given:
+        scenario = new TestScenario(name, scenarioRoot, target).prepareScenario()
+
+        when:
+        def result = runTask()
+
+        then:
+        noExceptionThrown()
+        scenario.outputMatchesExpectations()
+
+        where:
+        name << scenarioRoot.listFiles().findAll { it.isDirectory() }.collect { it.name }
     }
 
 
+    protected BuildResult runTask() {
+        return GradleRunner.create()
+                .withProjectDir(scenario.projectDir)
+                .withArguments(scenario.tasks)
+                .withDebug(true)
+                .withPluginClasspath()
+                .forwardOutput()
+                .build()
+    }
 }
