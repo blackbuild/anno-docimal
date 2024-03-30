@@ -30,8 +30,8 @@ import spock.lang.Specification
 
 class AnnoDocimalPluginTest extends Specification {
 
-    @Shared File scenarioRoot = new File("src/test/scenarios")
-    @Shared File target = new File("build/test-scenarios")
+    @Shared File scenarioRoot = new File("src/test/scenarios").absoluteFile
+    @Shared File target = new File("build/test-scenarios").absoluteFile
 
     TestScenario scenario
 
@@ -49,7 +49,6 @@ class AnnoDocimalPluginTest extends Specification {
         where:
         name << scenarioRoot.listFiles().findAll { it.isDirectory() }.collect { it.name }
     }
-
 
     protected BuildResult runTask() {
         return GradleRunner.create()

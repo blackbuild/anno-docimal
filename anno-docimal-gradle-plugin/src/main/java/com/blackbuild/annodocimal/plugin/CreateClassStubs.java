@@ -23,8 +23,10 @@
  */
 package com.blackbuild.annodocimal.plugin;
 
-import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.blackbuild.annodocimal.generator.AnnoDocGenerator;
+import org.apache.bcel.Repository;
+import org.apache.bcel.util.ClassPath;
+import org.apache.bcel.util.ClassPathRepository;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
@@ -34,27 +36,12 @@ import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.tasks.*;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 @CacheableTask
 public abstract class CreateClassStubs extends DefaultTask {
 
-    private ClassLoader classLoader;
-    private final ConfigurableFileCollection classpath = getProject().getObjects().fileCollection();
     private final ConfigurableFileCollection classesDirs = getProject().getObjects().fileCollection();
-
-    @CompileClasspath
-    public FileCollection getClasspath() {
-        return classpath;
-    }
-
-    public void classpath(FileCollection classpath) {
-        this.classpath.from(classpath);
-    }
 
     @CompileClasspath
     public FileCollection getClassesDir() {
@@ -64,33 +51,14 @@ public abstract class CreateClassStubs extends DefaultTask {
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
 
-    public void javaSource(SourceSet sourceSet) {
-        classesDirs.from(sourceSet.getJava().getClassesDirectory());
-        addSourceSet(sourceSet);
-    }
-
-    public void groovySource(SourceSet sourceSet) {
-        classesDirs.from(sourceSet.getExtensions().getByType(GroovySourceDirectorySet.class).getClassesDirectory());
-        addSourceSet(sourceSet);
-    }
-
-    public void sourceSet(SourceSet sourceSet) {
-        classesDirs.from(sourceSet.getOutput().getClassesDirs().getSingleFile());
-        addSourceSet(sourceSet);
-    }
-
-    private void addSourceSet(SourceSet sourceSet) {
-        classpath(sourceSet.getCompileClasspath());
-        getOutputDirectory().set(getProject().getLayout().getBuildDirectory().dir("generated/annodocimal/" + sourceSet.getName()));
+    public CreateClassStubs classes(Object... classes) {
+        this.classesDirs.from(classes);
+        return this;
     }
 
     @TaskAction
     public void execute() {
-        ConfigurableFileCollection runtimeClasspath = getProject().getObjects().fileCollection();
-        runtimeClasspath.from(classesDirs, classpath);
-
-        createClassLoader(runtimeClasspath);
-
+        Repository.setRepository(new ClassPathRepository(new ClassPath(getClassesDir().getAsPath())));
         getClassesDir().getAsFileTree()
                 .matching(f -> f.exclude("**/*$*").include("**/*.class"))
                 .visit(this::handleClassFile);
@@ -99,10 +67,7 @@ public abstract class CreateClassStubs extends DefaultTask {
     private void handleClassFile(FileVisitDetails fileVisitDetails) {
         if (fileVisitDetails.isDirectory()) return;
         try {
-            Class<?> clazz = classLoader.loadClass(toClassName(fileVisitDetails));
-            AnnoDocGenerator.generate(clazz, getOutputDirectory().get().getAsFile());
-        } catch (ClassNotFoundException e) {
-            throw new GradleException("Error loading class " + toClassName(fileVisitDetails), e);
+            AnnoDocGenerator.generate(fileVisitDetails.getFile(), getOutputDirectory().get().getAsFile());
         } catch (IOException e) {
             throw new GradleException("Could not write stub for " + toClassName(fileVisitDetails), e);
         }
@@ -113,19 +78,4 @@ public abstract class CreateClassStubs extends DefaultTask {
         return fileVisitDetails.getRelativePath().toString().replace(".class", "").replace("/", ".");
     }
 
-    private void createClassLoader(FileCollection runtimeClasspath) {
-        URL[] classpathArray = runtimeClasspath.getFiles().stream()
-                .map(File::toURI)
-                .map(uri -> {
-                    try {
-                        return uri.toURL();
-                    } catch (MalformedURLException e) {
-                        throw new GradleException("Error creating classloader from classpath", e);
-                    }
-                })
-                .toArray(URL[]::new);
-        // parent must be own class loader, since the runtime classpath usually also contains
-        // the AnnoDoc annotation which would lead to the class check and casting to fail
-        classLoader = new URLClassLoader(classpathArray, AnnoDoc.class.getClassLoader());
-    }
 }

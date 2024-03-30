@@ -19,6 +19,9 @@ public class Test implements GroovyObject {
    * Inner class
    */
   public static class InnerClass implements GroovyObject {
+    public InnerClass() {
+    }
+
     /**
      * Inner class method
      */
