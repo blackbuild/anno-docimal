@@ -25,10 +25,25 @@
 //file:noinspection GrMethodMayBeStatic
 package com.blackbuild.annodocimal.generator
 
+import org.apache.bcel.Repository
+import org.apache.bcel.classfile.Utility
+import org.apache.bcel.util.ClassPath
+import org.apache.bcel.util.ClassPathRepository
+
 class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
     String generatedSource
     SourceBlock generated
+
+    @Override
+    def setup() {
+        Repository.setRepository(new ClassPathRepository(new ClassPath(outputDirectory.absolutePath)))
+    }
+
+    @Override
+    def cleanup() {
+        Repository.clearCache()
+    }
 
     def "basic conversion"() {
         given:
@@ -120,13 +135,21 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generated.innerBlocks.size() == 3
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()")
-        generated.getBlock("public static class InnerClass implements GroovyObject").innerBlocks.size() == 1
-        generated.getBlock("public static class InnerClass implements GroovyObject").getBlock("public void innerMethod()")
+
+
+        when:
+        def innerClass = generated.getBlock("public static class InnerClass implements GroovyObject")
+
+        then:
+        innerClass.innerBlocks.size() == 2
+        innerClass.getBlock("public InnerClass()")
+        innerClass.getBlock("public void innerMethod()")
     }
 
     void generateSource() {
         StringBuilder builder = new StringBuilder()
-        AnnoDocGenerator.generate(clazz, builder)
+
+        AnnoDocGenerator.generate(new File(outputDirectory, Utility.packageToPath(clazz.getName()) + ".class"), builder)
         generatedSource = builder.toString()
         generated = SourceBlock.fromtext(generatedSource)
     }

@@ -36,13 +36,14 @@ abstract class ClassGeneratingTest extends Specification {
     GroovyClassLoader loader
     CompilerConfiguration compilerConfiguration
     Class<?> clazz
+    File outputDirectory
 
     def setup() {
         oldLoader = Thread.currentThread().contextClassLoader
         compilerConfiguration = new CompilerConfiguration()
         loader = new GroovyClassLoader(Thread.currentThread().getContextClassLoader(), compilerConfiguration)
         Thread.currentThread().contextClassLoader = loader
-        def outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")
+        outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")
         outputDirectory.deleteDir()
         outputDirectory.mkdirs()
         compilerConfiguration.targetDirectory = outputDirectory
