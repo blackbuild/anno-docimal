@@ -25,6 +25,7 @@ dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     api project(':anno-docimal-annotations')
     api "com.squareup:javapoet:1.13.0"
+    api "org.apache.bcel:bcel:6.8.2"
     testImplementation "org.jetbrains:annotations:16.0.2"
 
     compileOnly "org.jetbrains:annotations:16.0.2"

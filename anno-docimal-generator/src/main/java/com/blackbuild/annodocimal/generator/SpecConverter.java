@@ -25,11 +25,21 @@ package com.blackbuild.annodocimal.generator;
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.squareup.javapoet.*;
+import org.apache.bcel.Const;
+import org.apache.bcel.Repository;
+import org.apache.bcel.classfile.*;
+import org.apache.bcel.generic.Type;
 
+import javax.annotation.processing.Generated;
 import javax.lang.model.element.Modifier;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static java.util.Arrays.stream;
 
@@ -39,57 +49,91 @@ import static java.util.Arrays.stream;
 public class SpecConverter {
 
     private static final String INTERNAL_ANNOTATION = "groovy.transform.Internal";
+    private static final String ANNO_DOC_ANNOTATION = Utility.getSignature(AnnoDoc.class.getName());
+    private static final String APT_GENERATED_ANNOTATION = Utility.getSignature(Generated.class.getName());
+    private static final String GROOVY_GENERATED_ANNOTATION = Utility.getSignature("groovy.transform.Generated");
 
     private SpecConverter() {
         // static only
     }
 
     public static JavaFile toJavaFile(Class<?> type) {
-        return JavaFile.builder(type.getPackage().getName(), toTypeSpec(type)).build();
+        return null;
     }
 
-    public static TypeSpec toTypeSpec(Class<?> type) {
-        TypeSpec.Builder builder = TypeSpec.classBuilder(type.getSimpleName())
-                .superclass(type.getSuperclass())
-                .addModifiers(decodeModifiers(type.getModifiers()));
+    public static JavaFile toJavaFile(File source) throws IOException {
+        JavaClass javaClass = new ClassParser(source.getAbsolutePath()).parse();
+        return JavaFile.builder(javaClass.getPackageName(), toTypeSpec(javaClass, false)).build();
+    }
 
-        stream(type.getInterfaces())
+    public static TypeSpec toTypeSpec(JavaClass type, boolean staticInnerClass) {
+        ClassName typeName = ClassName.bestGuess(type.getClassName().replace('$', '.'));
+        TypeSpec.Builder builder = TypeSpec.classBuilder(typeName)
+                .superclass(ClassName.bestGuess(type.getSuperclassName()))
+                .addModifiers(decodeModifiers(type));
+        if (staticInnerClass) builder.addModifiers(Modifier.STATIC);
+
+        stream(type.getInterfaceNames())
+                .map(ClassName::bestGuess)
                 .forEach(builder::addSuperinterface);
 
-        for (Annotation annotation : type.getAnnotations())
+        for (AnnotationEntry annotation : type.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(((AnnoDoc) annotation).value());
+                builder.addJavadoc(getMemberValue(annotation, "value"));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
-        stream(type.getDeclaredFields())
+        stream(type.getFields())
                 .filter(SpecConverter::shouldBeIncluded)
                 .map(SpecConverter::toFieldSpec)
                 .forEach(builder::addField);
 
-        stream(type.getDeclaredConstructors())
+        stream(type.getMethods())
                 .filter(SpecConverter::shouldBeIncluded)
                 .map(SpecConverter::toMethodSpec)
                 .forEach(builder::addMethod);
 
-        stream(type.getDeclaredMethods())
-                .filter(SpecConverter::shouldBeIncluded)
-                .map(SpecConverter::toMethodSpec)
-                .forEach(builder::addMethod);
 
-        stream(type.getDeclaredClasses())
-                .map(SpecConverter::toTypeSpec)
-                .forEach(builder::addType);
+        InnerClasses innerClassesAttribute = stream(type.getAttributes()).filter(attr -> attr instanceof InnerClasses).map(attr -> (InnerClasses) attr).findFirst().orElse(null);
+
+        if (innerClassesAttribute != null)
+            stream(innerClassesAttribute.getInnerClasses())
+                    .filter(innerClass -> isInnerClassOf(innerClass, type))
+                    .map(innerClass -> toInnerTypeSpec(innerClass, type))
+                    .forEach(builder::addType);
 
         return builder.build();
     }
 
-    private static boolean isJavadocs(Annotation annotation) {
-        return annotation.annotationType().equals(AnnoDoc.class);
+    public static TypeSpec toInnerTypeSpec(InnerClass innerClass, JavaClass type) {
+        String innerClassName = type.getConstantPool().getConstantString(innerClass.getInnerClassIndex(), org.apache.bcel.Const.CONSTANT_Class);
+        try {
+            JavaClass innerType = Repository.lookupClass(innerClassName);
+            return toTypeSpec(innerType, (innerClass.getInnerAccessFlags() & Const.ACC_STATIC) != 0);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private static boolean shouldBeIncluded(Member member) {
+    private static boolean isInnerClassOf(InnerClass innerClass, JavaClass type) {
+        return type.getClassNameIndex() == innerClass.getOuterClassIndex();
+    }
+
+    private static boolean isJavadocs(AnnotationEntry annotation) {
+        return annotation.getAnnotationType().equals(ANNO_DOC_ANNOTATION);
+    }
+
+    private static String getMemberValue(AnnotationEntry annotation, String memberName) {
+        return stream(annotation.getElementValuePairs())
+                .filter(pair -> pair.getNameString().equals(memberName))
+                .map(pair -> pair.getValue().stringifyValue())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static boolean shouldBeIncluded(FieldOrMethod member) {
         return !member.isSynthetic()
+                && member.isPublic()
                 && (member.getModifiers() & 1) != 0
                 && !member.getName().contains("$")
                 && !isInternal(member);
@@ -97,65 +141,99 @@ public class SpecConverter {
 
     // Need to use type name since the annotations are not present in Groovy 2.4
     // FIXME #2
-    private static boolean isInternal(Member member) {
-        if (!(member instanceof AnnotatedElement)) return false;
-        return stream(((AnnotatedElement) member).getAnnotations())
-                .anyMatch(annotation -> annotation.annotationType().getName().equals(SpecConverter.INTERNAL_ANNOTATION));
+    private static boolean isInternal(FieldOrMethod member) {
+        return stream(member.getAnnotationEntries())
+                .anyMatch(annotation -> annotation.getAnnotationType().equals(SpecConverter.INTERNAL_ANNOTATION));
     }
 
-    public static FieldSpec toFieldSpec(Field field) {
-        FieldSpec.Builder builder = FieldSpec.builder(field.getType(), field.getName(), decodeModifiers(field.getModifiers()));
+    public static FieldSpec toFieldSpec(org.apache.bcel.classfile.Field field) {
+        ClassName className = ClassName.bestGuess(field.getType().toString());
+        FieldSpec.Builder builder = FieldSpec.builder(className, field.getName(), decodeModifiers(field));
 
-        for (Annotation annotation : field.getAnnotations())
+        for (AnnotationEntry annotation : field.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(((AnnoDoc) annotation).value());
+                builder.addJavadoc(getMemberValue(annotation, "value"));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
         return builder.build();
     }
 
-    public static MethodSpec toMethodSpec(Executable constructorOrMethod) {
-        MethodSpec.Builder builder = constructorOrMethod instanceof Method ? MethodSpec.methodBuilder(constructorOrMethod.getName()) : MethodSpec.constructorBuilder();
+    public static MethodSpec toMethodSpec(org.apache.bcel.classfile.Method constructorOrMethod) {
+        boolean isConstructor = constructorOrMethod.getName().equals("<init>");
+        MethodSpec.Builder builder = isConstructor ? MethodSpec.constructorBuilder() : MethodSpec.methodBuilder(constructorOrMethod.getName());
 
-        builder.addModifiers(decodeModifiers(constructorOrMethod.getModifiers()));
+        builder.addModifiers(decodeModifiers(constructorOrMethod));
 
-        if (constructorOrMethod instanceof Method)
-            builder.returns(((Method) constructorOrMethod).getReturnType());
+        if (!isConstructor && !constructorOrMethod.getReturnType().equals(Type.VOID))
+            builder.returns(ClassName.bestGuess(constructorOrMethod.getReturnType().getClassName()));
 
-        for (Annotation annotation : constructorOrMethod.getAnnotations())
+        for (AnnotationEntry annotation : constructorOrMethod.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(((AnnoDoc) annotation).value());
+                builder.addJavadoc(getMemberValue(annotation, "value"));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
-        stream(constructorOrMethod.getParameters())
-                .map(SpecConverter::toParameterSpec)
-                .forEach(builder::addParameter);
+        List<String> argumentNames = getArgumentNames(constructorOrMethod);
+
+        IntStream.range(0, argumentNames.size())
+                .forEach(i -> builder.addParameter(toParameterSpec(constructorOrMethod, i, argumentNames.get(i))));
 
         return builder.build();
     }
 
-    public static ParameterSpec toParameterSpec(Parameter parameter) {
-        ParameterSpec.Builder builder = ParameterSpec.builder(parameter.getType(), parameter.getName(), decodeModifiers(parameter.getModifiers()));
-        if (parameter.isAnnotationPresent(AnnoDoc.class))
-            builder.addJavadoc(parameter.getAnnotation(AnnoDoc.class).value());
-        for (Annotation annotation : parameter.getAnnotations())
-            builder.addAnnotation(toAnnotationSpec(annotation));
+    static List<String> getArgumentNames(Method method) {
+        LocalVariableTable lvt = method.getLocalVariableTable();
+        LocalVariable[] localVariables = lvt != null ? lvt.getLocalVariableTable() : null;
+
+        if (localVariables == null) {
+            if (method.getArgumentTypes().length == 0)
+                return Collections.emptyList();
+            List<String> result = new ArrayList<>();
+            for (int i = 0; i < method.getArgumentTypes().length; i++) result.add("arg" + i);
+            return result;
+        }
+
+        return stream(localVariables).skip(1).map(LocalVariable::getName).collect(Collectors.toList());
+    }
+
+    public static ParameterSpec toParameterSpec(Method method, int index, String name) {
+        ParameterSpec.Builder builder = ParameterSpec.builder(ClassName.bestGuess(method.getArgumentTypes()[index].getClassName()), name);
+
+        ParameterAnnotationEntry[] annotationEntries = method.getParameterAnnotationEntries();
+        if (annotationEntries.length > 0)
+            for (AnnotationEntry annotation : annotationEntries[index].getAnnotationEntries())
+                if (isJavadocs(annotation))
+                    builder.addJavadoc(getMemberValue(annotation, "value"));
+                else
+                    builder.addAnnotation(toAnnotationSpec(annotation));
+
         return builder.build();
     }
 
-    public static AnnotationSpec toAnnotationSpec(Annotation annotation) {
-        return AnnotationSpec.get(annotation);
+    public static AnnotationSpec toAnnotationSpec(AnnotationEntry annotation) {
+        AnnotationSpec.Builder builder = AnnotationSpec.builder(ClassName.bestGuess(annotation.getAnnotationType()));
+        stream(annotation.getElementValuePairs()).forEach(pair -> builder.addMember(pair.getNameString(), pair.getValue().stringifyValue()));
+        return builder.build();
     }
 
-    static Modifier[] decodeModifiers(int mod) {
+    static Modifier[] decodeModifiers(AccessFlags flags) {
         EnumSet<Modifier> result = EnumSet.noneOf(Modifier.class);
 
-        if ((mod & 0x0001) != 0) result.add(Modifier.PUBLIC);
-        if ((mod & 0x0002) != 0) result.add(Modifier.PRIVATE);
-        if ((mod & 0x0004) != 0) result.add(Modifier.PROTECTED);
-        if ((mod & 0x0008) != 0) result.add(Modifier.STATIC);
+        if (flags.isPublic()) result.add(Modifier.PUBLIC);
+        if (flags.isPrivate()) result.add(Modifier.PRIVATE);
+        if (flags.isProtected()) result.add(Modifier.PROTECTED);
+        if (flags.isStatic()) result.add(Modifier.STATIC);
+        if (flags.isFinal()) result.add(Modifier.FINAL);
+
+        if (flags instanceof Field) {
+            if (flags.isVolatile()) result.add(Modifier.VOLATILE);
+            if (flags.isTransient()) result.add(Modifier.TRANSIENT);
+        } else if (flags instanceof Method) {
+            if (flags.isNative()) result.add(Modifier.NATIVE);
+            if (flags.isAbstract()) result.add(Modifier.ABSTRACT);
+            if (flags.isSynchronized()) result.add(Modifier.SYNCHRONIZED);
+        }
 
         return result.toArray(new Modifier[0]);
     }
