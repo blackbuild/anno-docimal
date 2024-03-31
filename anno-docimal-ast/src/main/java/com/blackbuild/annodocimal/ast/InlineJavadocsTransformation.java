@@ -23,23 +23,28 @@
  */
 package com.blackbuild.annodocimal.ast;
 
-import org.codehaus.groovy.ast.ASTNode;
-import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.GroovyBugError;
+import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.control.CompilePhase;
 import org.codehaus.groovy.control.SourceUnit;
 import org.codehaus.groovy.transform.AbstractASTTransformation;
 import org.codehaus.groovy.transform.GroovyASTTransformation;
+
+import java.util.Arrays;
 
 @GroovyASTTransformation(phase = CompilePhase.SEMANTIC_ANALYSIS)
 public class InlineJavadocsTransformation extends AbstractASTTransformation {
 
     @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
-        init(nodes, source);
-        ClassNode target = (ClassNode) nodes[1];
-
-        new InlineJavadocsVisitor(source).visitClass(target);
+        this.sourceUnit = source;
+        InlineJavadocsVisitor visitor = new InlineJavadocsVisitor(source);
+        if (nodes != null && nodes.length == 2 && nodes[0] instanceof AnnotationNode && nodes[1] instanceof AnnotatedNode) {
+            visitor.visitClass((ClassNode) nodes[1]);
+        } else if (nodes == null || nodes.length == 1 && nodes[0] instanceof ModuleNode) {
+            source.getAST().getClasses().forEach(visitor::visitClass);
+        } else {
+            throw new GroovyBugError("Internal error: expecting [AnnotationNode, AnnotatedNode] or [ModuleNode] but got: " + Arrays.asList(nodes));
+        }
     }
-
-
 }
