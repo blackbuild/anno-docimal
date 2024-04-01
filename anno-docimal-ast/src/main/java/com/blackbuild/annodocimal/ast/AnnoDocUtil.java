@@ -54,6 +54,10 @@ public class AnnoDocUtil {
         node.addAnnotation(createDocumentationAnnotation(javadoc));
     }
 
+    public static void addDocumentation(@NotNull AnnotatedNode node, @NotNull Documentation documentation) {
+        addDocumentation(node, documentation.toJavadoc());
+    }
+
     /**
      * Creates an AnnoDoc annotation with the given javadoc.
      *
