@@ -23,9 +23,7 @@
  */
 package com.blackbuild.annodocimal.ast;
 
-import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import org.codehaus.groovy.ast.*;
-import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.codehaus.groovy.control.SourceUnit;
 
 import java.io.IOException;
@@ -35,8 +33,6 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
     private final SourceUnit sourceUnit;
 
     private final SourceExtractor sourceExtractor;
-
-    private static final ClassNode JAVADOC_ANNOTATION = ClassHelper.make(AnnoDoc.class);
 
     public InlineJavadocsVisitor(SourceUnit sourceUnit) {
         this.sourceUnit = sourceUnit;
@@ -78,13 +74,11 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
     }
 
     private void addJavadocAsAnnotation(AnnotatedNode node) {
-        if (!node.getAnnotations(JAVADOC_ANNOTATION).isEmpty()) return;
+        if (!node.getAnnotations(AnnoDocUtil.JAVADOC_ANNOTATION).isEmpty()) return;
 
         String javadoc = sourceExtractor.getJavaDoc(node);
-        if (javadoc != null) {
-            AnnotationNode annotation = new AnnotationNode(JAVADOC_ANNOTATION);
-            annotation.addMember("value", new ConstantExpression(javadoc));
-            node.addAnnotation(annotation);
-        }
+        if (javadoc != null)
+            AnnoDocUtil.addDocumentation(node, javadoc);
     }
+
 }
