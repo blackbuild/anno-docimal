@@ -23,125 +23,41 @@
  */
 package com.blackbuild.annodocimal.ast;
 
-public class JavadocDocumentation implements Documentation {
+import java.util.Map;
 
-    private final StringBuilder output = new StringBuilder();
+public class JavadocDocumentation extends AbstractDocumentation {
 
-    private enum State {
-        TITLE, PARAGRAPH, PARAM, RETURN_TYPE, THROWS, TAGS;
-
-        public State next() {
-            return values()[ordinal() + 1];
-        }
-
-        public void assertNotAfter(State other) {
-            if (ordinal() > other.ordinal())
-                throw new IllegalStateException("Cannot add " + other + " after " + this);
-        }
-    }
-
-    private State state = State.TITLE;
-
-    @Override
-    public Documentation title(String title) {
-        state.assertNotAfter(State.TITLE);
-        output.append(title);
-        output.append("\n\n");
-        state = state.next();
-        return this;
-    }
-
-    @Override
-    public Documentation p(String paragraph) {
-        state.assertNotAfter(State.PARAGRAPH);
-        output.append("<p>\n");
-        output.append(paragraph);
-        output.append("\n</p>\n\n");
-        state = state.next();
-        return this;
-    }
-
-    public Documentation code(String code) {
-        state.assertNotAfter(State.PARAGRAPH);
-        throw new UnsupportedOperationException("Not implemented yet");
-    }
-
-    @Override
-    public Documentation param(String name, String description) {
-        state.assertNotAfter(State.PARAM);
-        output.append("@param ");
-        output.append(name);
-        output.append(" ");
-        output.append(description);
-        output.append("\n");
-        state = state.next();
-        return this;
-    }
-
-    @Override
-    public Documentation returnType(String returnType) {
-        state.assertNotAfter(State.RETURN_TYPE);
-        output.append("@return ");
-        output.append(returnType);
-        output.append("\n");
-        state = state.next();
-        return this;
-    }
-
-    @Override
-    public Documentation throwsException(String exception, String description) {
-        state.assertNotAfter(State.THROWS);
-        output.append("@throws ");
-        output.append(exception);
-        output.append(" ");
-        output.append(description);
-        output.append("\n");
-        state = state.next();
-        return this;
-    }
-
-    @Override
-    public Documentation seeAlso(String... links) {
-        state.assertNotAfter(State.TAGS);
-        output.append("@see ");
-        output.append(String.join(" ", links));
-        output.append("\n");
-        state = state.next();
-        return this;
-    }
-
-    @Override
-    public Documentation since(String version) {
-        state.assertNotAfter(State.TAGS);
-        output.append("@since ");
-        output.append(version);
-        output.append("\n");
-        state = state.next();
-        return this;
-    }
-
-    @Override
-    public Documentation deprecated(String reason) {
-        state.assertNotAfter(State.TAGS);
-        output.append("@deprecated ");
-        output.append(reason);
-        output.append("\n");
-        state = state.next();
-        return this;
-    }
-
-    @Override
-    public Documentation author(String author) {
-        state.assertNotAfter(State.TAGS);
-        output.append("@author ");
-        output.append(author);
-        output.append("\n");
-        state = state.next();
-        return this;
+    public JavadocDocumentation(String title) {
+        this.title = title;
     }
 
     @Override
     public String toJavadoc() {
-        return output.toString();
+        StringBuilder builder = new StringBuilder();
+        if (title != null) builder.append(title).append("\n");
+        if (paragraphs != null) {
+            for (String paragraph : paragraphs) {
+                builder.append("<p>\n").append(paragraph).append("\n</p>\n");
+            }
+        }
+        if (params != null) {
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                builder.append("@param ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
+            }
+        }
+        if (returnType != null) {
+            builder.append("@return ").append(returnType).append("\n");
+        }
+        if (exceptions != null) {
+            for (Map.Entry<String, String> entry : exceptions.entrySet()) {
+                builder.append("@throws ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
+            }
+        }
+        if (tags != null) {
+            for (Map.Entry<String, String> entry : tags.entrySet()) {
+                builder.append("@").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
+            }
+        }
+        return builder.toString();
     }
 }

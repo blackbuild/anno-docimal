@@ -23,68 +23,98 @@
  */
 package com.blackbuild.annodocimal.ast
 
+
 import spock.lang.Specification
 
-class JavadocDocumentationTest extends Specification {
+class JavadocDocumentationSpec extends Specification {
 
 
-    def "should add a title to the documentation"() {
+    def "should instantiate JavadocDocumentation with a title"() {
         given:
-        JavadocDocumentation javadoc = new JavadocDocumentation()
+        def title = "Test Title"
 
         when:
-        javadoc.title("Title")
+        def doc = new JavadocDocumentation(title)
 
         then:
-        javadoc.toJavadoc() == "Title\n\n"
+        doc.title == title
     }
 
-    def "should add a paragraph to the documentation"() {
+    def "should add paragraphs to the documentation"() {
         given:
-        JavadocDocumentation javadoc = new JavadocDocumentation()
+        def doc = new JavadocDocumentation("Test Title")
 
         when:
-        javadoc.p("Paragraph")
+        doc.p("Paragraph 1")
+        doc.p("Paragraph 2")
+        def result = doc.toJavadoc()
 
         then:
-        javadoc.toJavadoc() == "<p>\nParagraph\n</p>\n\n"
+        result ==
+                """Test Title
+<p>
+Paragraph 1
+</p>
+<p>
+Paragraph 2
+</p>
+"""
     }
 
-    def "should add a parameter to the documentation"() {
+    def "should add parameters to the documentation"() {
         given:
-        JavadocDocumentation javadoc = new JavadocDocumentation()
+        def doc = new JavadocDocumentation("Test Title")
 
         when:
-        javadoc.param("name", "description")
+        doc.param("param1", "Description 1")
+        doc.param("param2", "Description 2")
+        def result = doc.toJavadoc()
 
         then:
-        javadoc.toJavadoc() == "@param name description\n"
+        result ==
+                """Test Title
+@param param1 Description 1
+@param param2 Description 2
+"""
     }
 
-    def "should throw an IllegalStateException if a method is called out of order"() {
+    def "should instantiate JavadocDocumentation without a title"() {
         given:
-        JavadocDocumentation javadoc = new JavadocDocumentation()
+        def doc = new JavadocDocumentation(null)
 
         when:
-        javadoc.p("Paragraph")
-        javadoc.title("Title")
+        def result = doc.toJavadoc()
 
         then:
-        def exception = thrown(IllegalStateException)
-        exception.message == "Cannot add TITLE after PARAGRAPH"
+        result == ""
     }
 
-    def "should throw an UnsupportedOperationException if code method is called"() {
+    def "should add paragraphs to the documentation with null values"() {
         given:
-        JavadocDocumentation javadoc = new JavadocDocumentation()
+        def doc = new JavadocDocumentation("Test Title")
 
         when:
-        javadoc.code("Code")
+        doc.p(null)
+        def result = doc.toJavadoc()
 
         then:
-        def exception = thrown(UnsupportedOperationException)
-        exception.message == "Not implemented yet"
+        result ==
+        """Test Title
+"""
     }
 
+    def "should add parameters to the documentation with null values"() {
+        given:
+        def doc = new JavadocDocumentation("Test Title")
+
+        when:
+        doc.param("param1", null)
+        def result = doc.toJavadoc()
+
+        then:
+        result ==
+        """Test Title
+"""
+    }
 
 }
