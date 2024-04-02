@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.ast;
+package com.blackbuild.annodocimal.ast.formatting;
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import org.codehaus.groovy.ast.AnnotatedNode;
@@ -32,7 +32,7 @@ import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Utility class for annotation documentation. Contains methods for creating AnnoDoc annotations and
+ * Utility class for annotation docBuilder. Contains methods for creating AnnoDoc annotations and
  * adding them to AST nodes. Unless otherwise stated, Javadoc means the raw text, without the leading
  * '* ', but correctly formatted and escaped in case of html.
  */
@@ -54,8 +54,8 @@ public class AnnoDocUtil {
         node.addAnnotation(createDocumentationAnnotation(javadoc));
     }
 
-    public static void addDocumentation(@NotNull AnnotatedNode node, @NotNull Documentation documentation) {
-        addDocumentation(node, documentation.toJavadoc());
+    public static void addDocumentation(@NotNull AnnotatedNode node, @NotNull DocBuilder docBuilder) {
+        addDocumentation(node, docBuilder.toJavadoc());
     }
 
     /**

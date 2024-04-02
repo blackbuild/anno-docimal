@@ -1,6 +1,8 @@
 Anno-Docimal
 ============
 
+**NOTE**: This is a work in progress. I started doing rc-releases because I need that functionality. However, while I think the core concept is sound, the implementation is still in flux. This is especially true for the naming and API of helper classes. Refactorings should be easy enough, but will not necessarily be separately documented, so a look at the actual code changes might be necessary. This will of course change once the API has reached a more stable state.
+
 Anno-Docimal is a tool for generating javadoc for (mainly) generated code, usually created by groovy AST transformations.
 
 Since ast transformations cannot create additional files, it uses a turnaround way:

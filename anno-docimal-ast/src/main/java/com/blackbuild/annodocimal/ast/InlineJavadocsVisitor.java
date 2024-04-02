@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.ast;
 
+import com.blackbuild.annodocimal.ast.formatting.AnnoDocUtil;
 import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.control.SourceUnit;
 

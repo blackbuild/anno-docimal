@@ -21,15 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.ast;
+package com.blackbuild.annodocimal.ast.formatting;
 
 import java.util.Map;
 
-public class JavadocDocumentation extends AbstractDocumentation {
-
-    public JavadocDocumentation(String title) {
-        this.title = title;
-    }
+/**
+ * Standard DocBuilder producing regular Javadoc.
+ */
+public class JavadocDocBuilder extends AbstractDocBuilder {
 
     @Override
     public String toJavadoc() {

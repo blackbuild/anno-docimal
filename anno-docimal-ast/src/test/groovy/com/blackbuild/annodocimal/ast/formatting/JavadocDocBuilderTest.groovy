@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.ast
+package com.blackbuild.annodocimal.ast.formatting
 
 
 import spock.lang.Specification
 
-class JavadocDocumentationSpec extends Specification {
+class JavadocDocBuilderTest extends Specification {
 
 
     def "should instantiate JavadocDocumentation with a title"() {
@@ -34,7 +34,7 @@ class JavadocDocumentationSpec extends Specification {
         def title = "Test Title"
 
         when:
-        def doc = new JavadocDocumentation(title)
+        def doc = new JavadocDocBuilder().title(title)
 
         then:
         doc.title == title
@@ -42,7 +42,7 @@ class JavadocDocumentationSpec extends Specification {
 
     def "should add paragraphs to the documentation"() {
         given:
-        def doc = new JavadocDocumentation("Test Title")
+        def doc = new JavadocDocBuilder().title("Test Title")
 
         when:
         doc.p("Paragraph 1")
@@ -63,7 +63,7 @@ Paragraph 2
 
     def "should add parameters to the documentation"() {
         given:
-        def doc = new JavadocDocumentation("Test Title")
+        def doc = new JavadocDocBuilder().title("Test Title")
 
         when:
         doc.param("param1", "Description 1")
@@ -80,7 +80,7 @@ Paragraph 2
 
     def "should instantiate JavadocDocumentation without a title"() {
         given:
-        def doc = new JavadocDocumentation(null)
+        def doc = new JavadocDocBuilder()
 
         when:
         def result = doc.toJavadoc()
@@ -91,7 +91,7 @@ Paragraph 2
 
     def "should add paragraphs to the documentation with null values"() {
         given:
-        def doc = new JavadocDocumentation("Test Title")
+        def doc = new JavadocDocBuilder().title("Test Title")
 
         when:
         doc.p(null)
@@ -105,7 +105,7 @@ Paragraph 2
 
     def "should add parameters to the documentation with null values"() {
         given:
-        def doc = new JavadocDocumentation("Test Title")
+        def doc = new JavadocDocBuilder().title("Test Title")
 
         when:
         doc.param("param1", null)
