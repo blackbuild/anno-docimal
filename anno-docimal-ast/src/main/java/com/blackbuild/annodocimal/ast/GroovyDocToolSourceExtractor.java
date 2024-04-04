@@ -23,18 +23,14 @@
  */
 package com.blackbuild.annodocimal.ast;
 
-import org.codehaus.groovy.ast.AnnotatedNode;
-import org.codehaus.groovy.ast.ClassNode;
-import org.codehaus.groovy.ast.FieldNode;
-import org.codehaus.groovy.ast.MethodNode;
+import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.control.SourceUnit;
 import org.codehaus.groovy.control.io.FileReaderSource;
 import org.codehaus.groovy.control.io.ReaderSource;
-import org.codehaus.groovy.groovydoc.GroovyClassDoc;
-import org.codehaus.groovy.groovydoc.GroovyDoc;
-import org.codehaus.groovy.groovydoc.GroovyMethodDoc;
-import org.codehaus.groovy.groovydoc.GroovyRootDoc;
+import org.codehaus.groovy.groovydoc.*;
+import org.codehaus.groovy.tools.groovydoc.ArrayClassDocWrapper;
 import org.codehaus.groovy.tools.groovydoc.GroovyDocTool;
+import org.codehaus.groovy.tools.groovydoc.SimpleGroovyParameter;
 
 import java.io.File;
 import java.io.IOException;
@@ -129,13 +125,47 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
 
     private boolean matches(MethodNode methodNode, GroovyMethodDoc methodDoc) {
         if (!methodDoc.name().equals(methodNode.getName())) return false;
-        if (methodDoc.parameters().length != methodNode.getParameters().length) return false;
+        GroovyParameter[] docParameters = methodDoc.parameters();
+        Parameter[] astParameters = methodNode.getParameters();
+        if (docParameters.length != astParameters.length) return false;
 
-        for (int i = 0; i < methodDoc.parameters().length; i++) {
-            if (!methodDoc.parameters()[i].typeName().equals(methodNode.getParameters()[i].getType().getName())) return false;
+        for (int i = 0; i < docParameters.length; i++) {
+            if (!parameterMatches(docParameters[i], astParameters[i])) return false;
         }
 
         return true;
+    }
+
+    private boolean parameterMatches(GroovyParameter gdParameter, Parameter astParameter) {
+        GroovyType docType = gdParameter.type();
+        ClassNode astType = astParameter.getType();
+
+        if (docType == null && astType == ClassHelper.DYNAMIC_TYPE) return true;
+        String docTypeString = docTypeToString(gdParameter, docType);
+        String astTypeString = astTypeToString(astType);
+        // Dirty hack: in some cases, the docType is not fully qualified (i.e. List<String>)
+        return docTypeString.equals(astTypeString) || astTypeString.endsWith("." + docTypeString);
+    }
+
+    private static String astTypeToString(ClassNode astType) {
+        String type = astType.toString(false);
+        if (astType.isUsingGenerics())
+            type = type.substring(0, type.indexOf('<')).trim();
+        return type;
+    }
+
+    private String docTypeToString(GroovyParameter gdParameter, GroovyType docType) {
+        if (docType == null)
+            return gdParameter.typeName();
+        String typeName = docType.qualifiedTypeName();
+        if (docType instanceof ArrayClassDocWrapper)
+            return typeName + "[]";
+        if (gdParameter instanceof SimpleGroovyParameter && ((SimpleGroovyParameter) gdParameter).vararg())
+            return typeName + "[]";
+        int indexOfGenerics = typeName.indexOf('<');
+        if (indexOfGenerics > 0)
+            return typeName.substring(0, indexOfGenerics).trim();
+        return typeName;
     }
 
     private String getJavaDocForClass(ClassNode node) {

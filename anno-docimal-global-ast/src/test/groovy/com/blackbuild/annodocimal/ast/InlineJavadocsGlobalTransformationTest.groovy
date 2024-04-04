@@ -26,11 +26,13 @@ package com.blackbuild.annodocimal.ast
 
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc
+
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.intellij.lang.annotations.Language
 import org.junit.Rule
 import org.junit.rules.TestName
 import spock.lang.Specification
+import spock.lang.Unroll
 
 class InlineJavadocsGlobalTransformationTest extends Specification {
     @Rule TestName testName = new TestName()
@@ -113,6 +115,48 @@ class TestClass {
         then:
         innerClass.getAnnotation(AnnoDoc).value() == 'Inner class'
         innerClass.getMethod("innerMethod").getAnnotation(AnnoDoc).value() == 'Inner class method'
+    }
+
+    @Unroll
+    def "test matching for #signature"() {
+        when:
+        createClass "dummy/Matcher.groovy", """
+package dummy
+
+import groovy.xml.XmlUtil
+
+class Matcher {
+    /**
+     * doc
+     */
+    $signature {}
+}
+"""
+        def methodName = signature.tokenize('(')[0].tokenize(' ')[1]
+
+        then:
+        noExceptionThrown()
+        clazz.getMethods().find { it.name == methodName }.getAnnotation(AnnoDoc).value() == 'doc'
+
+        where:
+        signature << [
+                'def emptyMethod()',
+                'def simpleParameterMethod(String param)',
+                'def varargsMethod(String... params)',
+                'def methodWithDefaultParam(String param = "default")',
+                'def methodWithMultipleParams(String param1, String param2)',
+                'def methodWithMultipleParamsAndDefault(String param1, String param2 = "default")',
+                'def methodWithMultipleParamsAndDefaultAndVarargs(String param1, String param2 = "default", String... params)',
+                'def methodWithMultipleParamsAndVarargs(String param1, String param2, String... params)',
+                'def methodWithArrayParam(String[] params)',
+                'def methodWithArrayParamAndDefault(String[] params = ["default"])',
+                'def methodWithArrayParamAndVarargs(String[] params, String... varargs)',
+                'def methodWithGenericParam(List<String> params)',
+                'def methodWithGenericImportedParam(List<XmlUtil> params)',
+                'def methodWithPrimitiveParam(int param)',
+                'def methodWithPrimitiveArrayParam(int[] params)',
+                'def methodWithImportedParam(XmlUtil util)',
+        ]
     }
 
 
