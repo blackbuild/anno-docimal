@@ -33,7 +33,8 @@ import org.junit.rules.TestName
 import spock.lang.Specification
 
 class InlineJavadocsTransformationTest extends Specification {
-    @Rule TestName testName = new TestName()
+    @Rule
+    TestName testName = new TestName()
     ClassLoader oldLoader
     GroovyClassLoader loader
     CompilerConfiguration compilerConfiguration
@@ -106,6 +107,8 @@ class TestClass {
         then:
         clazz.getAnnotation(AnnoDoc).value() == 'This is a test class'
         clazz.getMethod("method").getAnnotation(AnnoDoc).value() == 'A method'
+
+        and: 'private fields retain their javadoc'
         clazz.getDeclaredField("name").getAnnotation(AnnoDoc).value() == 'A name'
 
         when:
@@ -116,5 +119,86 @@ class TestClass {
         innerClass.getMethod("innerMethod").getAnnotation(AnnoDoc).value() == 'Inner class method'
     }
 
+    def "No javadoc should result in no annotation"() {
+        when:
+        createClass "dummy/TestClass.groovy", '''
+package dummy
 
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+@InlineJavadocs
+class TestClass {
+
+    String name
+    
+    void method() {}
+    
+    static class InnerClass {
+        void innerMethod() {}
+    }
+}
+'''
+
+        then:
+        clazz.getAnnotation(AnnoDoc) == null
+        clazz.getMethod("method").getAnnotation(AnnoDoc) == null
+        clazz.getDeclaredField("name").getAnnotation(AnnoDoc) == null
+
+        when:
+        def innerClass = clazz.getDeclaredClasses().find { it.simpleName == "InnerClass" }
+
+        then:
+        innerClass.getAnnotation(AnnoDoc) == null
+        innerClass.getMethod("innerMethod").getAnnotation(AnnoDoc) == null
+    }
+
+    def "ignore internal methods"() {
+        when:
+        createClass "dummy/TestClass.groovy", '''
+package dummy
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+@InlineJavadocs
+class TestClass {
+
+    /** A name */
+    String name
+    
+    /** a Field */
+    private String privateField
+    
+    
+    /** a Field */
+    protected String protectedField
+    
+    /**
+     * A method
+     */ 
+    private void privateMethod() {}
+    
+    /**
+     * A method
+     */
+    protected void protectedMethod() {}
+    
+    /**
+     * internal field
+     */
+    public String $internalField
+    
+    /**
+     * internal method
+     */
+    void $internalMethod() {}
+}
+'''
+        then:
+        clazz.getDeclaredField("privateField").getAnnotation(AnnoDoc) != null
+        clazz.getDeclaredField("protectedField").getAnnotation(AnnoDoc) != null
+        clazz.getDeclaredField('$internalField').getAnnotation(AnnoDoc) == null
+        clazz.getDeclaredMethod("privateMethod").getAnnotation(AnnoDoc) == null
+        clazz.getDeclaredMethod("protectedMethod").getAnnotation(AnnoDoc) != null
+        clazz.getDeclaredMethod('$internalMethod').getAnnotation(AnnoDoc) == null
+    }
 }

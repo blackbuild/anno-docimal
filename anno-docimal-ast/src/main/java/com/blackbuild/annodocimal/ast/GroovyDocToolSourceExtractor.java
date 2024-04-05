@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class GroovyDocToolSourceExtractor implements SourceExtractor {
 
@@ -106,8 +107,9 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
     }
 
     private String getJavaDocForField(FieldNode node) {
+        if (node.getName().contains("$")) return null;
         GroovyClassDoc classDoc = getClassDoc(node.getDeclaringClass());
-        return Arrays.stream(classDoc.properties())
+        return Stream.concat(Arrays.stream(classDoc.properties()), Arrays.stream(classDoc.fields()))
                 .filter(fieldDoc -> fieldDoc.name().equals(node.getName()))
                 .findFirst()
                 .map(GroovyDoc::commentText)
@@ -115,7 +117,17 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
     }
 
     private String getJavaDocForMethod(MethodNode node) {
+        if ((node.getModifiers() & 2) != 0) return null;
+        if (node.getName().contains("$")) return null;
+
         GroovyClassDoc classDoc = getClassDoc(node.getDeclaringClass());
+        if (node instanceof ConstructorNode) {
+            return Arrays.stream(classDoc.constructors())
+                    .filter(constructorDoc -> matches(node, constructorDoc))
+                    .findFirst()
+                    .map(GroovyDoc::commentText)
+                    .orElse(null);
+        }
         return Arrays.stream(classDoc.methods())
                 .filter(methodDoc -> matches(node, methodDoc))
                 .findFirst()
@@ -123,7 +135,7 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
                 .orElseThrow(() -> new IllegalArgumentException("Method not found: " + node.getName()));
     }
 
-    private boolean matches(MethodNode methodNode, GroovyMethodDoc methodDoc) {
+    private boolean matches(MethodNode methodNode, GroovyExecutableMemberDoc methodDoc) {
         if (!methodDoc.name().equals(methodNode.getName())) return false;
         GroovyParameter[] docParameters = methodDoc.parameters();
         Parameter[] astParameters = methodNode.getParameters();

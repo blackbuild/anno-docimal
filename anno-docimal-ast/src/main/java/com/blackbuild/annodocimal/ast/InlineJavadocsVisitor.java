@@ -71,14 +71,14 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
 
     @Override
     public void visitProperty(PropertyNode node) {
-        // do nothing
+        // properties have no annotations
     }
 
     private void addJavadocAsAnnotation(AnnotatedNode node) {
         if (!node.getAnnotations(AnnoDocUtil.JAVADOC_ANNOTATION).isEmpty()) return;
 
         String javadoc = sourceExtractor.getJavaDoc(node);
-        if (javadoc != null)
+        if (javadoc != null && !javadoc.isBlank())
             AnnoDocUtil.addDocumentation(node, javadoc);
     }
 

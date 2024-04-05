@@ -158,6 +158,32 @@ class Matcher {
                 'def methodWithImportedParam(XmlUtil util)',
         ]
     }
+    def "test spock virtual methods"() {
+        when:
+        createClass "dummy/Matcher.groovy", """
+package dummy
+
+import org.junit.Rule
+import org.junit.rules.TestName
+
+import spock.lang.Specification
+
+class Matcher extends Specification {
+    @Rule TestName testName = new TestName()
+
+    /**
+     * doc
+     */
+    void testIt() {
+        expect:
+        true
+    }
+}
+"""
+        then: 'Spock test methods are converted to methods named $spock_feature'
+        noExceptionThrown()
+        !clazz.getDeclaredMethods().any { it.name == "testIt" }
+    }
 
 
 }
