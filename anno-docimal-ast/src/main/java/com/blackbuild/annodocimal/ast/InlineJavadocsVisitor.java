@@ -38,7 +38,7 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
     public InlineJavadocsVisitor(SourceUnit sourceUnit) {
         this.sourceUnit = sourceUnit;
         try {
-            this.sourceExtractor = new GroovyDocToolSourceExtractor(sourceUnit);
+            this.sourceExtractor = GroovyDocToolSourceExtractor.create(sourceUnit);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -35,32 +35,81 @@ import org.codehaus.groovy.tools.groovydoc.SimpleGroovyParameter;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class GroovyDocToolSourceExtractor implements SourceExtractor {
 
-    private GroovyRootDoc rootDoc;
+    private final static String INSTANCE_METADATA_NAME = GroovyDocToolSourceExtractor.class.getName() + ".INSTANCE";
 
-    public GroovyDocToolSourceExtractor(SourceUnit sourceUnit) throws IOException {
-        ReaderSource readerSource = sourceUnit.getSource();
-        if (!(readerSource instanceof FileReaderSource)) {
-            rootDoc = null;
-            return;
+    private final GroovyRootDoc rootDoc;
+
+    private GroovyDocToolSourceExtractor(GroovyRootDoc rootDoc) {
+        this.rootDoc = rootDoc;
+    }
+
+    public static SourceExtractor create(SourceUnit sourceUnit) throws IOException {
+
+        CompileUnit compileUnit = sourceUnit.getAST().getUnit();
+        if (compileUnit == null || compileUnit.getModules().isEmpty())
+            return EmptySourceExtractor.INSTANCE;
+
+        // since CompileUnit has no Metatdata Groovy 2, we improvise
+        // Modules should be complete by this stage, so we use the metadata of the
+        // first module in the list
+        Object existingExtractor = compileUnit.getModules().get(0).getNodeMetaData(INSTANCE_METADATA_NAME);
+
+        if (existingExtractor instanceof SourceExtractor)
+            return (SourceExtractor) existingExtractor;
+        if (existingExtractor != null)
+            throw new IllegalStateException("Unexpected metadata type: " + existingExtractor.getClass().getName());
+
+        List<SourceUnitHolder> files = compileUnit.getModules().stream()
+                .map(SourceUnitHolder::createSourceUnitHolder)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        if (files.isEmpty())
+            return EmptySourceExtractor.INSTANCE;
+
+        String[] sourceRoots = files.stream().map(f -> f.rootPath).collect(Collectors.toSet()).toArray(new String[0]);
+        GroovyDocTool docTool = new GroovyDocTool(sourceRoots);
+
+        List<String> sourceFiles = files.stream().map(f -> f.relativePath).collect(Collectors.toList());
+        docTool.add(sourceFiles);
+
+        GroovyDocToolSourceExtractor result = new GroovyDocToolSourceExtractor(docTool.getRootDoc());
+
+        compileUnit.getModules().get(0).setNodeMetaData(INSTANCE_METADATA_NAME, result);
+        return result;
+    }
+
+    static class SourceUnitHolder {
+        final String rootPath;
+        final String relativePath;
+
+        SourceUnitHolder(File sourceRoot, File sourceFile) {
+            this.rootPath = sourceRoot.getAbsolutePath();
+            this.relativePath = sourceFile.getAbsolutePath().substring(sourceRoot.getAbsolutePath().length() + 1);
         }
-        File sourceFile = ((FileReaderSource) readerSource).getFile();
-        String packageName = sourceUnit.getAST().getPackageName();
-        File sourceRoot = sourceFile.getParentFile();
 
-        for (String ignored : packageName.split("\\."))
-            sourceRoot = sourceRoot.getParentFile();
+        public static SourceUnitHolder createSourceUnitHolder(ModuleNode module) {
+            SourceUnit sourceUnit = module.getContext();
+            ReaderSource readerSource = sourceUnit.getSource();
+            if (!(readerSource instanceof FileReaderSource)) {
+                return null;
+            }
+            File sourceFile = ((FileReaderSource) readerSource).getFile();
+            String packageName = sourceUnit.getAST().getPackageName();
+            File sourceRoot = sourceFile.getParentFile();
 
-        GroovyDocTool docTool = new GroovyDocTool(new String[]{sourceRoot.getAbsolutePath()});
+            for (String ignored : packageName.split("\\."))
+                sourceRoot = sourceRoot.getParentFile();
 
-        String relativePath = sourceFile.getAbsolutePath().substring(sourceRoot.getAbsolutePath().length() + 1);
-        docTool.add(Collections.singletonList(relativePath));
-        rootDoc = docTool.getRootDoc();
+            return new SourceUnitHolder(sourceRoot, sourceFile);
+        }
     }
 
     @Override
