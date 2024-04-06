@@ -201,4 +201,28 @@ class TestClass {
         clazz.getDeclaredMethod("protectedMethod").getAnnotation(AnnoDoc) != null
         clazz.getDeclaredMethod('$internalMethod').getAnnotation(AnnoDoc) == null
     }
+
+    def "conversion without a file should not result in exception"() {
+        given:
+        def text = '''
+package dummy
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+/**
+ * This is a test class
+ */
+@InlineJavadocs
+class TestClass {
+
+    /** A name */
+    String name
+}
+'''
+        when:
+        clazz = loader.parseClass(text)
+
+        then:
+        noExceptionThrown()
+    }
 }

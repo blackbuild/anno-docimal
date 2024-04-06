@@ -45,8 +45,10 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
 
     public GroovyDocToolSourceExtractor(SourceUnit sourceUnit) throws IOException {
         ReaderSource readerSource = sourceUnit.getSource();
-        if (!(readerSource instanceof FileReaderSource))
-            throw new IllegalArgumentException("GroovyDocToolSourceExtractor only supports FileReaderSource");
+        if (!(readerSource instanceof FileReaderSource)) {
+            rootDoc = null;
+            return;
+        }
         File sourceFile = ((FileReaderSource) readerSource).getFile();
         String packageName = sourceUnit.getAST().getPackageName();
         File sourceRoot = sourceFile.getParentFile();
@@ -63,6 +65,8 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
 
     @Override
     public String getJavaDoc(AnnotatedNode node) {
+        if (rootDoc == null)
+            return null;
         if (node instanceof ClassNode)
             return reformat(getJavaDocForClass((ClassNode) node));
         else if (node instanceof MethodNode)
