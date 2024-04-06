@@ -50,7 +50,8 @@ public class AnnoDocUtil {
      * @param node    the node to add the annotation to
      * @param javadoc the javadoc to add
      */
-    public static void addDocumentation(@NotNull AnnotatedNode node, @NotNull String javadoc) {
+    public static void addDocumentation(@NotNull AnnotatedNode node, String javadoc) {
+        if (javadoc == null || javadoc.isBlank()) return;
         node.addAnnotation(createDocumentationAnnotation(javadoc));
     }
 

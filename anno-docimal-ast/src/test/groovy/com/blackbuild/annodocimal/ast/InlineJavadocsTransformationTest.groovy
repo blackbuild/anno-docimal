@@ -202,8 +202,37 @@ class TestClass {
         clazz.getDeclaredMethod('$internalMethod').getAnnotation(AnnoDoc) == null
     }
 
+    def "ignore empty javadoc"() {
+        when:
+        createClass "dummy/TestClass.groovy", '''
+package dummy
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+@InlineJavadocs
+class TestClass {
+
+    /**  */
+    void emptyOneliner() {}
+    
+    /***/
+    void emptyOneliner2() {}
+   
+    /**
+     * 
+     */
+    void emptyMultiline() {}
+}
+'''
+        then:
+        clazz.getDeclaredMethod("emptyOneliner").getAnnotation(AnnoDoc) == null
+        clazz.getDeclaredMethod("emptyOneliner2").getAnnotation(AnnoDoc) == null
+        clazz.getDeclaredMethod('emptyMultiline').getAnnotation(AnnoDoc) == null
+    }
+
     def "conversion without a file should not result in exception"() {
         given:
+        // language=groovy
         def text = '''
 package dummy
 

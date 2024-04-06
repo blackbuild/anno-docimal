@@ -128,7 +128,7 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
     }
 
     private String reformat(String comment) {
-        if (comment == null)
+        if (comment == null || comment.isBlank())
             return null;
 
         String[] lines = comment.split("\n");
