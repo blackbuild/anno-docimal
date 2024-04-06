@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.ast
 
 import groovy.io.FileType
 import org.codehaus.groovy.control.CompilationUnit
+import spock.lang.Unroll
 
 class ScenarionsTest extends AbstractGlobalAstTest {
 
@@ -38,14 +39,18 @@ class ScenarionsTest extends AbstractGlobalAstTest {
         cu.compile()
     }
 
-    def "test compilation from folder"() {
+    @Unroll
+    def "test compilation from #folder"(String folder) {
         given:
-        File sourceFolder = new File("src/test/scenarios/multifile")
+        File sourceFolder = new File("src/test/scenarios/$folder")
 
         when:
         compileDirectory(sourceFolder)
 
         then:
         noExceptionThrown()
+
+        where:
+        folder << new File("src/test/scenarios").list()
     }
 }

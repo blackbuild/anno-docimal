@@ -105,8 +105,9 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
             String packageName = sourceUnit.getAST().getPackageName();
             File sourceRoot = sourceFile.getParentFile();
 
-            for (String ignored : packageName.split("\\."))
-                sourceRoot = sourceRoot.getParentFile();
+            if (packageName != null && !packageName.isEmpty())
+                for (String ignored : packageName.split("\\."))
+                    sourceRoot = sourceRoot.getParentFile();
 
             return new SourceUnitHolder(sourceRoot, sourceFile);
         }
@@ -162,6 +163,8 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
     private String getJavaDocForField(FieldNode node) {
         if (node.getName().contains("$")) return null;
         GroovyClassDoc classDoc = getClassDoc(node.getDeclaringClass());
+        if (classDoc == null)
+            return null;
         return Stream.concat(Arrays.stream(classDoc.properties()), Arrays.stream(classDoc.fields()))
                 .filter(fieldDoc -> fieldDoc.name().equals(node.getName()))
                 .findFirst()
@@ -174,6 +177,8 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
         if (node.getName().contains("$")) return null;
 
         GroovyClassDoc classDoc = getClassDoc(node.getDeclaringClass());
+        if (classDoc == null)
+            return null;
         if (node instanceof ConstructorNode) {
             return Arrays.stream(classDoc.constructors())
                     .filter(constructorDoc -> matches(node, constructorDoc))
@@ -235,6 +240,8 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
 
     private String getJavaDocForClass(ClassNode node) {
         GroovyClassDoc classDoc = getClassDoc(node);
+        if (classDoc == null)
+            return null;
         return classDoc.commentText();
     }
 
