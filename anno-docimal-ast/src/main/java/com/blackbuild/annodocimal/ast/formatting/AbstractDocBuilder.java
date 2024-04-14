@@ -35,7 +35,7 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     protected Map<String, String> params;
     protected String returnType;
     protected Map<String, String> exceptions;
-    protected Map<String, String> tags;
+    protected Map<String, List<String>> otherTags;
 
     @Override
     public DocBuilder title(String title) {
@@ -51,7 +51,11 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     }
 
     protected static boolean isNotBlank(String string) {
-        return string != null && !string.isBlank();
+        return !isBlank(string);
+    }
+
+    protected static boolean isBlank(String string) {
+        return string == null || string.isBlank();
     }
 
     protected static boolean areNotBlank(String left, String right) {
@@ -84,8 +88,9 @@ public abstract class AbstractDocBuilder implements DocBuilder {
 
     @Override
     public DocBuilder tag(String tag, String description) {
-        if (tags == null) tags = new LinkedHashMap<>();
-        if (areNotBlank(tag, description)) tags.put(tag, description);
+        if (otherTags == null) otherTags = new LinkedHashMap<>();
+        if (isBlank(tag)) return this;
+        otherTags.computeIfAbsent(tag, k -> new ArrayList<>()).add(description);
         return this;
     }
 

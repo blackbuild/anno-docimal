@@ -1,4 +1,4 @@
-package com.blackbuild.annodocimal.ast.parsing;
+package com.blackbuild.annodocimal.ast.formatting;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -16,6 +16,10 @@ public class DocText {
     protected final String title;
     protected final String body;
     protected final Map<String, List<String>> tags;
+
+    public static DocText fromRawText(String rawText) {
+        return new DocText(rawText);
+    }
 
     protected DocText(String rawText) {
         this.rawText = rawText;

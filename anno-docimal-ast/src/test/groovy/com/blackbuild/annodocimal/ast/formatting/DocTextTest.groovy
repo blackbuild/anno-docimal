@@ -1,4 +1,4 @@
-package com.blackbuild.annodocimal.ast.parsing
+package com.blackbuild.annodocimal.ast.formatting
 
 
 import spock.lang.Specification
@@ -10,7 +10,7 @@ class DocTextTest extends Specification {
 
     def "Tag not present returns default"() {
         when:
-        docText = new DocText("This is a test class")
+        docText = DocText.fromRawText("This is a test class")
 
         then:
         docText.title == "This is a test class"
@@ -20,7 +20,7 @@ class DocTextTest extends Specification {
 
     def "Tag present returns value"() {
         when:
-        docText = new DocText('''This is a test class
+        docText = DocText.fromRawText('''This is a test class
 @tag value''')
 
         then:
@@ -31,7 +31,7 @@ class DocTextTest extends Specification {
 
     def "Tag present returns value with multiple whitespace"() {
         when:
-        docText = new DocText('''This is a test class
+        docText = DocText.fromRawText('''This is a test class
 @tag     value''')
 
         then:
@@ -42,7 +42,7 @@ class DocTextTest extends Specification {
 
     def "Tag present returns value with leading whitespace"() {
         when:
-        docText = new DocText('''This is a test class
+        docText = DocText.fromRawText('''This is a test class
   @tag     value''')
 
         then:
@@ -53,7 +53,7 @@ class DocTextTest extends Specification {
 
     def "tags are converted into a multi map"() {
         when:
-        docText = new DocText('''this is a test class.
+        docText = DocText.fromRawText('''this is a test class.
 @param name the name of the person
 @param age the age of the person
 @throws IllegalArgumentException if the age is negative
@@ -69,7 +69,7 @@ class DocTextTest extends Specification {
 
     def "Returns correctly formatted multiline tags"() {
         when:
-        docText = new DocText('''This is a test class
+        docText = DocText.fromRawText('''This is a test class
 
 @tag value goes here
      and into the next line''')
@@ -80,7 +80,7 @@ class DocTextTest extends Specification {
 
     def "should return the first sentence of a Javadoc text with correct formatting and escaping"() {
         when:
-        docText = new DocText("This is the first sentence. This is the second sentence.")
+        docText = DocText.fromRawText("This is the first sentence. This is the second sentence.")
 
         then:
         docText.title == "This is the first sentence."
@@ -88,7 +88,7 @@ class DocTextTest extends Specification {
 
     def "should use empty line as first sentence delimiter"() {
         when:
-        docText = new DocText("""This is the first sentence
+        docText = DocText.fromRawText("""This is the first sentence
 
 This is the second sentence.""")
 
@@ -98,7 +98,7 @@ This is the second sentence.""")
 
     def "should use <p> as first sentence delimiter"() {
         when:
-        docText = new DocText("""This is the first sentence
+        docText = DocText.fromRawText("""This is the first sentence
 <p>
 This is the second sentence.""")
 
@@ -108,7 +108,7 @@ This is the second sentence.""")
 
     def "should use tag first sentence delimiter"() {
         when:
-        docText = new DocText("""This is the first sentence
+        docText = DocText.fromRawText("""This is the first sentence
 @param bla blub""")
 
         then:
@@ -117,7 +117,7 @@ This is the second sentence.""")
 
     def "should return an empty string when Javadoc text has no sentences"() {
         when:
-        docText = new DocText("")
+        docText = DocText.fromRawText("")
 
         then:
         docText.title == ""
@@ -125,7 +125,7 @@ This is the second sentence.""")
 
     def "should return the value of the named tag if it exists"() {
         when:
-        def docText = new DocText("""this is a test class.
+        def docText = DocText.fromRawText("""this is a test class.
 
 @param flame the flame of the person
 @param name the name of the person
@@ -137,7 +137,7 @@ This is the second sentence.""")
 
     def "should return the value trimmed and onelined"() {
         when:
-        def docText = new DocText("""this is a test class.
+        def docText = DocText.fromRawText("""this is a test class.
 
 @param after  double whitespace after name
 @param   before double whitespace after tagname
@@ -155,7 +155,7 @@ This is the second sentence.""")
 
     def "should handle named tags with empty values"() {
         when:
-        def docText = new DocText("""this is a test class.
+        docText = DocText.fromRawText("""this is a test class.
 
         @param flame the flame of the person
         @param name

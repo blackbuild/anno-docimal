@@ -42,6 +42,7 @@ import static java.util.function.Predicate.not;
 public class AnnoDocUtil {
 
     public static final ClassNode JAVADOC_ANNOTATION = ClassHelper.make(AnnoDoc.class);
+    public static final String DOC_TEXT_METADATA_KEY = DocText.class.getName();
 
     private AnnoDocUtil() {
         // Utility class
@@ -93,6 +94,21 @@ public class AnnoDocUtil {
                 .map(Object::toString)
                 .filter(not(String::isBlank))
                 .orElse(defaultValue);
+    }
+
+    /**
+     * Returns the pre parsed documentation of the given node, or the preparsed default value if no
+     * AnnoDoc annotation is present.
+     *
+     * @param node         the node to get the documentation from
+     * @param defaultValue the default value to return if no annotation is present
+     * @return the pre parse documentation object
+     */
+    public static DocText getDocText(@NotNull AnnotatedNode node, @Nullable String defaultValue) {
+        Object metaData = node.getNodeMetaData(DOC_TEXT_METADATA_KEY);
+        if (metaData == null)
+            return new DocText(getAnnoDocValue(node, defaultValue));
+        return (DocText) metaData;
     }
 
 }
