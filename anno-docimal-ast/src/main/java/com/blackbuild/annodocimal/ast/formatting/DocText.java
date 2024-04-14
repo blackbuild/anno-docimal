@@ -40,6 +40,11 @@ public class DocText {
     protected final String body;
     protected final Map<String, List<String>> tags;
 
+    /**
+     * Parses the given raw text into a DocText object.
+     * @param rawText the raw text of the javadoc comment
+     * @return the parsed DocText object
+     */
     public static DocText fromRawText(String rawText) {
         return new DocText(rawText);
     }

@@ -60,6 +60,12 @@ public class AnnoDocUtil {
         node.putNodeMetaData(DOC_TEXT_METADATA_KEY, DocText.fromRawText(javadoc));
     }
 
+    /**
+     * Adds an AnnoDoc annotation to the given node with the given docBuilder.
+     *
+     * @param node      the node to add the annotation to
+     * @param docBuilder the docBuilder to add
+     */
     public static void addDocumentation(@NotNull AnnotatedNode node, @NotNull DocBuilder docBuilder) {
         addDocumentation(node, docBuilder.toJavadoc());
     }
@@ -111,5 +117,4 @@ public class AnnoDocUtil {
             return new DocText(getAnnoDocValue(node, defaultValue));
         return (DocText) metaData;
     }
-
 }

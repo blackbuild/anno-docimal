@@ -30,6 +30,9 @@ import org.codehaus.groovy.control.SourceUnit;
 import java.io.IOException;
 import java.util.Iterator;
 
+/**
+ * AST visitor that inlines Javadoc comments as annotations.
+ */
 public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
     private final SourceUnit sourceUnit;
 
