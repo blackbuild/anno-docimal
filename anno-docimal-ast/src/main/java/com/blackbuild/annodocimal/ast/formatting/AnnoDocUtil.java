@@ -57,6 +57,7 @@ public class AnnoDocUtil {
     public static void addDocumentation(@NotNull AnnotatedNode node, String javadoc) {
         if (javadoc == null || javadoc.isBlank()) return;
         node.addAnnotation(createDocumentationAnnotation(javadoc));
+        node.putNodeMetaData(DOC_TEXT_METADATA_KEY, DocText.fromRawText(javadoc));
     }
 
     public static void addDocumentation(@NotNull AnnotatedNode node, @NotNull DocBuilder docBuilder) {
