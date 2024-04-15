@@ -52,10 +52,10 @@ public class JavadocDocBuilder extends AbstractDocBuilder {
                 builder.append("@throws ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
             }
         }
-        if (tags != null) {
-            for (Map.Entry<String, String> entry : tags.entrySet()) {
-                builder.append("@").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
-            }
+        if (otherTags != null) {
+            otherTags.forEach((tagName, tagList) ->
+                    tagList.forEach(value -> builder.append("@").append(tagName).append(" ").append(value).append("\n"))
+            );
         }
         return builder.toString();
     }

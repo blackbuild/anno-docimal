@@ -32,6 +32,14 @@ import org.codehaus.groovy.transform.GroovyASTTransformation;
 
 import java.util.Arrays;
 
+/**
+ * AST transformation that inlines Javadoc comments as annotations. This transformation
+ * can operate either as local ast transformation but adding it to a given annotation
+ * with <code>{@literal @}GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")</code>
+ * or using the <code>{@literal @}InlineJavadocs</code> annotation,
+ * or as global transformation by adding it to the META-INF/services/org.codehaus.groovy.transform.ASTTransformation file
+ * or including the anno-docimal-global-ast module as compile time dependency.
+ */
 @GroovyASTTransformation(phase = CompilePhase.SEMANTIC_ANALYSIS)
 public class InlineJavadocsTransformation extends AbstractASTTransformation {
 
