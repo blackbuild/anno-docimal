@@ -24,15 +24,18 @@
 package com.blackbuild.annodocimal.ast.formatting;
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc;
-import org.codehaus.groovy.ast.AnnotatedNode;
-import org.codehaus.groovy.ast.AnnotationNode;
-import org.codehaus.groovy.ast.ClassHelper;
-import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.AnnotatedElement;
+import java.util.Arrays;
+import java.util.List;
+
+import static java.util.Collections.emptyList;
 import static java.util.function.Predicate.not;
+import static java.util.stream.Collectors.toList;
 
 /**
  * Utility class for annotation docBuilder. Contains methods for creating, reading and parsing AnnoDoc annotations and
@@ -67,7 +70,12 @@ public class AnnoDocUtil {
      * @param docBuilder the docBuilder to add
      */
     public static void addDocumentation(@NotNull AnnotatedNode node, @NotNull DocBuilder docBuilder) {
-        addDocumentation(node, docBuilder.toJavadoc());
+        List<String> paramNames;
+        if (node instanceof MethodNode)
+            paramNames = Arrays.stream(((MethodNode) node).getParameters()).map(Parameter::getName).collect(toList());
+        else
+            paramNames = emptyList();
+        addDocumentation(node, docBuilder.toJavadoc(paramNames));
     }
 
     /**
@@ -113,8 +121,20 @@ public class AnnoDocUtil {
      */
     public static DocText getDocText(@NotNull AnnotatedNode node, @Nullable String defaultValue) {
         Object metaData = node.getNodeMetaData(DOC_TEXT_METADATA_KEY);
-        if (metaData == null)
-            return new DocText(getAnnoDocValue(node, defaultValue));
+        if (metaData == null) {
+            String annoDocValue = getAnnoDocValue(node, defaultValue);
+            metaData = DocText.fromRawText(annoDocValue);
+            node.putNodeMetaData(DOC_TEXT_METADATA_KEY, metaData);
+        }
         return (DocText) metaData;
+    }
+
+    public static String getJavaDoc(AnnotatedElement element, String defaultValue) {
+        AnnoDoc annotation = element.getAnnotation(AnnoDoc.class);
+        return annotation == null ? defaultValue : annotation.value();
+    }
+
+    public static String getDocumentation(AnnotatedElement element) {
+        return getJavaDoc(element, null);
     }
 }

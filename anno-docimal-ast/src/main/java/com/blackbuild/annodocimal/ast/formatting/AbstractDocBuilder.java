@@ -23,19 +23,49 @@
  */
 package com.blackbuild.annodocimal.ast.formatting;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public abstract class AbstractDocBuilder implements DocBuilder {
 
+    public static final List<String> SPECIAL_TAGS = List.of("param", "return", "throws");
     protected String title;
     protected List<String> paragraphs;
     protected Map<String, String> params;
     protected String returnType;
     protected Map<String, String> exceptions;
     protected Map<String, List<String>> otherTags;
+
+    @Override
+    public DocBuilder fromDocText(DocText docText) {
+        if (docText == null || docText.isEmpty()) return this;
+        title(docText.title);
+
+        // TODO Should split the body into paragraphs
+        paragraphs = new ArrayList<>();
+        paragraphs.add(docText.body);
+
+        returnType(docText.tags.get("return").get(0));
+        docText.tags.getOrDefault("param", Collections.emptyList()).forEach(param -> {
+            String[] parts = param.split(" ", 2);
+            param(parts[0], parts[1]);
+        });
+        docText.tags.getOrDefault("throws", Collections.emptyList()).forEach(throwsException -> {
+            String[] parts = throwsException.split(" ", 2);
+            throwsException(parts[0], parts[1]);
+        });
+        docText.tags.forEach((tag, values) -> {
+            if (!SPECIAL_TAGS.contains(tag)) {
+                values.forEach(value -> tag(tag, value));
+            }
+        });
+
+        return this;
+    }
+
+    @Override
+    public DocBuilder fromRawText(String rawText) {
+        return fromDocText(DocText.fromRawText(rawText));
+    }
 
     @Override
     public DocBuilder title(String title) {
@@ -112,5 +142,10 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     @Override
     public DocBuilder author(String author) {
         return tag("author", author);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return title == null && paragraphs == null && params == null && returnType == null && exceptions == null && otherTags == null;
     }
 }

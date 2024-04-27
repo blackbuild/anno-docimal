@@ -42,7 +42,7 @@ import java.util.stream.Stream;
 
 public class GroovyDocToolSourceExtractor implements SourceExtractor {
 
-    private final static String INSTANCE_METADATA_NAME = GroovyDocToolSourceExtractor.class.getName() + ".INSTANCE";
+    private static final String INSTANCE_METADATA_NAME = GroovyDocToolSourceExtractor.class.getName() + ".INSTANCE";
 
     private final GroovyRootDoc rootDoc;
 

@@ -21,14 +21,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.annotations;
+package com.blackbuild.annodocimal.ast
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
+import org.codehaus.groovy.ast.ASTNode
+import org.codehaus.groovy.ast.AnnotatedNode
+import org.codehaus.groovy.ast.AnnotationNode
+import org.codehaus.groovy.control.CompilePhase
+import org.codehaus.groovy.control.SourceUnit
+import org.codehaus.groovy.runtime.InvokerHelper
+import org.codehaus.groovy.transform.AbstractASTTransformation
+import org.codehaus.groovy.transform.GroovyASTTransformation
 
-@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
-@Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
-public @interface AnnoDoc {
-    String value();
+@GroovyASTTransformation(phase = CompilePhase.CLASS_GENERATION)
+class MockableTransformation extends AbstractASTTransformation {
+
+    Action action
+
+    @Override
+    void visit(ASTNode[] nodes, SourceUnit source) {
+        init(nodes, source)
+        def value = getMemberClassValue(nodes[0] as AnnotationNode, "value")
+        action = InvokerHelper.invokeConstructorOf(value.getName(), null) as Action
+        action.handle(nodes[0] as AnnotationNode, nodes[1] as AnnotatedNode, source)
+    }
+
+    @FunctionalInterface
+    static interface Action {
+        void handle(AnnotationNode annotation, AnnotatedNode target, SourceUnit sourceUnit)
+    }
 }

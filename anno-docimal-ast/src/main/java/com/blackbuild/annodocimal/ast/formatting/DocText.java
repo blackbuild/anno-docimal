@@ -35,6 +35,8 @@ import java.util.regex.Pattern;
  */
 public class DocText {
 
+    public static final DocText EMPTY = new DocText("");
+
     protected final String rawText;
     protected final String title;
     protected final String body;
@@ -46,6 +48,7 @@ public class DocText {
      * @return the parsed DocText object
      */
     public static DocText fromRawText(String rawText) {
+        if (rawText == null) return EMPTY;
         return new DocText(rawText);
     }
 
@@ -195,5 +198,9 @@ public class DocText {
                 .map(m -> m.group(1))
                 .map(s -> s == null ? "" : s.trim())
                 .findFirst();
+    }
+
+    public boolean isEmpty() {
+        return rawText == null || rawText.isBlank();
     }
 }

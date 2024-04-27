@@ -23,11 +23,22 @@
  */
 package com.blackbuild.annodocimal.ast.formatting;
 
+import java.util.List;
+
 /**
  * Builder to easily create Javadoc strings. Is designed to create a single instance of the builder
  * per javadoc comment.
  */
 public interface DocBuilder {
+
+    DocBuilder getCopy();
+
+    boolean isEmpty();
+
+    DocBuilder fromRawText(String rawText);
+
+    DocBuilder fromDocText(DocText docText);
+
     /**
      * Sets the title of the Javadoc. As per Javadoc convention, the title should end with a period.
      *
@@ -134,4 +145,13 @@ public interface DocBuilder {
      * @return the Javadoc string
      */
     String toJavadoc();
+
+    /**
+     * Creates the Javadoc string from the builder. The actual formatting is dependent on the implementation.
+     * Parameter tags for parameters not in the validParameters list are not included.
+     *
+     * @param validParameters the list of valid parameters
+     * @return the Javadoc string
+     */
+    String toJavadoc(List<String> validParameters);
 }

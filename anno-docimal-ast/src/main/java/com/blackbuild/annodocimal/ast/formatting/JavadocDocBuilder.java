@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.ast.formatting;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,7 +32,27 @@ import java.util.Map;
 public class JavadocDocBuilder extends AbstractDocBuilder {
 
     @Override
+    public JavadocDocBuilder getCopy() {
+        JavadocDocBuilder copy = new JavadocDocBuilder();
+        copy.title = title;
+        if (paragraphs != null) copy.paragraphs = new java.util.ArrayList<>(paragraphs);
+        if (params != null) copy.params = new java.util.LinkedHashMap<>(params);
+        copy.returnType = returnType;
+        if (exceptions != null) copy.exceptions = new java.util.LinkedHashMap<>(exceptions);
+        if (otherTags != null) {
+            copy.otherTags = new java.util.LinkedHashMap<>();
+            otherTags.forEach((key, value) -> copy.otherTags.put(key, new java.util.ArrayList<>(value)));
+        }
+        return copy;
+    }
+
+    @Override
     public String toJavadoc() {
+        return toJavadoc(null);
+    }
+
+    @Override
+    public String toJavadoc(List<String> validParameters) {
         StringBuilder builder = new StringBuilder();
         if (title != null) builder.append(title).append("\n");
         if (paragraphs != null) {
@@ -41,7 +62,8 @@ public class JavadocDocBuilder extends AbstractDocBuilder {
         }
         if (params != null) {
             for (Map.Entry<String, String> entry : params.entrySet()) {
-                builder.append("@param ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
+                if (validParameters == null || validParameters.contains(entry.getKey()))
+                    builder.append("@param ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
             }
         }
         if (returnType != null) {

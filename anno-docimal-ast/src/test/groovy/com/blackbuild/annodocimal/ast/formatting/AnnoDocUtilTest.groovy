@@ -23,25 +23,123 @@
  */
 package com.blackbuild.annodocimal.ast.formatting
 
-import com.blackbuild.annodocimal.annotations.AnnoDoc
+import com.blackbuild.annodocimal.ast.ClassGeneratingSpecification
+import com.blackbuild.annodocimal.ast.MockableTransformation
 import org.codehaus.groovy.ast.AnnotatedNode
 import org.codehaus.groovy.ast.AnnotationNode
-import org.codehaus.groovy.ast.ClassHelper
-import spock.lang.Specification
+import org.codehaus.groovy.control.SourceUnit
+import org.codehaus.groovy.control.customizers.ImportCustomizer
 
-import static org.codehaus.groovy.ast.tools.GeneralUtils.constX
+class AnnoDocUtilTest extends ClassGeneratingSpecification {
 
-class AnnoDocUtilTest extends Specification {
+    static Map<?, ?> astData = [:]
 
-    AnnotatedNode node
+    @Override
+    def setup() {
+        ImportCustomizer imports = new ImportCustomizer().addStarImports(getClass().getPackageName())
+        compilerConfiguration.addCompilationCustomizers(imports)
+    }
 
+    @Override
+    def cleanup() {
+        astData.clear()
+    }
 
-    AnnotatedNode withJavaDoc(String text) {
-        AnnotatedNode node = new AnnotatedNode()
-        def annotation = new AnnotationNode(ClassHelper.make(AnnoDoc.class))
-        node.addAnnotation(annotation)
-        annotation.addMember("value", constX(text))
-        return node
+    static class MyAction implements MockableTransformation.Action {
+
+        @Override
+        void handle(AnnotationNode annotation, AnnotatedNode target, SourceUnit sourceUnit) {
+            def type = annotation.getMember("type").getType()
+
+            AnnotatedNode provider
+            if (annotation.getMember("method")) {
+                provider = type.getDeclaredMethods(annotation.getMember("method").getText()).first()
+            } else if (annotation.getMember("field")) {
+                provider = type.getDeclaredField(annotation.getMember("field").getText())
+            } else {
+                provider = type
+            }
+
+            astData.put(target.getName(), AnnoDocUtil.getAnnoDocValue(provider, null));
+        }
+    }
+
+    def "Documentation is retrieved from AST"() {
+        given:
+        createClass '''
+package dummy
+
+import com.blackbuild.annodocimal.annotations.AnnoDoc
+import com.blackbuild.annodocimal.ast.MockAST
+import com.blackbuild.annodocimal.ast.MockableTransformation
+
+@AnnoDoc("A class")
+class Provider {
+    @AnnoDoc("A field")
+    String name
+    
+    @AnnoDoc("A method")
+    void method() {}
+}
+
+class Consumer {
+    @ReadDocFrom(value = AnnoDocUtilTest.MyAction, type = Provider)
+    Object fromClass
+    
+    @ReadDocFrom(value = AnnoDocUtilTest.MyAction, type = Provider, field = "name")
+    Object fromField
+    
+    @ReadDocFrom(value = AnnoDocUtilTest.MyAction, type = Provider, method = "method")
+    Object fromMethod
+}
+'''
+        expect:
+        astData.fromClass == 'A class'
+        astData.fromField == 'A field'
+        astData.fromMethod == 'A method'
+    }
+
+    def "Documentation is retrieved from Class object"() {
+        given:
+        createClass '''
+package provider
+
+import com.blackbuild.annodocimal.annotations.AnnoDoc
+import com.blackbuild.annodocimal.ast.MockAST
+import com.blackbuild.annodocimal.ast.MockableTransformation
+
+@AnnoDoc("A class")
+class Provider {
+    @AnnoDoc("A field")
+    String name
+    
+    @AnnoDoc("A method")
+    void method() {}
+}
+'''
+        createClassFromSecondaryloader '''
+package dummy
+
+import com.blackbuild.annodocimal.annotations.AnnoDoc
+import com.blackbuild.annodocimal.ast.MockAST
+import com.blackbuild.annodocimal.ast.MockableTransformation
+import provider.Provider
+
+class Consumer {
+    @ReadDocFrom(value = AnnoDocUtilTest.MyAction, type = Provider)
+    Object fromClass
+    
+    @ReadDocFrom(value = AnnoDocUtilTest.MyAction, type = Provider, field = "name")
+    Object fromField
+    
+    @ReadDocFrom(value = AnnoDocUtilTest.MyAction, type = Provider, method = "method")
+    Object fromMethod
+}
+'''
+        expect:
+        astData.fromClass == 'A class'
+        astData.fromField == 'A field'
+        astData.fromMethod == 'A method'
     }
 
 }

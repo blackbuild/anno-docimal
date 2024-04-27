@@ -24,44 +24,17 @@
 //file:noinspection GrPackage
 package com.blackbuild.annodocimal.ast
 
-
 import com.blackbuild.annodocimal.annotations.AnnoDoc
-import org.codehaus.groovy.control.CompilerConfiguration
 import org.intellij.lang.annotations.Language
-import org.junit.Rule
-import org.junit.rules.TestName
-import spock.lang.Specification
 
-class InlineJavadocsTransformationTest extends Specification {
-    @Rule
-    TestName testName = new TestName()
-    ClassLoader oldLoader
-    GroovyClassLoader loader
-    CompilerConfiguration compilerConfiguration
-    Class<?> clazz
+class InlineJavadocsTransformationTest extends ClassGeneratingSpecification {
+
     File srcDir
 
     def setup() {
-        oldLoader = Thread.currentThread().contextClassLoader
-        compilerConfiguration = new CompilerConfiguration()
-        //compilerConfiguration.addCompilationCustomizers(new ASTTransformationCustomizer(new InlineJavadocsTransformation()))
-        def outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")
-        outputDirectory.deleteDir()
-        outputDirectory.mkdirs()
         srcDir = new File("build/test-sources/${getClass().simpleName}/$safeFilename")
         srcDir.deleteDir()
         srcDir.mkdirs()
-        compilerConfiguration.targetDirectory = outputDirectory
-        loader = new GroovyClassLoader(oldLoader, compilerConfiguration)
-        Thread.currentThread().contextClassLoader = loader
-    }
-
-    def getSafeFilename() {
-        testName.methodName.replaceAll("\\W+", "_")
-    }
-
-    def cleanup() {
-        Thread.currentThread().contextClassLoader = oldLoader
     }
 
     void createClass(String filename, @Language("groovy") String code) {
