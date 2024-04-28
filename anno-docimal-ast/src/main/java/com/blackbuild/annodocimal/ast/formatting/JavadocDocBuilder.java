@@ -54,31 +54,39 @@ public class JavadocDocBuilder extends AbstractDocBuilder {
     @Override
     public String toJavadoc(List<String> validParameters) {
         StringBuilder builder = new StringBuilder();
-        if (title != null) builder.append(title).append("\n");
-        if (paragraphs != null) {
-            for (String paragraph : paragraphs) {
-                builder.append("<p>\n").append(paragraph).append("\n</p>\n");
-            }
-        }
-        if (params != null) {
-            for (Map.Entry<String, String> entry : params.entrySet()) {
+        addTitle(builder);
+        addParagraphs(builder);
+        addSignatureElements(validParameters, builder);
+        addOtherTags(builder);
+        return builder.toString();
+    }
+
+    private void addOtherTags(StringBuilder builder) {
+        if (otherTags == null) return;
+        otherTags.forEach((tagName, tagList) ->
+            tagList.forEach(value -> builder.append("@").append(tagName).append(" ").append(value).append("\n"))
+        );
+    }
+
+    private void addSignatureElements(List<String> validParameters, StringBuilder builder) {
+        if (params != null)
+            for (Map.Entry<String, String> entry : params.entrySet())
                 if (validParameters == null || validParameters.contains(entry.getKey()))
                     builder.append("@param ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
-            }
-        }
-        if (returnType != null) {
+        if (returnType != null)
             builder.append("@return ").append(returnType).append("\n");
-        }
-        if (exceptions != null) {
-            for (Map.Entry<String, String> entry : exceptions.entrySet()) {
+        if (exceptions != null)
+            for (Map.Entry<String, String> entry : exceptions.entrySet())
                 builder.append("@throws ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
-            }
-        }
-        if (otherTags != null) {
-            otherTags.forEach((tagName, tagList) ->
-                    tagList.forEach(value -> builder.append("@").append(tagName).append(" ").append(value).append("\n"))
-            );
-        }
-        return builder.toString();
+    }
+
+    private void addParagraphs(StringBuilder builder) {
+        if (paragraphs != null)
+            for (String paragraph : paragraphs)
+                builder.append("<p>\n").append(paragraph).append("\n</p>\n");
+    }
+
+    private void addTitle(StringBuilder builder) {
+        if (title != null) builder.append(title).append("\n");
     }
 }

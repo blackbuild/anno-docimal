@@ -30,7 +30,6 @@ import org.apache.bcel.Repository;
 import org.apache.bcel.classfile.*;
 import org.apache.bcel.generic.Type;
 
-import javax.annotation.processing.Generated;
 import javax.lang.model.element.Modifier;
 import java.io.File;
 import java.io.IOException;
@@ -50,8 +49,6 @@ public class SpecConverter {
 
     private static final String INTERNAL_ANNOTATION = "groovy.transform.Internal";
     private static final String ANNO_DOC_ANNOTATION = Utility.getSignature(AnnoDoc.class.getName());
-    private static final String APT_GENERATED_ANNOTATION = Utility.getSignature(Generated.class.getName());
-    private static final String GROOVY_GENERATED_ANNOTATION = Utility.getSignature("groovy.transform.Generated");
 
     private SpecConverter() {
         // static only
@@ -79,7 +76,7 @@ public class SpecConverter {
 
         for (AnnotationEntry annotation : type.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(getMemberValue(annotation, "value"));
+                builder.addJavadoc(getStringValue(annotation));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -94,13 +91,16 @@ public class SpecConverter {
                 .forEach(builder::addMethod);
 
 
-        InnerClasses innerClassesAttribute = stream(type.getAttributes()).filter(attr -> attr instanceof InnerClasses).map(attr -> (InnerClasses) attr).findFirst().orElse(null);
-
-        if (innerClassesAttribute != null)
-            stream(innerClassesAttribute.getInnerClasses())
-                    .filter(innerClass -> isInnerClassOf(innerClass, type))
-                    .map(innerClass -> toInnerTypeSpec(innerClass, type))
-                    .forEach(builder::addType);
+        stream(type.getAttributes())
+                .filter(InnerClasses.class::isInstance)
+                .map(InnerClasses.class::cast)
+                .findFirst()
+                .ifPresent(innerClassesAttribute ->
+                        stream(innerClassesAttribute.getInnerClasses())
+                        .filter(innerClass -> isInnerClassOf(innerClass, type))
+                        .map(innerClass -> toInnerTypeSpec(innerClass, type))
+                        .forEach(builder::addType)
+                );
 
         return builder.build();
     }
@@ -121,14 +121,6 @@ public class SpecConverter {
 
     private static boolean isJavadocs(AnnotationEntry annotation) {
         return annotation.getAnnotationType().equals(ANNO_DOC_ANNOTATION);
-    }
-
-    private static String getMemberValue(AnnotationEntry annotation, String memberName) {
-        return stream(annotation.getElementValuePairs())
-                .filter(pair -> pair.getNameString().equals(memberName))
-                .map(pair -> pair.getValue().stringifyValue())
-                .findFirst()
-                .orElse(null);
     }
 
     private static boolean shouldBeIncluded(FieldOrMethod member) {
@@ -152,7 +144,7 @@ public class SpecConverter {
 
         for (AnnotationEntry annotation : field.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(getMemberValue(annotation, "value"));
+                builder.addJavadoc(getStringValue(annotation));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -170,7 +162,7 @@ public class SpecConverter {
 
         for (AnnotationEntry annotation : constructorOrMethod.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(getMemberValue(annotation, "value"));
+                builder.addJavadoc(getStringValue(annotation));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -180,6 +172,14 @@ public class SpecConverter {
                 .forEach(i -> builder.addParameter(toParameterSpec(constructorOrMethod, i, argumentNames.get(i))));
 
         return builder.build();
+    }
+
+    private static String getStringValue(AnnotationEntry annotation) {
+        return stream(annotation.getElementValuePairs())
+                .filter(pair -> pair.getNameString().equals("value"))
+                .map(pair -> pair.getValue().stringifyValue())
+                .findFirst()
+                .orElse(null);
     }
 
     static List<String> getArgumentNames(Method method) {
@@ -204,7 +204,7 @@ public class SpecConverter {
         if (annotationEntries.length > 0)
             for (AnnotationEntry annotation : annotationEntries[index].getAnnotationEntries())
                 if (isJavadocs(annotation))
-                    builder.addJavadoc(getMemberValue(annotation, "value"));
+                    builder.addJavadoc(getStringValue(annotation));
                 else
                     builder.addAnnotation(toAnnotationSpec(annotation));
 
