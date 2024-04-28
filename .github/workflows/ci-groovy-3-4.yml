@@ -1,0 +1,34 @@
+name: CI Groovy 3 and 4
+
+on:
+  push:
+    branches: [ main, master, release-* ]
+  pull_request:
+    branches: [ main, master, release-* ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  groovy_matrix:
+    strategy:
+      matrix:
+        groovyVersion: [ 3.0.21, 4.0.21 ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: |
+            11
+            17
+          distribution: 'adopt'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Build with Gradle
+        run:
+          ./gradlew build -PgroovyVersion=${{ matrix.groovyVersion }}
