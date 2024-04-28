@@ -58,7 +58,11 @@ abstract class ClassGeneratingTest extends Specification {
     }
 
     void createClass(@Language("groovy") String code) {
-        clazz = loader.parseClass(code)
+        clazz = parseClass(code)
+    }
+
+    Class<?> parseClass(@Language("groovy") String code) {
+        loader.parseClass(code)
     }
 
 

@@ -32,16 +32,8 @@ public class AnnoDocGenerator {
         // static only
     }
 
-    public static void generate(Class<?> typeToDocument, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(typeToDocument).writeTo(output);
-    }
-
     public static void generate(File sourceFile, Appendable output) throws IOException {
         SpecConverter.toJavaFile(sourceFile).writeTo(output);
-    }
-
-    public static void generate(Class<?> typeToDocument, File folder) throws IOException {
-        SpecConverter.toJavaFile(typeToDocument).writeTo(folder);
     }
 
     public static void generate(File sourceFile, File targetFolder) throws IOException {

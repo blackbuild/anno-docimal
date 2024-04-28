@@ -28,6 +28,37 @@ import spock.lang.Specification
 
 class JavadocDocBuilderTest extends Specification {
 
+    def "should return a string with Javadoc format when there are paragraphs, parameters, exceptions, and other tags"() {
+        given:
+        def docBuilder = new JavadocDocBuilder()
+        docBuilder.title = "This is the title"
+        docBuilder.paragraphs = ["This is paragraph 1", "This is paragraph 2"]
+        docBuilder.params = ["param1": "This is parameter 1", "param2": "This is parameter 2"]
+        docBuilder.returnType = "This is the return type"
+        docBuilder.exceptions = ["Exception1": "This is exception 1", "Exception2": "This is exception 2"]
+        docBuilder.otherTags = ["Tag1": ["Value1", "Value2"], "Tag2": ["Value3"]]
+
+        when:
+        def result = docBuilder.toJavadoc()
+
+        then:
+        result == """This is the title
+<p>
+This is paragraph 1
+</p>
+<p>
+This is paragraph 2
+</p>
+@param param1 This is parameter 1
+@param param2 This is parameter 2
+@return This is the return type
+@throws Exception1 This is exception 1
+@throws Exception2 This is exception 2
+@Tag1 Value1
+@Tag1 Value2
+@Tag2 Value3
+"""
+    }
 
     def "should instantiate JavadocDocumentation with a title"() {
         given:
@@ -115,6 +146,42 @@ Paragraph 2
         result ==
         """Test Title
 """
+    }
+
+    def "should correctly parse a existing javadoc string into a builder"() {
+        given:
+        def javadoc = """This is the title
+<p>
+This is paragraph 1
+</p>
+<p>
+This is paragraph 2
+</p>
+@param param1 This is parameter 1
+@param param2 This is parameter 2
+@return This is the return type
+@throws Exception1 This is exception 1
+@throws Exception2 This is exception 2
+@Tag1 Value1
+@Tag1 Value2
+@Tag2 Value3
+"""
+
+        when:
+        def docBuilder = new JavadocDocBuilder().fromRawText(javadoc)
+
+        then:
+        docBuilder.title == "This is the title"
+        docBuilder.paragraphs == ['''<p>
+This is paragraph 1
+</p>
+<p>
+This is paragraph 2
+</p>''']
+        docBuilder.params == ["param1": "This is parameter 1", "param2": "This is parameter 2"]
+        docBuilder.returnType == "This is the return type"
+        docBuilder.exceptions == ["Exception1": "This is exception 1", "Exception2": "This is exception 2"]
+        docBuilder.otherTags == ["Tag1": ["Value1", "Value2"], "Tag2": ["Value3"]]
     }
 
 }

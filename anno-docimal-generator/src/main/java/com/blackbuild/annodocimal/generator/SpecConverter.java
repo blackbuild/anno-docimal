@@ -29,6 +29,7 @@ import org.apache.bcel.Const;
 import org.apache.bcel.Repository;
 import org.apache.bcel.classfile.*;
 import org.apache.bcel.generic.Type;
+import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.Modifier;
 import java.io.File;
@@ -52,10 +53,6 @@ public class SpecConverter {
 
     private SpecConverter() {
         // static only
-    }
-
-    public static JavaFile toJavaFile(Class<?> type) {
-        return null;
     }
 
     public static JavaFile toJavaFile(File source) throws IOException {
@@ -212,9 +209,62 @@ public class SpecConverter {
     }
 
     public static AnnotationSpec toAnnotationSpec(AnnotationEntry annotation) {
-        AnnotationSpec.Builder builder = AnnotationSpec.builder(ClassName.bestGuess(annotation.getAnnotationType()));
-        stream(annotation.getElementValuePairs()).forEach(pair -> builder.addMember(pair.getNameString(), pair.getValue().stringifyValue()));
+        AnnotationSpec.Builder builder = AnnotationSpec.builder(
+                ClassName.bestGuess(Utility.typeSignatureToString(annotation.getAnnotationType(), true))
+        );
+        stream(annotation.getElementValuePairs())
+                .forEach(pair -> toAnnotationMember(pair, builder));
         return builder.build();
+    }
+
+    private static AnnotationSpec.@NotNull Builder toAnnotationMember(ElementValuePair pair, AnnotationSpec.Builder builder) {
+        return builder.addMember(pair.getNameString(), stringifyValue(pair.getValue()));
+    }
+
+    private static CodeBlock stringifyValue(ElementValue value) {
+        if (value instanceof SimpleElementValue)
+            return stringifySimpleElementValue(value);
+        else if (value instanceof ArrayElementValue)
+            return stringifyArrayElementValue((ArrayElementValue) value);
+        else if (value instanceof EnumElementValue)
+            return stringifyEnumElementValue((EnumElementValue) value);
+        else if (value instanceof AnnotationElementValue)
+            return stringifyAnnotationElementValue((AnnotationElementValue) value);
+        else if (value instanceof ClassElementValue) return stringifyClassElementValue((ClassElementValue) value);
+        throw new UnsupportedOperationException("Unsupported element value type: " + value);
+    }
+
+    private static @NotNull CodeBlock stringifyClassElementValue(ClassElementValue value) {
+        return CodeBlock.of("$T.class", ClassName.bestGuess(Utility.typeSignatureToString(value.getClassString(), true)));
+    }
+
+    private static @NotNull CodeBlock stringifyAnnotationElementValue(AnnotationElementValue value) {
+        return CodeBlock.of("$L", toAnnotationSpec(value.getAnnotationEntry()));
+    }
+
+    private static @NotNull CodeBlock stringifyEnumElementValue(EnumElementValue enumValue) {
+        return CodeBlock.of("$T.$L", ClassName.bestGuess(Utility.typeSignatureToString(enumValue.getEnumTypeString(), true)), enumValue.getEnumValueString());
+    }
+
+    private static @NotNull CodeBlock stringifyArrayElementValue(ArrayElementValue value) {
+        return CodeBlock.of("{$L}", stream(value.getElementValuesArray())
+                .map(SpecConverter::stringifyValue)
+                .collect(CodeBlock.joining(", ")));
+    }
+
+    private static @NotNull CodeBlock stringifySimpleElementValue(ElementValue value) {
+        switch (value.getElementValueType()) {
+            case ElementValue.STRING:
+                return CodeBlock.of("$S", value.stringifyValue());
+            case ElementValue.PRIMITIVE_CHAR:
+                return CodeBlock.of("'$L'", value.stringifyValue());
+            case ElementValue.PRIMITIVE_FLOAT:
+                return CodeBlock.of("$Lf", value.stringifyValue());
+            case ElementValue.PRIMITIVE_LONG:
+                return CodeBlock.of("$LL", value.stringifyValue());
+            default:
+                return CodeBlock.of("$L", value.stringifyValue());
+        }
     }
 
     static Modifier[] decodeModifiers(AccessFlags flags) {

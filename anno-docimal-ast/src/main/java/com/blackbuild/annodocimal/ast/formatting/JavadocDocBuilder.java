@@ -69,15 +69,27 @@ public class JavadocDocBuilder extends AbstractDocBuilder {
     }
 
     private void addSignatureElements(List<String> validParameters, StringBuilder builder) {
+        addParams(validParameters, builder);
+        addReturnType(builder);
+        addExceptions(builder);
+    }
+
+    private void addExceptions(StringBuilder builder) {
+        if (exceptions != null)
+            for (Map.Entry<String, String> entry : exceptions.entrySet())
+                builder.append("@throws ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
+    }
+
+    private void addReturnType(StringBuilder builder) {
+        if (returnType != null)
+            builder.append("@return ").append(returnType).append("\n");
+    }
+
+    private void addParams(List<String> validParameters, StringBuilder builder) {
         if (params != null)
             for (Map.Entry<String, String> entry : params.entrySet())
                 if (validParameters == null || validParameters.contains(entry.getKey()))
                     builder.append("@param ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
-        if (returnType != null)
-            builder.append("@return ").append(returnType).append("\n");
-        if (exceptions != null)
-            for (Map.Entry<String, String> entry : exceptions.entrySet())
-                builder.append("@throws ").append(entry.getKey()).append(" ").append(entry.getValue()).append("\n");
     }
 
     private void addParagraphs(StringBuilder builder) {
