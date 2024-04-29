@@ -148,6 +148,18 @@ Paragraph 2
 """
     }
 
+    def "paragraphs are correctly split"() {
+        given:
+        def doc = new JavadocDocBuilder()
+
+        expect:
+        doc.splitIntoParagraphs() == []
+        doc.splitIntoParagraphs("") == []
+        doc.splitIntoParagraphs("single paragraph") == ["single paragraph"]
+        doc.splitIntoParagraphs("<p>single paragraph</p>") == ["single paragraph"]
+
+    }
+
     def "should correctly parse a existing javadoc string into a builder"() {
         given:
         def javadoc = """This is the title
@@ -172,16 +184,43 @@ This is paragraph 2
 
         then:
         docBuilder.title == "This is the title"
-        docBuilder.paragraphs == ['''<p>
-This is paragraph 1
-</p>
-<p>
-This is paragraph 2
-</p>''']
+        docBuilder.paragraphs == ['This is paragraph 1', 'This is paragraph 2']
         docBuilder.params == ["param1": "This is parameter 1", "param2": "This is parameter 2"]
         docBuilder.returnType == "This is the return type"
         docBuilder.exceptions == ["Exception1": "This is exception 1", "Exception2": "This is exception 2"]
         docBuilder.otherTags == ["Tag1": ["Value1", "Value2"], "Tag2": ["Value3"]]
+    }
+
+    def "should correctly parse a existing javadoc string into a builder when title and paragraph are separated by dot"() {
+        given:
+        def javadoc = """This is the title. This is paragraph 1
+<p>
+This is paragraph 2
+"""
+
+        when:
+        def docBuilder = new JavadocDocBuilder().fromRawText(javadoc)
+
+        then:
+        docBuilder.title == "This is the title."
+        docBuilder.paragraphs == ['This is paragraph 1', 'This is paragraph 2']
+    }
+
+    def "should correctly parse a existing javadoc string into a builder when title and paragraph are separated by empty line"() {
+        given:
+        def javadoc = """This is the title
+
+This is paragraph 1
+<p>
+This is paragraph 2
+"""
+
+        when:
+        def docBuilder = new JavadocDocBuilder().fromRawText(javadoc)
+
+        then:
+        docBuilder.title == "This is the title"
+        docBuilder.paragraphs == ['This is paragraph 1', 'This is paragraph 2']
     }
 
 }

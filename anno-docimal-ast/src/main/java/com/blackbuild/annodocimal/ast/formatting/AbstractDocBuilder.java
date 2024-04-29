@@ -24,10 +24,14 @@
 package com.blackbuild.annodocimal.ast.formatting;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public abstract class AbstractDocBuilder implements DocBuilder {
 
-    public static final List<String> SPECIAL_TAGS = List.of("param", "return", "throws");
+    public static final String PARAM_TAG = "param";
+    public static final String RETURN_TAG = "return";
+    public static final String THROWS_TAG = "throws";
+    public static final List<String> SPECIAL_TAGS = List.of(PARAM_TAG, RETURN_TAG, THROWS_TAG);
     protected String title;
     protected List<String> paragraphs;
     protected Map<String, String> params;
@@ -40,16 +44,16 @@ public abstract class AbstractDocBuilder implements DocBuilder {
         if (docText == null || docText.isEmpty()) return this;
         title(docText.title);
 
-        // TODO Should split the body into paragraphs
         paragraphs = new ArrayList<>();
-        paragraphs.add(docText.body);
+        paragraphs.addAll(splitIntoParagraphs(docText.body));
 
-        returnType(docText.tags.get("return").get(0));
-        docText.tags.getOrDefault("param", Collections.emptyList()).forEach(param -> {
+        if (!docText.tags.getOrDefault(RETURN_TAG, Collections.emptyList()).isEmpty())
+            returnType(docText.tags.get(RETURN_TAG).get(0));
+        docText.tags.getOrDefault(PARAM_TAG, Collections.emptyList()).forEach(param -> {
             String[] parts = param.split(" ", 2);
             param(parts[0], parts[1]);
         });
-        docText.tags.getOrDefault("throws", Collections.emptyList()).forEach(throwsException -> {
+        docText.tags.getOrDefault(THROWS_TAG, Collections.emptyList()).forEach(throwsException -> {
             String[] parts = throwsException.split(" ", 2);
             throwsException(parts[0], parts[1]);
         });
@@ -60,6 +64,16 @@ public abstract class AbstractDocBuilder implements DocBuilder {
         });
 
         return this;
+    }
+
+    List<String> splitIntoParagraphs(String body) {
+        if (body == null) return Collections.emptyList();
+        if (body.isBlank()) return Collections.emptyList();
+        return Arrays.stream(body.split("(?m)\\s*<[pP]>"))
+                .map(s -> s.replaceAll("(?m)\\s*</[pP]>\\s*", ""))
+                .map(String::strip)
+                .filter(AbstractDocBuilder::isNotBlank)
+                .collect(Collectors.toList());
     }
 
     @Override
