@@ -69,8 +69,8 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     List<String> splitIntoParagraphs(String body) {
         if (body == null) return Collections.emptyList();
         if (body.isBlank()) return Collections.emptyList();
-        return Arrays.stream(body.split("(?m)\\s*<[pP]>"))
-                .map(s -> s.replaceAll("(?m)\\s*</[pP]>\\s*", ""))
+        return Arrays.stream(body.split("<[pP]>"))
+                .map(s -> s.replaceAll("</[pP]>", ""))
                 .map(String::strip)
                 .filter(AbstractDocBuilder::isNotBlank)
                 .collect(Collectors.toList());
