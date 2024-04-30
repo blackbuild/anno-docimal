@@ -223,4 +223,78 @@ This is paragraph 2
         docBuilder.paragraphs == ['This is paragraph 1', 'This is paragraph 2']
     }
 
+    def "copy from should not override existing entries"() {
+        given:
+        def docBuilder = new JavadocDocBuilder()
+        .title("Manual Title")
+        .p("Manual paragraph")
+        .p("manual paragraph 2")
+        .param("param1", "Manual param")
+        .param("param2", "Manual param 2")
+        .returnType("Manual return")
+        .throwsException("Exception1", "Manual exception")
+        .deprecated("Manual deprecation")
+
+        def other = """Overridden Title
+
+Overridden paragraph 1
+<p>
+Overridden paragraph 2
+@param param1 Overridden param
+@param param3 Overridden param 3
+@deprecated Overridden deprecation
+"""
+        when:
+        docBuilder.fromRawText(other)
+
+        then:
+        docBuilder.title == "Manual Title"
+        docBuilder.paragraphs == ["Manual paragraph", "manual paragraph 2"]
+        docBuilder.params == ["param1": "Manual param", "param2": "Manual param 2", "param3": "Overridden param 3"]
+        docBuilder.returnType == "Manual return"
+        docBuilder.exceptions == ["Exception1": "Manual exception"]
+    }
+
+    def "copy from should combine paragraphs of donor and additional paragraphs"() {
+        given:
+        def docBuilder = new JavadocDocBuilder()
+        .title("Manual Title")
+        .extraP("Manual additional paragraph")
+        .extraP("Manual additional paragraph 2")
+
+        def other = """Overridden Title
+
+Overridden paragraph 1
+<p>
+Overridden paragraph 2"""
+
+        when:
+        docBuilder.fromRawText(other)
+
+        then:
+        docBuilder.title == "Manual Title"
+        docBuilder.paragraphs == ["Overridden paragraph 1", "Overridden paragraph 2"]
+        docBuilder.additionalParagraphs == ["Manual additional paragraph", "Manual additional paragraph 2"]
+
+        when:
+        def result = docBuilder.toJavadoc()
+
+        then:
+        result == """Manual Title
+<p>
+Overridden paragraph 1
+</p>
+<p>
+Overridden paragraph 2
+</p>
+<p>
+Manual additional paragraph
+</p>
+<p>
+Manual additional paragraph 2
+</p>
+"""
+    }
+
+
 }

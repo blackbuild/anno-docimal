@@ -21,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+//file:noinspection GrPackage
+//file:noinspection UnnecessaryQualifiedReference
 package com.blackbuild.annodocimal.ast.formatting
 
 import com.blackbuild.annodocimal.ast.ClassGeneratingSpecification
@@ -118,6 +120,7 @@ class Provider {
 }
 '''
         createClassFromSecondaryloader '''
+
 package dummy
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc

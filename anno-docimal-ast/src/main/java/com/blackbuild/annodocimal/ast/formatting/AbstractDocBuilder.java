@@ -34,6 +34,7 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     public static final List<String> SPECIAL_TAGS = List.of(PARAM_TAG, RETURN_TAG, THROWS_TAG);
     protected String title;
     protected List<String> paragraphs;
+    protected List<String> additionalParagraphs;
     protected Map<String, String> params;
     protected String returnType;
     protected Map<String, String> exceptions;
@@ -41,21 +42,27 @@ public abstract class AbstractDocBuilder implements DocBuilder {
 
     @Override
     public DocBuilder fromDocText(DocText docText) {
-        if (docText == null || docText.isEmpty()) return this;
-        title(docText.title);
+        if (docText == null) return this;
+        if (docText.title != null && title == null)
+            title(docText.title);
 
-        paragraphs = new ArrayList<>();
-        paragraphs.addAll(splitIntoParagraphs(docText.body));
+        if (paragraphs == null && docText.body != null) {
+            paragraphs = new ArrayList<>();
+            paragraphs.addAll(splitIntoParagraphs(docText.body));
+        }
 
-        if (!docText.tags.getOrDefault(RETURN_TAG, Collections.emptyList()).isEmpty())
+        if (returnType == null && !docText.tags.getOrDefault(RETURN_TAG, Collections.emptyList()).isEmpty())
             returnType(docText.tags.get(RETURN_TAG).get(0));
+
         docText.tags.getOrDefault(PARAM_TAG, Collections.emptyList()).forEach(param -> {
             String[] parts = param.split(" ", 2);
-            param(parts[0], parts[1]);
+            if (params == null || !params.containsKey(parts[0]))
+                param(parts[0], parts[1]);
         });
         docText.tags.getOrDefault(THROWS_TAG, Collections.emptyList()).forEach(throwsException -> {
             String[] parts = throwsException.split(" ", 2);
-            throwsException(parts[0], parts[1]);
+            if (exceptions == null || !exceptions.containsKey(parts[0]))
+                throwsException(parts[0], parts[1]);
         });
         docText.tags.forEach((tag, values) -> {
             if (!SPECIAL_TAGS.contains(tag)) {
@@ -91,6 +98,13 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     public DocBuilder p(String paragraph) {
         if (paragraphs == null) paragraphs = new ArrayList<>();
         if (isNotBlank(paragraph)) paragraphs.add(paragraph);
+        return this;
+    }
+
+    @Override
+    public DocBuilder extraP(String paragraph) {
+        if (additionalParagraphs == null) additionalParagraphs = new ArrayList<>();
+        if (isNotBlank(paragraph)) additionalParagraphs.add(paragraph);
         return this;
     }
 
@@ -132,8 +146,9 @@ public abstract class AbstractDocBuilder implements DocBuilder {
 
     @Override
     public DocBuilder tag(String tag, String description) {
-        if (otherTags == null) otherTags = new LinkedHashMap<>();
+        if (description == null) description = "";
         if (isBlank(tag)) return this;
+        if (otherTags == null) otherTags = new LinkedHashMap<>();
         otherTags.computeIfAbsent(tag, k -> new ArrayList<>()).add(description);
         return this;
     }

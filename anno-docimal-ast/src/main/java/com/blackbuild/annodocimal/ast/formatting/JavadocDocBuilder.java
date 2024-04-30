@@ -96,6 +96,9 @@ public class JavadocDocBuilder extends AbstractDocBuilder {
         if (paragraphs != null)
             for (String paragraph : paragraphs)
                 builder.append("<p>\n").append(paragraph).append("\n</p>\n");
+        if (additionalParagraphs != null)
+            for (String paragraph : additionalParagraphs)
+                builder.append("<p>\n").append(paragraph).append("\n</p>\n");
     }
 
     private void addTitle(StringBuilder builder) {

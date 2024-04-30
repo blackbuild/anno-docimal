@@ -31,12 +31,37 @@ import java.util.List;
  */
 public interface DocBuilder {
 
+    /**
+     * Creates a copy of the builder. The copy is independent of the original builder and can be modified
+     * without affecting the original.
+     *
+     * @return the copy of the builder
+     */
     DocBuilder getCopy();
 
+    /**
+     * Checks if the builder is empty. A builder is considered empty if no content has been added to it.
+     *
+     * @return {@code true} if the builder is empty, {@code false} otherwise
+     */
     boolean isEmpty();
 
+    /**
+     * Copies the javadoc from a raw text string into this builder. Existing content in the builder is not overwritten.
+     * Note that additional paragraphs created with {@link #extraP(String)} are not effected by this method.
+     *
+     * @param rawText the raw text string
+     * @return this builder
+     */
     DocBuilder fromRawText(String rawText);
 
+    /**
+     * Copies the javadoc from a {@link DocText} object into this builder. Existing content in the builder is not
+     * overwritten. Note that additional paragraphs created with {@link #extraP(String)} are not effected by this method.
+     *
+     * @param docText the {@link DocText} object
+     * @return this builder
+     */
     DocBuilder fromDocText(DocText docText);
 
     /**
@@ -55,6 +80,18 @@ public interface DocBuilder {
      * @return this builder
      */
     DocBuilder p(String paragraph);
+
+    /**
+     * Adds a paragraph to the Javadoc. Paragraphs are added in the given order. In standard javadoc output,
+     * paragraphs are wrapped in {@code <p>} tags. In contrast to {@link #p(String)}, additionalParagraphs
+     * are not effected by {@link #fromDocText(DocText)}, thus the result would a combination of the copy source's
+     * paragraphs and the additional paragraphs. This is useful for taking the content of a method's javadoc and
+     * adding additional information for a specific use case.
+     *
+     * @param paragraph the paragraph to add
+     * @return this builder
+     */
+    DocBuilder extraP(String paragraph);
 
     /**
      * Adds a code block to the Javadoc. Code blocks are special paragraphs that include more sophisticated
