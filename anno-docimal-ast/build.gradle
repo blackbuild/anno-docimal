@@ -33,6 +33,7 @@ dependencies {
     api project(':anno-docimal-annotations')
 
     testImplementation "org.jetbrains:annotations:16.0.2"
+    testAnnotationProcessor project(":anno-docimal-apt")
 
     compileOnly "org.jetbrains:annotations:16.0.2"
     compileOnly "org.codehaus.groovy:groovy-all:2.4.21"

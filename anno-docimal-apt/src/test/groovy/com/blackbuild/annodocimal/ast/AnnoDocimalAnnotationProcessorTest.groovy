@@ -23,12 +23,12 @@
  */
 package com.blackbuild.annodocimal.ast
 
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
 import com.google.testing.compile.Compilation
 import com.google.testing.compile.Compiler
 import com.google.testing.compile.JavaFileObjects
 import org.intellij.lang.annotations.Language
 import spock.lang.Specification
-import spock.lang.Subject
 
 import javax.tools.StandardLocation
 
@@ -37,8 +37,6 @@ import static com.google.testing.compile.Compiler.javac
 class AnnoDocimalAnnotationProcessorTest extends Specification {
 
     Compiler compiler = javac().withProcessors(new AnnoDocimalAnnotationProcessor())
-    @Subject
-    AnnoDocimalAnnotationProcessor processor = new AnnoDocimalAnnotationProcessor()
     Compilation compilation
 
     void "Simple class"() {
@@ -116,6 +114,44 @@ public class AClass {
         ]
     }
 
+    void "class with primitive values"() {
+        when:
+        compile("AClass",
+                """
+package com.blackbuild.annodocimal.ast.test;
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+
+/**
+ * A class for testing.
+ */
+@InlineJavadocs
+public class AClass {
+
+    /**
+     * A method that does something.
+     * @param what the thing to do
+     */
+    public void doIt(int what) {
+    }
+
+    /**
+     * A field.
+     */
+    public boolean flag;
+}"""
+        )
+        def props = getJavaDocProperties("com.blackbuild.annodocimal.ast.test", "AClass")
+
+        then:
+        props == [
+                classDoc: "A class for testing.",
+                "field.flag": "A field.",
+                "method.doIt(int)": '''A method that does something.
+@param what the thing to do'''
+        ]
+    }
+
     void "class with inner class"() {
         when:
         compile("AClass",
@@ -170,7 +206,7 @@ public class AClass {
     }
 
     Map<String, String> getJavaDocProperties(String packageName, String className) {
-        def file = compilation.generatedFile(StandardLocation.SOURCE_OUTPUT, packageName, "${className}__javadoc.properties").get()
+        def file = compilation.generatedFile(StandardLocation.CLASS_OUTPUT, packageName, "$className$InlineJavadocs.JAVADOC_PROPERTIES_SUFFIX").get()
         def properties = new Properties()
         file.openInputStream().withCloseable { reader ->
             properties.load(reader)

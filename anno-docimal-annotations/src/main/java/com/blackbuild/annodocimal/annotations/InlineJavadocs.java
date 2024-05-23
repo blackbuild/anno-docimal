@@ -41,4 +41,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 @Retention(RetentionPolicy.SOURCE)
 @GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")
-public @interface InlineJavadocs {}
+public @interface InlineJavadocs {
+    String JAVADOC_PROPERTIES_SUFFIX = "__annodoc.properties";
+}

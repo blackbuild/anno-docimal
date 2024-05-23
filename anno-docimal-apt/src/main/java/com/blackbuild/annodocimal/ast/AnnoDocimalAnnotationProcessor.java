@@ -69,7 +69,6 @@ public class AnnoDocimalAnnotationProcessor extends AbstractProcessor {
                     .map(TypeElement.class::cast)
                     .forEach(this::generateJavadocForClass);
         }
-
         return false;
     }
 
@@ -105,9 +104,9 @@ public class AnnoDocimalAnnotationProcessor extends AbstractProcessor {
     private FileObject createJavadocResourceFile(TypeElement classElement) throws IOException {
         PackageElement packageElement = getPackageElement(classElement);
         String packageName = packageElement.getQualifiedName().toString();
-        String relativeName = getClassName(classElement) + "__javadoc.properties";
+        String relativeName = getClassName(classElement) + InlineJavadocs.JAVADOC_PROPERTIES_SUFFIX;
         return processingEnv.getFiler()
-                .createResource(StandardLocation.SOURCE_OUTPUT, packageName, relativeName, classElement);
+                .createResource(StandardLocation.CLASS_OUTPUT, packageName, relativeName, classElement);
     }
 
     private static PackageElement getPackageElement(Element element) {
