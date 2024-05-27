@@ -44,7 +44,7 @@ import static java.util.stream.Collectors.toList;
  */
 public class AnnoDocUtil {
 
-    public static final ClassNode JAVADOC_ANNOTATION = ClassHelper.make(AnnoDoc.class);
+    public static final ClassNode ANNODOC_ANNOTATION = ClassHelper.make(AnnoDoc.class);
     public static final String DOC_TEXT_METADATA_KEY = DocText.class.getName();
 
     private AnnoDocUtil() {
@@ -86,7 +86,7 @@ public class AnnoDocUtil {
      */
     @NotNull
     public static AnnotationNode createDocumentationAnnotation(@NotNull String javadoc) {
-        AnnotationNode annotation = new AnnotationNode(JAVADOC_ANNOTATION);
+        AnnotationNode annotation = new AnnotationNode(ANNODOC_ANNOTATION);
         annotation.addMember("value", new ConstantExpression(javadoc));
         return annotation;
     }
@@ -101,7 +101,7 @@ public class AnnoDocUtil {
      */
     public static String getAnnoDocValue(@NotNull AnnotatedNode node, @Nullable String defaultValue) {
         return node.getAnnotations().stream()
-                .filter(annotation -> annotation.getClassNode().equals(JAVADOC_ANNOTATION))
+                .filter(annotation -> annotation.getClassNode().equals(ANNODOC_ANNOTATION))
                 .findFirst()
                 .map(annotation -> annotation.getMember("value"))
                 .map(ConstantExpression.class::cast)

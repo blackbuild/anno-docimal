@@ -41,7 +41,7 @@ public class AClass {
     /**
      * An inner class.
      */
-    static class InnerClass {
+    public static class InnerClass {
         /**
          * Another method that does nothing.
          */

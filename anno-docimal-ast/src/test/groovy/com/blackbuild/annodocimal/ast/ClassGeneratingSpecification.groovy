@@ -23,12 +23,13 @@
  */
 package com.blackbuild.annodocimal.ast
 
+
 import org.codehaus.groovy.control.CompilerConfiguration
+import org.codehaus.groovy.control.customizers.ImportCustomizer
 import org.intellij.lang.annotations.Language
 import org.junit.Rule
 import org.junit.rules.TestName
 import spock.lang.Specification
-
 
 abstract class ClassGeneratingSpecification extends Specification {
 
@@ -39,10 +40,15 @@ abstract class ClassGeneratingSpecification extends Specification {
     CompilerConfiguration compilerConfiguration
     Class<?> clazz
 
+
+    static Map<?, ?> astData = [:]
+
     def setup() {
         oldLoader = Thread.currentThread().contextClassLoader
         compilerConfiguration = new CompilerConfiguration()
-        //compilerConfiguration.addCompilationCustomizers(new ASTTransformationCustomizer(new InlineJavadocsTransformation()))
+        ImportCustomizer imports = new ImportCustomizer().addStarImports(getClass().getPackageName())
+        compilerConfiguration.addCompilationCustomizers(imports)
+
         def outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")
         outputDirectory.deleteDir()
         outputDirectory.mkdirs()
@@ -57,6 +63,7 @@ abstract class ClassGeneratingSpecification extends Specification {
 
     def cleanup() {
         Thread.currentThread().contextClassLoader = oldLoader
+        astData.clear()
     }
 
     Class<?> getClass(String className) {

@@ -34,38 +34,6 @@ import org.codehaus.groovy.control.customizers.ImportCustomizer
 
 class AnnoDocUtilTest extends ClassGeneratingSpecification {
 
-    static Map<?, ?> astData = [:]
-
-    @Override
-    def setup() {
-        ImportCustomizer imports = new ImportCustomizer().addStarImports(getClass().getPackageName())
-        compilerConfiguration.addCompilationCustomizers(imports)
-    }
-
-    @Override
-    def cleanup() {
-        astData.clear()
-    }
-
-    static class MyAction implements MockableTransformation.Action {
-
-        @Override
-        void handle(AnnotationNode annotation, AnnotatedNode target, SourceUnit sourceUnit) {
-            def type = annotation.getMember("type").getType()
-
-            AnnotatedNode provider
-            if (annotation.getMember("method")) {
-                provider = type.getDeclaredMethods(annotation.getMember("method").getText()).first()
-            } else if (annotation.getMember("field")) {
-                provider = type.getDeclaredField(annotation.getMember("field").getText())
-            } else {
-                provider = type
-            }
-
-            astData.put(target.getName(), AnnoDocUtil.getAnnoDocValue(provider, null));
-        }
-    }
-
     def "Documentation is retrieved from AST"() {
         given:
         createClass '''
@@ -144,5 +112,25 @@ class Consumer {
         astData.fromField == 'A field'
         astData.fromMethod == 'A method'
     }
+
+    static class MyAction implements MockableTransformation.Action {
+
+        @Override
+        void handle(AnnotationNode annotation, AnnotatedNode target, SourceUnit sourceUnit) {
+            def type = annotation.getMember("type").getType()
+
+            AnnotatedNode provider
+            if (annotation.getMember("method")) {
+                provider = type.getDeclaredMethods(annotation.getMember("method").getText()).first()
+            } else if (annotation.getMember("field")) {
+                provider = type.getDeclaredField(annotation.getMember("field").getText())
+            } else {
+                provider = type
+            }
+
+            astData.put(target.getName(), AnnoDocUtil.getAnnoDocValue(provider, null));
+        }
+    }
+
 
 }
