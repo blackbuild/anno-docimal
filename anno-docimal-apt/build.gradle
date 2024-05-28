@@ -55,6 +55,11 @@ test {
     if (!rootProject.ext.groovyVersion.startsWith("2."))
         useJUnitPlatform()
 }
+sonarqube {
+    properties {
+        property 'sonar.coverage.exclusions', "**"
+    }
+}
 
 publishing {
     publications {
