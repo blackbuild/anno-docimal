@@ -21,26 +21,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.annotations;
+package com.blackbuild.annodocimal.ast.extractor
 
-import org.codehaus.groovy.transform.GroovyASTTransformationClass;
+import com.blackbuild.annodocimal.ast.MockableTransformation
+import org.codehaus.groovy.transform.GroovyASTTransformationClass
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.Retention
+import java.lang.annotation.RetentionPolicy
 
-/**
- * This annotation triggers an AST transformation that converts source code javadoc comments into
- * Javadoc annotations.
- * <p>
- *     Usually, this will be initiated by custom annotation or via a global transformation, so this
- *     annotations is mostly used for testing purposes or special corner cases.
- * </p>
- */
-@Target({ElementType.PACKAGE, ElementType.TYPE})
-@Retention(RetentionPolicy.SOURCE)
-@GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")
-public @interface InlineJavadocs {
-    String JAVADOC_PROPERTIES_SUFFIX = "__annodoc.properties";
+@Retention(RetentionPolicy.RUNTIME)
+@GroovyASTTransformationClass(classes = MockableTransformation)
+@interface AstHelper {
+    Class<? extends MockableTransformation.Action> value()
+    Class<?> type()
+    String method() default ""
+    String field() default ""
+    boolean fromConstructor() default false
 }

@@ -21,26 +21,54 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.annotations;
+package com.blackbuild.annodocimal.ast.extractor.mock;
 
-import org.codehaus.groovy.transform.GroovyASTTransformationClass;
-
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import com.blackbuild.annodocimal.annotations.InlineJavadocs;
 
 /**
- * This annotation triggers an AST transformation that converts source code javadoc comments into
- * Javadoc annotations.
- * <p>
- *     Usually, this will be initiated by custom annotation or via a global transformation, so this
- *     annotations is mostly used for testing purposes or special corner cases.
- * </p>
+ * A class for testing.
  */
-@Target({ElementType.PACKAGE, ElementType.TYPE})
-@Retention(RetentionPolicy.SOURCE)
-@GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")
-public @interface InlineJavadocs {
-    String JAVADOC_PROPERTIES_SUFFIX = "__annodoc.properties";
+@InlineJavadocs
+public class AClass {
+
+    /**
+     * Creates a new instance of {@link AClass}.
+     */
+    public AClass() {}
+
+    /**
+     * A method that does nothing.
+     */
+    public void aMethod() {
+        // do nothing
+    }
+
+    public void noJavaDocMethod() {
+        // do nothing
+    }
+
+    /**
+     * A method that does something.
+     * @param what the thing to do
+     * @return the result of doing it
+     */
+    public String doIt(String what) {
+        return "I did it: " + what;
+    }
+
+    /**
+     * A field.
+     */
+    public String field = "field";
+
+    /**
+     * An inner class.
+     */
+    public static class InnerClass {
+        /**
+         * Another method that does nothing.
+         */
+        public void innerMethod() {}
+    }
+
 }

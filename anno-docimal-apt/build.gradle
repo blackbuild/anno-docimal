@@ -1,13 +1,14 @@
 plugins {
     id 'java-library'
     id 'groovy'
-    id 'jacoco'
     id 'signing'
     id 'com.github.hierynomus.license'
     id 'maven-publish'
 }
 
-description "compileOnly part of AnnoDocimal"
+description "Annotation Processor for AnnoDocimal"
+
+group rootProject.group
 
 java {
     toolchain {
@@ -17,23 +18,13 @@ java {
     withSourcesJar()
 }
 
-jacoco {
-    toolVersion = "0.8.11"
-}
-jacocoTestReport {
-    reports {
-        xml.required = true
-    }
-}
-
-group rootProject.group
-
 dependencies {
-    // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     api project(':anno-docimal-annotations')
+    compileOnly 'com.google.auto.service:auto-service-annotations:1.1.0'
+    annotationProcessor 'com.google.auto.service:auto-service:1.1.0'
 
+    testImplementation  "com.google.testing.compile:compile-testing:0.21.0"
     testImplementation "org.jetbrains:annotations:16.0.2"
-    testAnnotationProcessor project(":anno-docimal-apt")
 
     compileOnly "org.jetbrains:annotations:16.0.2"
     compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
@@ -64,6 +55,11 @@ test {
     if (!rootProject.ext.groovyVersion.startsWith("2."))
         useJUnitPlatform()
 }
+sonarqube {
+    properties {
+        property 'sonar.coverage.exclusions', "**"
+    }
+}
 
 publishing {
     publications {
@@ -89,5 +85,4 @@ license {
     exclude("mockup/**")
     strictCheck(true)
 }
-
 

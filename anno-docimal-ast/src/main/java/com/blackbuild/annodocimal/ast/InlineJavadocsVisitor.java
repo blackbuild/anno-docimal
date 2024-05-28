@@ -78,7 +78,7 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
     }
 
     private void addJavadocAsAnnotation(AnnotatedNode node) {
-        if (!node.getAnnotations(AnnoDocUtil.JAVADOC_ANNOTATION).isEmpty()) return;
+        if (!node.getAnnotations(AnnoDocUtil.ANNODOC_ANNOTATION).isEmpty()) return;
 
         String javadoc = sourceExtractor.getJavaDoc(node);
         if (javadoc != null && !javadoc.isBlank())
