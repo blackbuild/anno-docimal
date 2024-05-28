@@ -27,6 +27,7 @@ package com.blackbuild.annodocimal.ast.formatting
 
 import com.blackbuild.annodocimal.ast.ClassGeneratingSpecification
 import com.blackbuild.annodocimal.ast.MockableTransformation
+import com.blackbuild.annodocimal.ast.extractor.ASTExtractor
 import org.codehaus.groovy.ast.AnnotatedNode
 import org.codehaus.groovy.ast.AnnotationNode
 import org.codehaus.groovy.control.SourceUnit
@@ -128,7 +129,7 @@ class Consumer {
                 provider = type
             }
 
-            astData.put(target.getName(), AnnoDocUtil.getAnnoDocValue(provider, null));
+            astData.put(target.getName(), ASTExtractor.getAnnoDocValue(provider))
         }
     }
 

@@ -27,14 +27,11 @@ import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.AnnotatedElement;
 import java.util.Arrays;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
-import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -89,52 +86,5 @@ public class AnnoDocUtil {
         AnnotationNode annotation = new AnnotationNode(ANNODOC_ANNOTATION);
         annotation.addMember("value", new ConstantExpression(javadoc));
         return annotation;
-    }
-
-    /**
-     * Returns the value of the AnnoDoc annotation on the given node, or the given default value if no
-     * AnnoDoc annotation is present.
-     *
-     * @param node         the node to get the annotation from
-     * @param defaultValue the default value to return if no annotation is present
-     * @return the value of the annotation, or the default value
-     */
-    public static String getAnnoDocValue(@NotNull AnnotatedNode node, @Nullable String defaultValue) {
-        return node.getAnnotations().stream()
-                .filter(annotation -> annotation.getClassNode().equals(ANNODOC_ANNOTATION))
-                .findFirst()
-                .map(annotation -> annotation.getMember("value"))
-                .map(ConstantExpression.class::cast)
-                .map(ConstantExpression::getValue)
-                .map(Object::toString)
-                .filter(not(String::isBlank))
-                .orElse(defaultValue);
-    }
-
-    /**
-     * Returns the pre parsed documentation of the given node, or the preparsed default value if no
-     * AnnoDoc annotation is present.
-     *
-     * @param node         the node to get the documentation from
-     * @param defaultValue the default value to return if no annotation is present
-     * @return the pre parse documentation object
-     */
-    public static DocText getDocText(@NotNull AnnotatedNode node, @Nullable String defaultValue) {
-        Object metaData = node.getNodeMetaData(DOC_TEXT_METADATA_KEY);
-        if (metaData == null) {
-            String annoDocValue = getAnnoDocValue(node, defaultValue);
-            metaData = DocText.fromRawText(annoDocValue);
-            node.putNodeMetaData(DOC_TEXT_METADATA_KEY, metaData);
-        }
-        return (DocText) metaData;
-    }
-
-    public static String getJavaDoc(AnnotatedElement element, String defaultValue) {
-        AnnoDoc annotation = element.getAnnotation(AnnoDoc.class);
-        return annotation == null ? defaultValue : annotation.value();
-    }
-
-    public static String getDocumentation(AnnotatedElement element) {
-        return getJavaDoc(element, null);
     }
 }

@@ -14,12 +14,16 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 /**
- * Extracts the documentation from a class from either an existing {@link com.blackbuild.annodocimal.annotations.AnnoDoc}
+ * Extracts the documentation from a class from either an existing {@link AnnoDoc}
  * annotation or existing AnnoDoc.properties.
  */
 public class ClassDocExtractor {
     private ClassDocExtractor() {
         // Utility class
+    }
+
+    public static String extractDocumentation(AnnotatedElement element) {
+        return extractDocumentation(element, null);
     }
 
     public static String extractDocumentation(AnnotatedElement element, String defaultValue) {
@@ -29,10 +33,10 @@ public class ClassDocExtractor {
         String result;
         if (element instanceof Class) {
             result = extractDocumentationFromClass((Class<?>) element);
-        } else if (element instanceof java.lang.reflect.Executable) {
-            result = extractDocumentationFromExecutable((java.lang.reflect.Executable) element);
-        } else if (element instanceof java.lang.reflect.Field) {
-            result = extractDocumentationFromField((java.lang.reflect.Field) element);
+        } else if (element instanceof Executable) {
+            result = extractDocumentationFromExecutable((Executable) element);
+        } else if (element instanceof Field) {
+            result = extractDocumentationFromField((Field) element);
         } else {
             return defaultValue;
         }
