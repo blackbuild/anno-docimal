@@ -16,7 +16,8 @@ Anno-Docimal consists of the following modules:
 1. `anno-docimal-annotation` contains the `@AnnoDoc` annotation. Since we use retention `RUNTIME`, it must be present at runtime.
 2. `anno-docimal-ast` contains a groovy AST transformation that converts existing javadoc comments into `@AnnoDoc` annotations. It also contains helper code to simplify conversion and creation of JavaDoc annotations. This is necessary if the actual generator creates additional methods or inner classes. It only needs to be present at compile time, usually as a dependency of the generating library.
 3. `anno-docimal-global-ast` only consist of a global AST transformation descriptor pointing to `InlineJavadocsTransformation` and anno-docimal-ast as transitive dependency. It is meant to be included in the build process (compile-only).
-4. `anno-docimal-generator` contains the main tool that reads the `@AnnoDoc` annotations and creates the stub files. It is meant to be included in the build process (and will eventually be packed as a gradle and/or maven plugin).
+4. `anno-docimal-apt` contains an annotation processor that can be used to extract the javadoc from java source files. Since annotation processors cannot modify existing classes, it stores the javaodcs in a separate properties file, which is included in the jar file. These properties will also be consulted when trying to read or use the javadoc of a class or method object.
+5. `anno-docimal-generator` contains the main tool that reads the `@AnnoDoc` annotations and creates the stub files. It is meant to be included in the build process (and will eventually be packed as a gradle and/or maven plugin).
 
 # Usage
 
@@ -110,6 +111,17 @@ dependencies {
 }
 ```
 
+## Java Source code an proxy methods
+
+If an ast transformation needs access to the javadoc of a class written in Java instead of Groovy, it is necessary to provide
+the javadoc of the java class in a different way. There are currently two options.
+
+Either the javadoc is duplicated into an AnnoDoc annotation, or the `anno-docimal-apt` module is used to extract the javadoc to
+property files which can be used by the ast transformation.
+
+On scenario, where this might be useful is where a Groovy AST transformation is used to generate proxy methods to methods of
+an existing java class, while retaining the original javadoc (perhaps transformed).
+
 ## Source Extractors
 
 If the transformation using anno-docimal enhances existing code, i.e. adds methods or, as in the case of "klum-ast", the result is a mix of source based and annotation based javadoc comments. To generate the final documentation, two approaches are possible:
@@ -132,14 +144,6 @@ outdated) Groovy 2.4 (see (https://issues.jenkins.io/browse/JENKINS-53372) for d
 
 My main goal is good IDE support without the need for special plugins. Once again, the main use case is KlumAST, which is designed to be use from normal Java code. Since I don't need any GroovyDoc features, GroovyDoc has not een widely adopted anyway, JavaDoc seems a better common ground.
 
-## What about Java Annotation Processor support?
-
-In principle, AnnoDocimal can also be used for Java code, since it works on 
-the class files anyway. However, Java Annotation Processors and Groovy AST transformations have completely opposite approaches. Java Annotation Processors can only create completely new source files, and not modify existing ones (Projekt Lombok uses some dirty tricks to work around that), while Groovy AST transformations can only modify and create new class files.
-
-Therefore, Java annotation processors can especially not add the javadoc annotations to existing classes. One could extract the existing javadoc comments to some metaformat (json) and use that again in the generator, but the use case is not yet obvious.
-
-However, IMHO javadoc has become at lot more of a crutch. Generating html pages just to be parsed again by tooling has the feeling of screen scraping. It would be way better to define a common format for the documentation (like json or yaml), let the JavaDoc / GroovyDoc tool generate that one. That way, IDEs would make have it a lot easier to extract the documentation. This would require a central format definition as well as tooling for all major IDEs.
 
 
 Roadmap:

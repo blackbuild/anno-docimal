@@ -152,6 +152,45 @@ public class AClass {
         ]
     }
 
+    void "class with generic elements"() {
+        when:
+        compile("AClass",
+                """
+package com.blackbuild.annodocimal.ast.test;
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+import java.util.*;
+
+/**
+ * A class for testing.
+ */
+@InlineJavadocs
+public class AClass {
+
+    /**
+     * A method that does something.
+     * @param what the thing to do
+     */
+    public void doIt(List<String> what) {
+    }
+
+    /**
+     * A field.
+     */
+    public Map<String, String> flag;
+}"""
+        )
+        def props = getJavaDocProperties("com.blackbuild.annodocimal.ast.test", "AClass")
+
+        then:
+        props == [
+                classDoc: "A class for testing.",
+                "field.flag": "A field.",
+                "method.doIt(java.util.List)": '''A method that does something.
+@param what the thing to do'''
+        ]
+    }
+
     void "class with inner class"() {
         when:
         compile("AClass",

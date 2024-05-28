@@ -27,6 +27,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -87,7 +88,10 @@ public class JavadocPropertiesBuilder {
 
     private String getParameterKey(ExecutableElement element) {
         return element.getParameters().stream()
-                .map(p -> p.asType().toString())
+                .map(Element::asType)
+                .map(DeclaredType.class::cast)
+                .map(DeclaredType::asElement)
+                .map(Element::toString)
                 .collect(Collectors.joining(","));
     }
 
