@@ -27,7 +27,9 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -88,11 +90,16 @@ public class JavadocPropertiesBuilder {
 
     private String getParameterKey(ExecutableElement element) {
         return element.getParameters().stream()
-                .map(Element::asType)
-                .map(DeclaredType.class::cast)
-                .map(DeclaredType::asElement)
-                .map(Element::toString)
+                .map(JavadocPropertiesBuilder::variableToString)
                 .collect(Collectors.joining(","));
+    }
+
+    private static String variableToString(VariableElement variableElement) {
+        TypeMirror type = variableElement.asType();
+        if (type instanceof DeclaredType) {
+            return ((DeclaredType) type).asElement().toString();
+        }
+        return type.toString();
     }
 
     private static boolean isBlank(String classDoc) {

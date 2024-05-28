@@ -51,7 +51,7 @@ import java.util.Set;
  * <ul>
  *     <li>No global transformation, only classes with {@link InlineJavadocs} are processed</li>
  *     <li>storage is in a properties file, not in a json structure. This reduces dependencies.</li>
- * </p>.
+ * </ul>.
  */
 @SupportedAnnotationTypes("com.blackbuild.annodocimal.annotations.InlineJavadocs")
 @AutoService(javax.annotation.processing.Processor.class)
