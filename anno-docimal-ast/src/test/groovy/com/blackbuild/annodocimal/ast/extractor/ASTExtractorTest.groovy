@@ -61,12 +61,17 @@ class Consumer {
 
         then:
         astData.fromType == AClass
+        astData.fromTypeDoc == "A class for testing."
         astData.fromConstructor == AClass.getConstructor()
+        astData.fromConstructorDoc == "Creates a new instance of {@link AClass}."
         astData.fromMethod == AClass.getDeclaredMethod("doIt", String)
+        astData.fromMethodDoc == '''A method that does something.
+@param what the thing to do
+@return the result of doing it'''
         astData.fromField == AClass.getDeclaredField("field")
+        astData.fromFieldDoc == "A field."
         astData.fromInnerClass == AClass.InnerClass
-
-
+        astData.fromInnerClassDoc == 'An inner class.'
     }
 
     static class MyAction implements MockableTransformation.Action {
@@ -87,6 +92,7 @@ class Consumer {
             }
 
             astData.put(target.name, ASTExtractor.toAnnotatedElement(provider))
+            astData.put(target.name + "Doc", ASTExtractor.extractDocumentation(provider, null))
         }
     }
 

@@ -30,6 +30,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -75,7 +76,7 @@ public class ClassDocExtractor {
         String argType = Arrays.stream(method.getParameterTypes())
                 .map(Class::getName)
                 .collect(Collectors.joining(","));
-        return classDoc.get("method." + method.getName() + "(" + argType + ")");
+        return classDoc.get("method." + (method instanceof Constructor ? "<init>" : method.getName()) + "(" + argType + ")");
     }
 
     private static String extractDocumentationFromField(Field field) {
