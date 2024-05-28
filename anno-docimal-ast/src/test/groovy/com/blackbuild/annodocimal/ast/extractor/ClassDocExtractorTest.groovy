@@ -37,6 +37,9 @@ class ClassDocExtractorTest extends Specification {
 
         expect:
         ClassDocExtractor.extractDocumentation(clazz.getDeclaredMethod("aMethod"), "bla") == "A method that does nothing."
+        ClassDocExtractor.extractDocumentation(clazz.getDeclaredField("field"), "bla") == "A field."
+        ClassDocExtractor.extractDocumentation(AClass.InnerClass, "bla") == "An inner class."
+        ClassDocExtractor.extractDocumentation(AClass.InnerClass.getDeclaredMethod("innerMethod"), "bla") == "Another method that does nothing."
     }
 
 

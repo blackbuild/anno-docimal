@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.ast.extractor;
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -92,7 +93,7 @@ public class ClassDocExtractor {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static Map<String, String> getClassDoc(Class<?> element) {
         Properties result;
-        try (InputStream stream = element.getResourceAsStream(element.getSimpleName() + InlineJavadocs.JAVADOC_PROPERTIES_SUFFIX)) {
+        try (InputStream stream = element.getResourceAsStream(getPropertiesFileName(element))) {
             if (stream == null) return null;
             result = new Properties();
             result.load(stream);
@@ -100,6 +101,15 @@ public class ClassDocExtractor {
         } catch (IOException e) {
             return null;
         }
+    }
 
+    private static @NotNull String getPropertiesFileName(Class<?> element) {
+        return getSimpleName(element) + InlineJavadocs.JAVADOC_PROPERTIES_SUFFIX;
+    }
+
+    private static String getSimpleName(Class<?> element) {
+        if (element.getDeclaringClass() == null)
+            return element.getSimpleName();
+        return getSimpleName(element.getDeclaringClass()) + "$" + element.getSimpleName();
     }
 }
