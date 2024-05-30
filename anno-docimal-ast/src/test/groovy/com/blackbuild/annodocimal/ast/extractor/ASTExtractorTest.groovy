@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 //file:noinspection GrPackage
+//file:noinspection UnnecessaryQualifiedReference
 package com.blackbuild.annodocimal.ast.extractor
 
 import com.blackbuild.annodocimal.ast.ClassGeneratingSpecification
@@ -52,6 +53,9 @@ class Consumer {
     @AstHelper(value = ASTExtractorTest.MyAction, type = AClass, method = "doIt")
     Object fromMethod
     
+    @AstHelper(value = ASTExtractorTest.MyAction, type = AClass, method = "noJavaDocMethod")
+    Object noJavaDocMethod
+    
     @AstHelper(value = ASTExtractorTest.MyAction, type = AClass, field = "field")
     Object fromField
     
@@ -68,10 +72,15 @@ class Consumer {
         astData.fromMethodDoc == '''A method that does something.
 @param what the thing to do
 @return the result of doing it'''
+        astData.containsKey("noJavaDocMethod")
+        astData.noJavaDocMethodDoc == null
         astData.fromField == AClass.getDeclaredField("field")
         astData.fromFieldDoc == "A field."
         astData.fromInnerClass == AClass.InnerClass
         astData.fromInnerClassDoc == 'An inner class.'
+
+        and:
+        astData.keySet().findAll { it.endsWith("Doc") }.each { astData[it] == astData[it] + "2" }
     }
 
     static class MyAction implements MockableTransformation.Action {
@@ -93,6 +102,7 @@ class Consumer {
 
             astData.put(target.name, ASTExtractor.toAnnotatedElement(provider))
             astData.put(target.name + "Doc", ASTExtractor.extractDocumentation(provider, null))
+            astData.put(target.name + "Doc2", ASTExtractor.extractDocumentation(provider, null))
         }
     }
 

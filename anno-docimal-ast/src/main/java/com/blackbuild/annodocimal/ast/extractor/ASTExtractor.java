@@ -36,7 +36,7 @@ import static java.util.function.Predicate.not;
 public class ASTExtractor {
 
     public static final String DOC_METADATA_KEY = ASTExtractor.class.getName() + ".doc";
-    public static final Object EMPTY_DOC = new Object();
+    public static final String EMPTY_DOC = "\u0000";
 
     private ASTExtractor() {
         // Utility class
@@ -45,7 +45,7 @@ public class ASTExtractor {
     public static String extractDocumentation(AnnotatedNode element, String defaultValue) {
         String metaData = element.getNodeMetaData(DOC_METADATA_KEY);
 
-        if (metaData == EMPTY_DOC) return defaultValue;
+        if (EMPTY_DOC.equals(metaData)) return defaultValue;
         else if (metaData != null) return metaData;
 
         metaData = extractDocumentationFromElement(element);
