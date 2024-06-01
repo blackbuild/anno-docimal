@@ -240,6 +240,83 @@ public class AClass {
         ]
     }
 
+    def "a generic static method"() {
+        given:
+        compile("GenericUtilityClass",
+                """
+package com.blackbuild.annodocimal.ast.test;
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+
+@InlineJavadocs
+@SuppressWarnings("unused")
+public class GenericUtilityClass {
+    private GenericUtilityClass() {}
+
+    /**
+     * A method with parameters.
+     * @param type a type
+     * @param template a template
+     * @return the result
+     * @param <T> the type
+     */
+    public static <T> Object withTemplate(Class<T> type, T template) {
+        return null;
+    }
+    
+    /**
+    * A method with parameters.
+    * @param value a value
+    * @param <T> a type
+    */
+    public static <T extends Number> void bla(T value) {}
+
+    /**
+    * A method with parameters.
+    * @param value a value
+    * @param <T> a type
+    */
+    public static <T extends CharSequence> void bla(T value) {}
+}
+
+""")
+        when:
+        def props = getJavaDocProperties("com.blackbuild.annodocimal.ast.test", "GenericUtilityClass")
+
+        then:
+        props.keySet() == ["method.bla(java.lang.CharSequence)", "method.bla(java.lang.Number)", "method.withTemplate(java.lang.Class,java.lang.Object)"] as Set
+
+    }
+
+    def "a generic non-static method"() {
+        given:
+        compile("GenericClass",
+                """
+package com.blackbuild.annodocimal.ast.test;
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+
+@InlineJavadocs
+@SuppressWarnings("unused")
+public class GenericClass <T extends CharSequence> {
+    private GenericClass() {}
+
+    /**
+     * A method with parameters.
+     * @param type a type
+     * @param template a template
+     */
+    public void withTemplate(Class<T> type, T template) {}
+}
+""")
+        when:
+        def props = getJavaDocProperties("com.blackbuild.annodocimal.ast.test", "GenericClass")
+
+        then:
+        props.keySet() == ["method.withTemplate(java.lang.Class,java.lang.CharSequence)"] as Set
+
+    }
+
     void compile(String name, @Language("java") String code) {
         compilation = compiler.compile(JavaFileObjects.forSourceString(name, code))
     }

@@ -30,6 +30,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -98,6 +99,8 @@ public class JavadocPropertiesBuilder {
         TypeMirror type = variableElement.asType();
         if (type instanceof DeclaredType) {
             return ((DeclaredType) type).asElement().toString();
+        } else if (type instanceof TypeVariable) {
+            return ((TypeVariable) type).getUpperBound().toString();
         }
         return type.toString();
     }
