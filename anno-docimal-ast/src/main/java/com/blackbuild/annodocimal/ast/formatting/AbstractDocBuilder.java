@@ -31,7 +31,10 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     public static final String PARAM_TAG = "param";
     public static final String RETURN_TAG = "return";
     public static final String THROWS_TAG = "throws";
+    public static final String SINCE = "since";
+    public static final String DEPRECATED = "deprecated";
     public static final List<String> SPECIAL_TAGS = List.of(PARAM_TAG, RETURN_TAG, THROWS_TAG);
+    public static final List<String> SINGLE_TAGS = List.of(SINCE, DEPRECATED);
     protected String title;
     protected List<String> paragraphs;
     protected List<String> additionalParagraphs;
@@ -149,7 +152,10 @@ public abstract class AbstractDocBuilder implements DocBuilder {
         if (description == null) description = "";
         if (isBlank(tag)) return this;
         if (otherTags == null) otherTags = new LinkedHashMap<>();
-        otherTags.computeIfAbsent(tag, k -> new ArrayList<>()).add(description);
+        if (SINGLE_TAGS.contains(tag))
+            otherTags.put(tag, List.of(description));
+        else
+            otherTags.computeIfAbsent(tag, k -> new ArrayList<>()).add(description);
         return this;
     }
 
