@@ -42,6 +42,7 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     protected String returnType;
     protected Map<String, String> exceptions;
     protected Map<String, List<String>> otherTags;
+    protected Map<String, String> templateValues;
 
     @Override
     public DocBuilder fromDocText(DocText docText) {
@@ -166,12 +167,12 @@ public abstract class AbstractDocBuilder implements DocBuilder {
 
     @Override
     public DocBuilder since(String version) {
-        return tag("since", version);
+        return tag(SINCE, version);
     }
 
     @Override
     public DocBuilder deprecated(String reason) {
-        return tag("deprecated", reason);
+        return tag(DEPRECATED, reason);
     }
 
     @Override
@@ -182,5 +183,20 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     @Override
     public boolean isEmpty() {
         return title == null && paragraphs == null && params == null && returnType == null && exceptions == null && otherTags == null;
+    }
+
+    @Override
+    public DocBuilder template(String key, String value) {
+        if (templateValues == null) templateValues = new LinkedHashMap<>();
+        if (value == null) templateValues.remove(key);
+        else templateValues.put(key, value);
+        return this;
+    }
+
+    @Override
+    public DocBuilder templates(Map<String, String> values) {
+        if (this.templateValues == null) this.templateValues = new LinkedHashMap<>();
+        this.templateValues.putAll(values);
+        return this;
     }
 }

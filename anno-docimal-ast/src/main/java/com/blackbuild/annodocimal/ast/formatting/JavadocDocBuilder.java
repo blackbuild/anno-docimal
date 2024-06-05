@@ -58,7 +58,15 @@ public class JavadocDocBuilder extends AbstractDocBuilder {
         addParagraphs(builder);
         addSignatureElements(validParameters, builder);
         addOtherTags(builder);
-        return builder.toString();
+        return replaceTemplateValues(builder.toString());
+    }
+
+    private String replaceTemplateValues(String rawString) {
+        if (templateValues == null) return rawString;
+        for (Map.Entry<String, String> entry : templateValues.entrySet())
+            if (entry.getValue() != null)
+                rawString = rawString.replace("{{" + entry.getKey() + "}}", entry.getValue());
+        return rawString;
     }
 
     private void addOtherTags(StringBuilder builder) {
