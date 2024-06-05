@@ -152,4 +152,4 @@ Roadmap:
 - [x] support for inner classes
 - [ ] support for diverse javadoc formats (like asciidoc or markdown)
 - [ ] helper methods to simplify the creation of `@AnnoDoc` annotations
-- [ ] simple templating for javadocs (for klum)
+- [x] simple templating for javadocs (for klum)

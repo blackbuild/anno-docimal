@@ -24,10 +24,20 @@
 package com.blackbuild.annodocimal.ast.formatting;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * Builder to easily create Javadoc strings. Is designed to create a single instance of the builder
- * per javadoc comment.
+ * Builder to easily create Javadoc strings. It is designed to create a single instance of the builder
+ * per javadoc comment. The builder contains various methods to add javadoc elements like paragraphs, parameters,
+ * return types, exceptions, tags, etc. The actual formatting of the Javadoc is dependent on the implementation.
+ * <p>
+ *     The builder supports a basic templating system. Templates are placeholders in the Javadoc that can be replaced
+ *     by the actual value when the Javadoc is rendered. Templates consist of two curly braces around the key, e.g.
+ *     {@code {{key}}}. The key is the name of the template, the value is the replacement. Templates can be added
+ *     with {@link #template(String, String)} or {@link #templates(Map)}. A use case is for generated methods that
+ *     delegate to another method, where the javadoc is copied from the original method but some details are included in
+ *     the generated method's javadoc.
+ * </p>
  */
 public interface DocBuilder {
 
@@ -191,4 +201,23 @@ public interface DocBuilder {
      * @return the Javadoc string
      */
     String toJavadoc(List<String> validParameters);
+
+    /**
+     * Adds a template value to the builder. Templates are placeholders in the Javadoc that can be replaced
+     * when the javadoc is rendered. The key is the name of the template, the value is the replacement.
+     * Template values consist of two curly braces around the key, e.g. {@code {{key}}}.
+     * @param key the key of the template
+     * @param value the value of the template
+     * @return this builder
+     */
+    DocBuilder template(String key, String value);
+
+    /**
+     * Adds multiple template values to the builder. Templates are placeholders in the Javadoc that can be replaced
+     * when the javadoc is rendered. The key is the name of the template, the value is the replacement.
+     * Template values consist of two curly braces around the key, e.g. {@code {{key}}}.
+     * @param values the map of template values
+     * @return this builder
+     */
+    DocBuilder templates(Map<String, String> values);
 }

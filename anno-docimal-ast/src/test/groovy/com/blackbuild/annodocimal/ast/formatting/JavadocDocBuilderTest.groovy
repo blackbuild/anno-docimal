@@ -60,6 +60,53 @@ This is paragraph 2
 """
     }
 
+    def "should replace template values in the generated javadoc"() {
+        given:
+        def docBuilder = new JavadocDocBuilder()
+        docBuilder.title = "This is the {{title}}"
+        docBuilder.paragraphs = ["This is a {{type}} {{text}}", "This is {{notReplaced}}"]
+        docBuilder.template("title", "TITLE")
+        docBuilder.template("text", "TEXT")
+        docBuilder.templates(type: "funny")
+
+        when:
+        def result = docBuilder.toJavadoc()
+
+        then:
+        result == """This is the TITLE
+<p>
+This is a funny TEXT
+</p>
+<p>
+This is {{notReplaced}}
+</p>
+"""
+        when:
+        docBuilder.template("type", null)
+
+        then:
+        docBuilder.toJavadoc() == """This is the TITLE
+<p>
+This is a {{type}} TEXT
+</p>
+<p>
+This is {{notReplaced}}
+</p>
+"""
+        when:
+        docBuilder.templates(title: null)
+
+        then:
+        docBuilder.toJavadoc() == """This is the {{title}}
+<p>
+This is a {{type}} TEXT
+</p>
+<p>
+This is {{notReplaced}}
+</p>
+"""
+    }
+
     def "should instantiate JavadocDocumentation with a title"() {
         given:
         def title = "Test Title"
