@@ -170,10 +170,22 @@ This is the second sentence.""")
 """)
 
         then:
+        docText.getTags("param") == ["after double whitespace after name",
+                                     "before double whitespace after tagname",
+                                     "beforetag double whitespace before tagname",
+                                     "multiline this is a multiline tag"]
+
+        and:
         docText.getNamedTag("param", "after").get() == "double whitespace after name"
         docText.getNamedTag("param", "before").get() == "double whitespace after tagname"
         docText.getNamedTag("param", "beforetag").get() == "double whitespace before tagname"
         docText.getNamedTag("param", "multiline").get() == "this is a multiline tag"
+
+        and:
+        docText.getNamedTags("param") == ["after": "double whitespace after name",
+                                          "before": "double whitespace after tagname",
+                                          "beforetag": "double whitespace before tagname",
+                                          "multiline": "this is a multiline tag"]
     }
 
     def "should handle named tags with empty values"() {

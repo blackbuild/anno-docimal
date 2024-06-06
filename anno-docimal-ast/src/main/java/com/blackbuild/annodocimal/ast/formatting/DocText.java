@@ -29,6 +29,7 @@ import java.text.BreakIterator;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Container for parsed javadoc comments. Useful to prevent additional parsing in later phases.
@@ -117,7 +118,7 @@ public class DocText {
             }
         }
         if (tagName != null)
-            result.computeIfAbsent(tagName, k -> new ArrayList<>()).add(tagText.toString().trim().replaceAll("\\s+", " "));
+            result.computeIfAbsent(tagName, k -> new ArrayList<>()).add(Objects.requireNonNull(tagText).toString().trim().replaceAll("\\s+", " "));
 
         result.replaceAll((k, v) -> Collections.unmodifiableList(v));
         return Collections.unmodifiableMap(result);
@@ -198,6 +199,12 @@ public class DocText {
                 .map(m -> m.group(1))
                 .map(s -> s == null ? "" : s.trim())
                 .findFirst();
+    }
+
+    public Map<String, String> getNamedTags(String tagName) {
+        return getTags(tagName).stream()
+                .map(s -> s.split(" ", 2))
+                .collect(Collectors.toMap(parts -> parts[0], parts -> parts.length > 1 ? parts[1] : ""));
     }
 
     public boolean isEmpty() {
