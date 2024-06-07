@@ -153,10 +153,15 @@ public abstract class AbstractDocBuilder implements DocBuilder {
         if (description == null) description = "";
         if (isBlank(tag)) return this;
         if (otherTags == null) otherTags = new LinkedHashMap<>();
-        if (SINGLE_TAGS.contains(tag))
+        if (SINGLE_TAGS.contains(tag)) {
             otherTags.put(tag, List.of(description));
-        else
+        } else {
             otherTags.computeIfAbsent(tag, k -> new ArrayList<>()).add(description);
+        }
+        if (tag.equals("template")) {
+            String[] split = description.split("\\s+", 2);
+            template(split[0], split[1]);
+        }
         return this;
     }
 

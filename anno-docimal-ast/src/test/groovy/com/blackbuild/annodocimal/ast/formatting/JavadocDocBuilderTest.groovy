@@ -107,6 +107,38 @@ This is {{notReplaced}}
 """
     }
 
+    def "should replace template values with own template tags"() {
+        given:
+        def docBuilder = new JavadocDocBuilder()
+        docBuilder.fromRawText("""This is the {{title}}
+<p>
+This is a {{type}} {{text}}
+</p>
+<p>
+This is {{notReplaced}}
+</p>
+@template title TITLE
+@template text TEXT
+@template type funny
+""")
+
+        when:
+        def result = docBuilder.toJavadoc()
+
+        then:
+        result == """This is the TITLE
+<p>
+This is a funny TEXT
+</p>
+<p>
+This is {{notReplaced}}
+</p>
+@template title TITLE
+@template text TEXT
+@template type funny
+"""
+    }
+
     def "should instantiate JavadocDocumentation with a title"() {
         given:
         def title = "Test Title"
