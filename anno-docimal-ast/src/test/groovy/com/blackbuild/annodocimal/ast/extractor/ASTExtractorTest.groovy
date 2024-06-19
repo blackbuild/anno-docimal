@@ -27,7 +27,6 @@ package com.blackbuild.annodocimal.ast.extractor
 
 import com.blackbuild.annodocimal.ast.ClassGeneratingSpecification
 import com.blackbuild.annodocimal.ast.MockableTransformation
-import com.blackbuild.annodocimal.ast.extractor.mock.AClass
 import org.codehaus.groovy.ast.AnnotatedNode
 import org.codehaus.groovy.ast.AnnotationNode
 import org.codehaus.groovy.control.SourceUnit
@@ -64,19 +63,13 @@ class Consumer {
 }'''
 
         then:
-        astData.fromType == AClass
         astData.fromTypeDoc == "A class for testing."
-        astData.fromConstructor == AClass.getConstructor()
         astData.fromConstructorDoc == "Creates a new instance of {@link AClass}."
-        astData.fromMethod == AClass.getDeclaredMethod("doIt", String)
         astData.fromMethodDoc == '''A method that does something.
 @param what the thing to do
 @return the result of doing it'''
-        astData.containsKey("noJavaDocMethod")
         astData.noJavaDocMethodDoc == null
-        astData.fromField == AClass.getDeclaredField("field")
         astData.fromFieldDoc == "A field."
-        astData.fromInnerClass == AClass.InnerClass
         astData.fromInnerClassDoc == 'An inner class.'
 
         and:
@@ -100,8 +93,8 @@ class Consumer {
                 provider = type
             }
 
-            astData.put(target.name, ASTExtractor.toAnnotatedElement(provider))
             astData.put(target.name + "Doc", ASTExtractor.extractDocumentation(provider, null))
+            // second call should work (caching, metadata, etc)
             astData.put(target.name + "Doc2", ASTExtractor.extractDocumentation(provider, null))
         }
     }

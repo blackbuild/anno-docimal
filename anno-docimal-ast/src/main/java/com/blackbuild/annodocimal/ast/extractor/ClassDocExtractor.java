@@ -25,14 +25,14 @@ package com.blackbuild.annodocimal.ast.extractor;
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+import org.codehaus.groovy.ast.AnnotatedNode;
+import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.ast.FieldNode;
+import org.codehaus.groovy.ast.MethodNode;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Executable;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
@@ -47,21 +47,18 @@ public class ClassDocExtractor {
         // Utility class
     }
 
-    public static String extractDocumentation(AnnotatedElement element) {
+    public static String extractDocumentation(AnnotatedNode element) {
         return extractDocumentation(element, null);
     }
 
-    public static String extractDocumentation(AnnotatedElement element, String defaultValue) {
-        AnnoDoc annotation = element.getAnnotation(AnnoDoc.class);
-        if (annotation != null) return annotation.value();
-
+    public static String extractDocumentation(AnnotatedNode element, String defaultValue) {
         String result;
-        if (element instanceof Class) {
-            result = extractDocumentationFromClass((Class<?>) element);
-        } else if (element instanceof Executable) {
-            result = extractDocumentationFromExecutable((Executable) element);
-        } else if (element instanceof Field) {
-            result = extractDocumentationFromField((Field) element);
+        if (element instanceof ClassNode) {
+            result = extractDocumentationFromClass((ClassNode) element);
+        } else if (element instanceof MethodNode) {
+            result = extractDocumentationFromExecutable((MethodNode) element);
+        } else if (element instanceof FieldNode) {
+            result = extractDocumentationFromField((FieldNode) element);
         } else {
             return defaultValue;
         }
@@ -70,31 +67,33 @@ public class ClassDocExtractor {
 
     }
 
-    private static String extractDocumentationFromExecutable(Executable method) {
+    private static String extractDocumentationFromExecutable(MethodNode method) {
         Map<String, String> classDoc = getClassDoc(method.getDeclaringClass());
         if (classDoc == null) return null;
-        String argType = Arrays.stream(method.getParameterTypes())
-                .map(Class::getName)
+        String argType = Arrays.stream(method.getParameters())
+                .map(param -> param.getType().getName())
                 .collect(Collectors.joining(","));
-        return classDoc.get("method." + (method instanceof Constructor ? "<init>" : method.getName()) + "(" + argType + ")");
+        return classDoc.get("method." + method.getName() + "(" + argType + ")");
     }
 
-    private static String extractDocumentationFromField(Field field) {
+    private static String extractDocumentationFromField(FieldNode field) {
         Map<String, String> classDoc = getClassDoc(field.getDeclaringClass());
         if (classDoc == null) return null;
         return classDoc.get("field." + field.getName());
     }
 
-    private static String extractDocumentationFromClass(Class<?> element) {
+    private static String extractDocumentationFromClass(ClassNode element) {
         Map<String, String> classDoc = getClassDoc(element);
         if (classDoc == null) return null;
         return classDoc.get("classDoc");
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static Map<String, String> getClassDoc(Class<?> element) {
+    private static Map<String, String> getClassDoc(ClassNode element) {
+        if (!element.isResolved()) return null;
+        Class<?> type = element.getTypeClass();
         Properties result;
-        try (InputStream stream = element.getResourceAsStream(getPropertiesFileName(element))) {
+        try (InputStream stream = type.getResourceAsStream(getPropertiesFileName(type))) {
             if (stream == null) return null;
             result = new Properties();
             result.load(stream);

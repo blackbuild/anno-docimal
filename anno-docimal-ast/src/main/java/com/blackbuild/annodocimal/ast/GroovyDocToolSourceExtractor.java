@@ -127,11 +127,14 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
             throw new IllegalArgumentException("Unsupported node type: " + node.getClass().getName());
     }
 
-    private String reformat(String comment) {
-        if (comment == null || comment.isBlank())
-            return null;
+    private String reformat(String rawComment) {
+        if (rawComment == null) return null;
 
-        String[] lines = comment.split("\n");
+        rawComment = rawComment.replaceAll("(?m)^\\s*\\*", "");
+
+        if (rawComment.isBlank()) return null;
+
+        String[] lines = rawComment.split("\n");
         int minIndent = Integer.MAX_VALUE;
         for (String line : lines) {
             if (line.trim().isEmpty())
@@ -189,7 +192,7 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
         return Arrays.stream(classDoc.methods())
                 .filter(methodDoc -> matches(node, methodDoc))
                 .findFirst()
-                .map(GroovyDoc::commentText)
+                .map(GroovyDoc::getRawCommentText)
                 .orElseThrow(() -> new IllegalArgumentException("Method not found: " + node.getName()));
     }
 

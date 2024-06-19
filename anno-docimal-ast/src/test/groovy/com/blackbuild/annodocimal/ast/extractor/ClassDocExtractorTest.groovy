@@ -24,13 +24,14 @@
 package com.blackbuild.annodocimal.ast.extractor
 
 import com.blackbuild.annodocimal.ast.extractor.mock.AClass
+import org.codehaus.groovy.ast.ClassHelper
 import spock.lang.Specification
 
 class ClassDocExtractorTest extends Specification {
 
     def "extraction from AClass"() {
         when:
-        def clazz = AClass.class
+        def clazz = ClassHelper.make(AClass.class)
 
         then:
         ClassDocExtractor.extractDocumentation(clazz, "bla") == "A class for testing."
@@ -38,8 +39,8 @@ class ClassDocExtractorTest extends Specification {
         expect:
         ClassDocExtractor.extractDocumentation(clazz.getDeclaredMethod("aMethod"), "bla") == "A method that does nothing."
         ClassDocExtractor.extractDocumentation(clazz.getDeclaredField("field"), "bla") == "A field."
-        ClassDocExtractor.extractDocumentation(AClass.InnerClass, "bla") == "An inner class."
-        ClassDocExtractor.extractDocumentation(AClass.InnerClass.getDeclaredMethod("innerMethod"), "bla") == "Another method that does nothing."
+        ClassDocExtractor.extractDocumentation(ClassHelper.make(AClass.InnerClass), "bla") == "An inner class."
+        ClassDocExtractor.extractDocumentation(ClassHelper.make(AClass.InnerClass).getDeclaredMethod("innerMethod"), "bla") == "Another method that does nothing."
     }
 
 
