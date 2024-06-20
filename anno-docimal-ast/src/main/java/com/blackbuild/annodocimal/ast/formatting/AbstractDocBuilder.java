@@ -136,6 +136,12 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     }
 
     @Override
+    public DocBuilder optionalParam(String name, boolean condition, String description) {
+        if (condition) param(name, description);
+        return this;
+    }
+
+    @Override
     public DocBuilder returnType(String returnType) {
         if (isNotBlank(returnType) )this.returnType = returnType;
         return this;

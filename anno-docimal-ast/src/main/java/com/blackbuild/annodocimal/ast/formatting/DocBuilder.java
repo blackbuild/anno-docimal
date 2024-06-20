@@ -123,6 +123,17 @@ public interface DocBuilder {
     DocBuilder param(String name, String description);
 
     /**
+     * Adds an optional parameter to the Javadoc.
+     * <p>This param is only added, if condition is true.</p>
+     *
+     * @param name        the name of the parameter
+     * @param condition   only add the param tag if this is true
+     * @param description the description of the parameter
+     * @return this builder
+     */
+    DocBuilder optionalParam(String name, boolean condition, String description);
+
+    /**
      * Sets the return type of the Javadoc. In standard javadoc output, the return type is added as a single line
      * block starting with {@code @return}.
      *
