@@ -231,4 +231,12 @@ public interface DocBuilder {
      * @return this builder
      */
     DocBuilder templates(Map<String, String> values);
+
+    /**
+     * Extracts the templates from the given {@link DocText} object and adds them to the builder.
+     *
+     * @param docText the doc text to extract the templates from
+     * @return this builder
+     */
+    DocBuilder templatesFrom(DocText docText);
 }

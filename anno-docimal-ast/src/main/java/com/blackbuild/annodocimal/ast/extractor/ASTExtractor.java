@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.ast.extractor;
 
+import com.blackbuild.annodocimal.ast.formatting.DocText;
 import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.jetbrains.annotations.NotNull;
@@ -35,6 +36,7 @@ import static java.util.function.Predicate.not;
 public class ASTExtractor {
 
     public static final String DOC_METADATA_KEY = ASTExtractor.class.getName() + ".doc";
+    public static final String DOCTEXT_METADATA_KEY = ASTExtractor.class.getName() + ".doctext";
     public static final String EMPTY_DOC = "\u0000";
 
     private ASTExtractor() {
@@ -58,6 +60,20 @@ public class ASTExtractor {
         }
         element.putNodeMetaData(DOC_METADATA_KEY, EMPTY_DOC);
         return defaultValue;
+    }
+
+    public static DocText extractDocText(AnnotatedNode element) {
+        DocText docText = element.getNodeMetaData(DOCTEXT_METADATA_KEY);
+        if (docText != null) return docText;
+        docText = DocText.fromRawText(extractDocumentation(element));
+        element.putNodeMetaData(DOCTEXT_METADATA_KEY, docText);
+        return docText;
+    }
+
+    public static DocText extractDocText(AnnotatedNode element, String defaultValue) {
+        DocText docText = extractDocText(element);
+        if (docText.isEmpty()) return DocText.fromRawText(defaultValue);
+        return docText;
     }
 
     private static String extractDocumentationFromClassHierarchy(ClassNode element) {

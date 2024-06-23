@@ -210,4 +210,11 @@ public abstract class AbstractDocBuilder implements DocBuilder {
         this.templateValues.putAll(values);
         return this;
     }
+
+    @Override
+    public DocBuilder templatesFrom(DocText docText) {
+        if (docText == null) return this;
+        templates(docText.getNamedTags("template"));
+        return this;
+    }
 }
