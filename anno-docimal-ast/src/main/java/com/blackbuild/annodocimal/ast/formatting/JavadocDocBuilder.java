@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.ast.formatting;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -61,12 +62,9 @@ public class JavadocDocBuilder extends AbstractDocBuilder {
         return replaceTemplateValues(builder.toString());
     }
 
+
     private String replaceTemplateValues(String rawString) {
-        if (templateValues == null) return rawString;
-        for (Map.Entry<String, String> entry : templateValues.entrySet())
-            if (entry.getValue() != null)
-                rawString = rawString.replace("{{" + entry.getKey() + "}}", entry.getValue());
-        return rawString;
+        return TemplateHandler.renderTemplates(rawString, templateValues, params != null ? params.keySet() : Collections.emptySet());
     }
 
     private void addOtherTags(StringBuilder builder) {

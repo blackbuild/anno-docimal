@@ -25,10 +25,7 @@ package com.blackbuild.annodocimal.ast.extractor;
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.blackbuild.annodocimal.annotations.InlineJavadocs;
-import org.codehaus.groovy.ast.AnnotatedNode;
-import org.codehaus.groovy.ast.ClassNode;
-import org.codehaus.groovy.ast.FieldNode;
-import org.codehaus.groovy.ast.MethodNode;
+import org.codehaus.groovy.ast.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -71,13 +68,18 @@ public class ClassDocExtractor {
         Map<String, String> classDoc = getClassDoc(method.getDeclaringClass());
         if (classDoc == null) return null;
         String argType = Arrays.stream(method.getParameters())
-                .map(param -> param.getType().getName())
+                .map(ClassDocExtractor::argTypeString)
                 .collect(Collectors.joining(","));
         return classDoc.get("method." + method.getName() + "(" + argType + ")");
     }
 
+    private static String argTypeString(Parameter param) {
+        ClassNode type = param.getType();
+        return type.isArray() ? type.toString() : type.getName();
+    }
+
     private static String extractDocumentationFromField(FieldNode field) {
-        Map<String, String> classDoc = getClassDoc(field.getDeclaringClass());
+        Map<String, String> classDoc = getClassDoc(field.getOwner());
         if (classDoc == null) return null;
         return classDoc.get("field." + field.getName());
     }
@@ -90,6 +92,7 @@ public class ClassDocExtractor {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static Map<String, String> getClassDoc(ClassNode element) {
+        if (element == null) return null;
         if (!element.isResolved()) return null;
         Class<?> type = element.getTypeClass();
         Properties result;
@@ -112,4 +115,5 @@ public class ClassDocExtractor {
             return element.getSimpleName();
         return getSimpleName(element.getDeclaringClass()) + "$" + element.getSimpleName();
     }
+
 }

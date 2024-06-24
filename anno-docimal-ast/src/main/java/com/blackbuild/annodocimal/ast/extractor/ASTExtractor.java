@@ -48,15 +48,15 @@ public class ASTExtractor {
     }
 
     public static String extractDocumentation(AnnotatedNode element, String defaultValue) {
-        String metaData = element.getNodeMetaData(DOC_METADATA_KEY);
+        String existingMetaData = element.getNodeMetaData(DOC_METADATA_KEY);
 
-        if (EMPTY_DOC.equals(metaData)) return defaultValue;
-        else if (metaData != null) return metaData;
+        if (EMPTY_DOC.equals(existingMetaData)) return defaultValue;
+        else if (existingMetaData != null) return existingMetaData;
 
-        metaData = extractDocumentationFromElement(element);
-        if (metaData != null) {
-            element.putNodeMetaData(DOC_METADATA_KEY, metaData);
-            return metaData;
+        String doc = extractDocumentationFromElement(element);
+        if (doc != null) {
+            element.putNodeMetaData(DOC_METADATA_KEY, doc);
+            return doc;
         }
         element.putNodeMetaData(DOC_METADATA_KEY, EMPTY_DOC);
         return defaultValue;

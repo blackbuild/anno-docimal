@@ -31,13 +31,12 @@ import java.util.Map;
  * per javadoc comment. The builder contains various methods to add javadoc elements like paragraphs, parameters,
  * return types, exceptions, tags, etc. The actual formatting of the Javadoc is dependent on the implementation.
  * <p>
- *     The builder supports a basic templating system. Templates are placeholders in the Javadoc that can be replaced
- *     by the actual value when the Javadoc is rendered. Templates consist of two curly braces around the key, e.g.
- *     {@code {{key}}}. The key is the name of the template, the value is the replacement. Templates can be added
- *     with {@link #template(String, String)} or {@link #templates(Map)}. A use case is for generated methods that
- *     delegate to another method, where the javadoc is copied from the original method but some details are included in
- *     the generated method's javadoc.
+ *     The builder supports a basic templating system based on the presence or absence of parameters and special template values.
+ *     Templates values can be added with {@link #template(String, String)}, {@link #templates(Map)} and {@link #templatesFrom(DocText)}.
+ *     A use case is for generated methods that delegate to another method, where the javadoc is copied from the original method
+ *     but some details are included in the generated method's javadoc.
  * </p>
+ * @see TemplateHandler
  */
 public interface DocBuilder {
 

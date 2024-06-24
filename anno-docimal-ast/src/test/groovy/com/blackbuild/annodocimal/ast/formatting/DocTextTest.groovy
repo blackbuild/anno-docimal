@@ -181,8 +181,13 @@ This is the second sentence.""")
         docText.getNamedTag("param", "beforetag").get() == "double whitespace before tagname"
         docText.getNamedTag("param", "multiline").get() == "this is a multiline tag"
 
-        and:
-        docText.getNamedTags("param") == ["after": "double whitespace after name",
+        when:
+        def params = docText.getNamedTags("param")
+
+        then:
+        params instanceof LinkedHashMap
+        params.keySet() as List == ["after", "before", "beforetag", "multiline"]
+        params == ["after": "double whitespace after name",
                                           "before": "double whitespace after tagname",
                                           "beforetag": "double whitespace before tagname",
                                           "multiline": "this is a multiline tag"]

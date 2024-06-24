@@ -122,6 +122,33 @@ property files which can be used by the ast transformation.
 On scenario, where this might be useful is where a Groovy AST transformation is used to generate proxy methods to methods of
 an existing java class, while retaining the original javadoc (perhaps transformed).
 
+## Templating
+
+AnnoDocimal supports templating for javadocs. This is especially useful when generating code with a lot of similar methods. The generated 
+documentation using a doc builder replaces placeholders with the actual values. Replacements are controlled by a map of
+template values as well as the list of parameters (in case of methods).
+
+Template values are added via explicit DocBuilder.template, templates or templatesFrom methods. The can also be added using 
+the special `@template` javadoc tag.
+
+Currently, we have three different replacements:
+
+### Simple value replacements
+
+Simple values come in the form of `{{key}}` or `{{key:default}}` and are replaced by the value of the key in the template values map.
+If the key is not present in the map, the default value or the key itself is used.
+
+### Conditional parameter replacements
+
+Conditional parameter replacements are used to replace a placeholder with a value depending on the presence of a parameter. 
+They come in the form of `{{param:key?if}}` or `{{param:key?if:else}}`. If the parameter is present, the if value is used, otherwise the else value or
+an empty string if no else value is present.
+
+### Conditional template replacements
+
+Basically the same as conditional parameter replacements, but the condition is based on the presence of a template value (which itself is ignored).
+They come in the form of `{{key?if}}` or `{{key?if:else}}`.
+
 ## Source Extractors
 
 If the transformation using anno-docimal enhances existing code, i.e. adds methods or, as in the case of "klum-ast", the result is a mix of source based and annotation based javadoc comments. To generate the final documentation, two approaches are possible:
@@ -142,7 +169,7 @@ outdated) Groovy 2.4 (see (https://issues.jenkins.io/browse/JENKINS-53372) for d
 
 ## Why JavaDoc and not GroovyDoc?
 
-My main goal is good IDE support without the need for special plugins. Once again, the main use case is KlumAST, which is designed to be use from normal Java code. Since I don't need any GroovyDoc features, GroovyDoc has not een widely adopted anyway, JavaDoc seems a better common ground.
+My main goal is good IDE support without the need for special plugins. Once again, the main use case is KlumAST, which is designed to be use from normal Java code. Since I don't need any GroovyDoc features, GroovyDoc has not been widely adopted anyway, JavaDoc seems a better common ground.
 
 
 

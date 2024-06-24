@@ -29,14 +29,13 @@ import java.text.BreakIterator;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * Container for parsed javadoc comments. Useful to prevent additional parsing in later phases.
  */
 public class DocText {
 
-    public static final DocText EMPTY = new DocText("");
+    public static final DocText EMPTY = new DocText("", "", "", Collections.emptyMap());
 
     protected final String rawText;
     protected final String title;
@@ -53,12 +52,33 @@ public class DocText {
         return new DocText(rawText);
     }
 
+    public static DocText copyAndReplaceTags(DocText docText, Map<String, List<String>> tags) {
+        Map<String, List<String>> newTags = new LinkedHashMap<>(docText.tags);
+        newTags.putAll(tags);
+        return new DocText(docText.rawText, docText.title, docText.body, newTags);
+    }
+
+    public static DocText copyAndReplaceTags(DocText docText, String tagName, List<String> values) {
+        Map<String, List<String>> newTags = new LinkedHashMap<>(docText.tags);
+        newTags.put(tagName, values);
+        return new DocText(docText.rawText, docText.title, docText.body, newTags);
+    }
+
     protected DocText(String rawText) {
         this.rawText = rawText;
         this.title = calculateFirstSentence();
         this.body = calculateBody();
         this.tags = calculateTags();
     }
+
+    protected DocText(String rawText, String title, String body, Map<String, List<String>> tags) {
+        this.rawText = rawText;
+        this.title = title;
+        this.body = body;
+        this.tags = tags;
+    }
+
+    private static final Pattern TEMPLATE_PATTERN = Pattern.compile("\\{\\{([^}]+)}}");
 
     protected @NotNull String calculateFirstSentence() {
         String text = rawText;
@@ -68,9 +88,19 @@ public class DocText {
         text = text.replaceFirst("(?ms)\\n\\s*\\n.*", "").trim();
         // assume @tag signifies end of sentence
         text = text.replaceFirst("(?ms)\\n\\s*@([a-z]+).*", "").trim();
+        Matcher matcher = TEMPLATE_PATTERN.matcher(text);
+
+        // sanitize string replaces {{...}} with underscores, to prevent the BreakIterator from splitting on them
+        String sanitizedText = matcher.replaceAll(match -> {
+            int length = match.group().length();
+            char[] replacement = new char[length];
+            Arrays.fill(replacement, '_');
+            return new String(replacement);
+        });
         // Comment Summary using first sentence (Locale sensitive)
         BreakIterator boundary = BreakIterator.getSentenceInstance(Locale.getDefault());
-        boundary.setText(text);
+
+        boundary.setText(sanitizedText);
         int start = boundary.first();
         int end = boundary.next();
         if (start > -1 && end > -1) {
@@ -204,7 +234,7 @@ public class DocText {
     public Map<String, String> getNamedTags(String tagName) {
         return getTags(tagName).stream()
                 .map(s -> s.split(" ", 2))
-                .collect(Collectors.toMap(parts -> parts[0], parts -> parts.length > 1 ? parts[1] : ""));
+                .collect(LinkedHashMap::new, (map, parts) -> map.put(parts[0], parts.length > 1 ? parts[1] : ""), Map::putAll);
     }
 
     public boolean isEmpty() {
