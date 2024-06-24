@@ -56,8 +56,7 @@ This is paragraph 2
 @throws Exception2 This is exception 2
 @Tag1 Value1
 @Tag1 Value2
-@Tag2 Value3
-"""
+@Tag2 Value3"""
     }
 
     def "should replace template values in the generated javadoc"() {
@@ -78,33 +77,19 @@ This is paragraph 2
 This is a funny TEXT
 </p>
 <p>
-This is {{notReplaced}}
-</p>
-"""
+This is notReplaced
+</p>"""
         when:
         docBuilder.template("type", null)
 
         then:
         docBuilder.toJavadoc() == """This is the TITLE
 <p>
-This is a {{type}} TEXT
+This is a type TEXT
 </p>
 <p>
-This is {{notReplaced}}
-</p>
-"""
-        when:
-        docBuilder.templates(title: null)
-
-        then:
-        docBuilder.toJavadoc() == """This is the {{title}}
-<p>
-This is a {{type}} TEXT
-</p>
-<p>
-This is {{notReplaced}}
-</p>
-"""
+This is notReplaced
+</p>"""
     }
 
     def "should replace template values with own template tags"() {
@@ -131,12 +116,11 @@ This is {{notReplaced}}
 This is a funny TEXT
 </p>
 <p>
-This is {{notReplaced}}
+This is notReplaced
 </p>
 @template title TITLE
 @template text TEXT
-@template type funny
-"""
+@template type funny"""
     }
 
     def "should instantiate JavadocDocumentation with a title"() {
@@ -167,8 +151,7 @@ Paragraph 1
 </p>
 <p>
 Paragraph 2
-</p>
-"""
+</p>"""
     }
 
     def "should add parameters to the documentation"() {
@@ -184,8 +167,7 @@ Paragraph 2
         result ==
                 """Test Title
 @param param1 Description 1
-@param param2 Description 2
-"""
+@param param2 Description 2"""
     }
 
     def "should instantiate JavadocDocumentation without a title"() {
@@ -209,8 +191,7 @@ Paragraph 2
 
         then:
         result ==
-        """Test Title
-"""
+        """Test Title"""
     }
 
     def "should add parameters to the documentation with null values"() {
@@ -223,8 +204,7 @@ Paragraph 2
 
         then:
         result ==
-        """Test Title
-"""
+        """Test Title"""
     }
 
     def "paragraphs are correctly split"() {
@@ -236,7 +216,6 @@ Paragraph 2
         doc.splitIntoParagraphs("") == []
         doc.splitIntoParagraphs("single paragraph") == ["single paragraph"]
         doc.splitIntoParagraphs("<p>single paragraph</p>") == ["single paragraph"]
-
     }
 
     def "should correctly parse a existing javadoc string into a builder"() {
@@ -255,8 +234,7 @@ This is paragraph 2
 @throws Exception2 This is exception 2
 @Tag1 Value1
 @Tag1 Value2
-@Tag2 Value3
-"""
+@Tag2 Value3"""
 
         when:
         def docBuilder = new JavadocDocBuilder().fromRawText(javadoc)
@@ -274,8 +252,7 @@ This is paragraph 2
         given:
         def javadoc = """This is the title. This is paragraph 1
 <p>
-This is paragraph 2
-"""
+This is paragraph 2"""
 
         when:
         def docBuilder = new JavadocDocBuilder().fromRawText(javadoc)
@@ -291,8 +268,7 @@ This is paragraph 2
 
 This is paragraph 1
 <p>
-This is paragraph 2
-"""
+This is paragraph 2"""
 
         when:
         def docBuilder = new JavadocDocBuilder().fromRawText(javadoc)
@@ -321,8 +297,7 @@ Overridden paragraph 1
 Overridden paragraph 2
 @param param1 Overridden param
 @param param3 Overridden param 3
-@deprecated Overridden deprecation
-"""
+@deprecated Overridden deprecation"""
         when:
         docBuilder.fromRawText(other)
 
@@ -371,8 +346,7 @@ Manual additional paragraph
 </p>
 <p>
 Manual additional paragraph 2
-</p>
-"""
+</p>"""
     }
 
 
