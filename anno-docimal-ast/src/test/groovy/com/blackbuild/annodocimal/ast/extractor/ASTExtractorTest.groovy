@@ -58,6 +58,9 @@ class Consumer {
     @AstHelper(value = ASTExtractorTest.MyAction, type = AClass, field = "field")
     Object fromField
     
+    @AstHelper(value = ASTExtractorTest.MyAction, type = AClass, field = "fieldWithLongerComment")
+    Object fromFieldWithLongerComment
+    
     @AstHelper(value = ASTExtractorTest.MyAction, type = AClass.InnerClass)
     Object fromInnerClass
 }'''
@@ -70,6 +73,9 @@ class Consumer {
 @return the result of doing it'''
         astData.noJavaDocMethodDoc == null
         astData.fromFieldDoc == "A field."
+        astData.fromFieldWithLongerCommentDoc == '''A field with a longer comment.
+This comment is longer than the comment of the field above.
+@template bla blub'''
         astData.fromInnerClassDoc == 'An inner class.'
 
         and:

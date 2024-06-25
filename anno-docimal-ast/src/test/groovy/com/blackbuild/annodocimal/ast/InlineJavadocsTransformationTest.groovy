@@ -56,9 +56,21 @@ import com.blackbuild.annodocimal.annotations.InlineJavadocs
  */
 @InlineJavadocs
 class TestClass {
+    /** 
+     * Creates a new TestClass.
+     * @param name The name of the Test
+     */
+    TestClass(String name) {}
 
     /** A name */
     String name
+    
+    /** 
+    * Field with long comment.
+    * Second paragraph.
+    * @template bla blub
+    */
+    String longName
     
     /**
      * A method
@@ -80,9 +92,14 @@ class TestClass {
         then:
         clazz.getAnnotation(AnnoDoc).value() == 'This is a test class'
         clazz.getMethod("method").getAnnotation(AnnoDoc).value() == 'A method'
+        clazz.getDeclaredConstructor(String).getAnnotation(AnnoDoc).value() == '''Creates a new TestClass.
+@param name The name of the Test'''
 
         and: 'private fields retain their javadoc'
         clazz.getDeclaredField("name").getAnnotation(AnnoDoc).value() == 'A name'
+        clazz.getDeclaredField("longName").getAnnotation(AnnoDoc).value() == '''Field with long comment.
+Second paragraph.
+@template bla blub'''
 
         when:
         def innerClass = clazz.getDeclaredClasses().find { it.simpleName == "InnerClass" }

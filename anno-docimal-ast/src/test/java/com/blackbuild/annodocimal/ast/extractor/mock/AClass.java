@@ -62,6 +62,13 @@ public class AClass {
     public String field = "field";
 
     /**
+     * A field with a longer comment.
+     * This comment is longer than the comment of the field above.
+     * @template bla blub
+     */
+    public String fieldWithLongerComment = "field";
+
+    /**
      * An inner class.
      */
     public static class InnerClass {

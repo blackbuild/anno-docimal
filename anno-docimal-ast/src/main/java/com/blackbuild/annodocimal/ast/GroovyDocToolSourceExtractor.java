@@ -171,7 +171,7 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
         return Stream.concat(Arrays.stream(classDoc.properties()), Arrays.stream(classDoc.fields()))
                 .filter(fieldDoc -> fieldDoc.name().equals(node.getName()))
                 .findFirst()
-                .map(GroovyDoc::commentText)
+                .map(GroovyDoc::getRawCommentText)
                 .orElse(null);
     }
 
@@ -186,7 +186,7 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
             return Arrays.stream(classDoc.constructors())
                     .filter(constructorDoc -> matches(node, constructorDoc))
                     .findFirst()
-                    .map(GroovyDoc::commentText)
+                    .map(GroovyDoc::getRawCommentText)
                     .orElse(null);
         }
         return Arrays.stream(classDoc.methods())
@@ -197,7 +197,8 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
     }
 
     private boolean matches(MethodNode methodNode, GroovyExecutableMemberDoc methodDoc) {
-        if (!methodDoc.name().equals(methodNode.getName())) return false;
+        boolean matchingMethodName = (methodNode instanceof ConstructorNode) || methodDoc.name().equals(methodNode.getName());
+        if (!matchingMethodName) return false;
         GroovyParameter[] docParameters = methodDoc.parameters();
         Parameter[] astParameters = methodNode.getParameters();
         if (docParameters.length != astParameters.length) return false;
