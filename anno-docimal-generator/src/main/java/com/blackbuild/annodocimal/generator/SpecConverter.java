@@ -28,6 +28,8 @@ import com.squareup.javapoet.*;
 import org.apache.bcel.Const;
 import org.apache.bcel.Repository;
 import org.apache.bcel.classfile.*;
+import org.apache.bcel.generic.ArrayType;
+import org.apache.bcel.generic.BasicType;
 import org.apache.bcel.generic.Type;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,7 +40,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Arrays.stream;
@@ -61,9 +62,9 @@ public class SpecConverter {
     }
 
     public static TypeSpec toTypeSpec(JavaClass type, boolean staticInnerClass) {
-        ClassName typeName = ClassName.bestGuess(type.getClassName().replace('$', '.'));
+        ClassName typeName = toTypeName(type);
         TypeSpec.Builder builder = TypeSpec.classBuilder(typeName)
-                .superclass(ClassName.bestGuess(type.getSuperclassName()))
+                .superclass(toTypeName(type.getSuperclassName()))
                 .addModifiers(decodeModifiers(type));
         if (staticInnerClass) builder.addModifiers(Modifier.STATIC);
 
@@ -102,6 +103,22 @@ public class SpecConverter {
         return builder.build();
     }
 
+    private static ClassName toTypeName(JavaClass type) {
+        String className = type.getClassName();
+        if (!type.isNested())
+            return ClassName.bestGuess(className);
+
+        return toTypeName(className);
+    }
+
+    private static ClassName toTypeName(String className) {
+        String[] elements = className.split("\\$");
+        ClassName result = ClassName.bestGuess(elements[0]);
+        for (int i = 1; i < elements.length; i++)
+            result = result.nestedClass(elements[i]);
+        return result;
+    }
+
     public static TypeSpec toInnerTypeSpec(InnerClass innerClass, JavaClass type) {
         String innerClassName = type.getConstantPool().getConstantString(innerClass.getInnerClassIndex(), org.apache.bcel.Const.CONSTANT_Class);
         try {
@@ -136,7 +153,7 @@ public class SpecConverter {
     }
 
     public static FieldSpec toFieldSpec(org.apache.bcel.classfile.Field field) {
-        ClassName className = ClassName.bestGuess(field.getType().toString());
+        TypeName className = toTypeName(field.getType());
         FieldSpec.Builder builder = FieldSpec.builder(className, field.getName(), decodeModifiers(field));
 
         for (AnnotationEntry annotation : field.getAnnotationEntries())
@@ -154,9 +171,9 @@ public class SpecConverter {
 
         builder.addModifiers(decodeModifiers(constructorOrMethod));
 
-        if (!isConstructor && !constructorOrMethod.getReturnType().equals(Type.VOID))
-            builder.returns(ClassName.bestGuess(constructorOrMethod.getReturnType().getClassName()));
-
+        Type returnType = constructorOrMethod.getReturnType();
+        if (!isConstructor && !returnType.equals(Type.VOID))
+            builder.returns(toTypeName(returnType));
         for (AnnotationEntry annotation : constructorOrMethod.getAnnotationEntries())
             if (isJavadocs(annotation))
                 builder.addJavadoc(getStringValue(annotation));
@@ -171,6 +188,36 @@ public class SpecConverter {
         return builder.build();
     }
 
+    private static TypeName toTypeName(Type type) {
+        if (type instanceof BasicType) {
+            switch (type.getType()) {
+                case Const.T_BOOLEAN:
+                    return TypeName.BOOLEAN;
+                case Const.T_BYTE:
+                    return TypeName.BYTE;
+                case Const.T_CHAR:
+                    return TypeName.CHAR;
+                case Const.T_DOUBLE:
+                    return TypeName.DOUBLE;
+                case Const.T_FLOAT:
+                    return TypeName.FLOAT;
+                case Const.T_INT:
+                    return TypeName.INT;
+                case Const.T_LONG:
+                    return TypeName.LONG;
+                case Const.T_SHORT:
+                    return TypeName.SHORT;
+                case Const.T_VOID:
+                    return TypeName.VOID;
+                default:
+                    throw new IllegalArgumentException("Unknown basic type: " + type);
+            }
+        }
+        if (type instanceof ArrayType)
+            return ArrayTypeName.of(toTypeName(((ArrayType) type).getElementType()));
+        return toTypeName(type.getClassName());
+    }
+
     private static String getStringValue(AnnotationEntry annotation) {
         return stream(annotation.getElementValuePairs())
                 .filter(pair -> pair.getNameString().equals("value"))
@@ -183,19 +230,29 @@ public class SpecConverter {
         LocalVariableTable lvt = method.getLocalVariableTable();
         LocalVariable[] localVariables = lvt != null ? lvt.getLocalVariableTable() : null;
 
+        int argumentCount = method.getArgumentTypes().length;
+
         if (localVariables == null) {
-            if (method.getArgumentTypes().length == 0)
+            if (argumentCount == 0)
                 return Collections.emptyList();
             List<String> result = new ArrayList<>();
-            for (int i = 0; i < method.getArgumentTypes().length; i++) result.add("arg" + i);
+            for (int i = 0; i < argumentCount; i++) result.add("arg" + i);
             return result;
         }
 
-        return stream(localVariables).skip(1).map(LocalVariable::getName).collect(Collectors.toList());
+        int first = method.isStatic() ? 0 : 1;
+        int last = first + argumentCount;
+
+        List<String> result = new ArrayList<>(argumentCount);
+
+        for (int i = first; i < last; i++) {
+            result.add(localVariables[i].getName());
+        }
+        return result;
     }
 
     public static ParameterSpec toParameterSpec(Method method, int index, String name) {
-        ParameterSpec.Builder builder = ParameterSpec.builder(ClassName.bestGuess(method.getArgumentTypes()[index].getClassName()), name);
+        ParameterSpec.Builder builder = ParameterSpec.builder(toTypeName(method.getArgumentTypes()[index]), name);
 
         ParameterAnnotationEntry[] annotationEntries = method.getParameterAnnotationEntries();
         if (annotationEntries.length > 0)
@@ -210,15 +267,15 @@ public class SpecConverter {
 
     public static AnnotationSpec toAnnotationSpec(AnnotationEntry annotation) {
         AnnotationSpec.Builder builder = AnnotationSpec.builder(
-                ClassName.bestGuess(Utility.typeSignatureToString(annotation.getAnnotationType(), true))
+                toTypeName(Utility.typeSignatureToString(annotation.getAnnotationType(), true))
         );
         stream(annotation.getElementValuePairs())
-                .forEach(pair -> toAnnotationMember(pair, builder));
+                .forEach(pair -> addAnnotationMember(pair, builder));
         return builder.build();
     }
 
-    private static AnnotationSpec.@NotNull Builder toAnnotationMember(ElementValuePair pair, AnnotationSpec.Builder builder) {
-        return builder.addMember(pair.getNameString(), stringifyValue(pair.getValue()));
+    private static void addAnnotationMember(ElementValuePair pair, AnnotationSpec.Builder builder) {
+        builder.addMember(pair.getNameString(), stringifyValue(pair.getValue()));
     }
 
     private static CodeBlock stringifyValue(ElementValue value) {
@@ -235,7 +292,7 @@ public class SpecConverter {
     }
 
     private static @NotNull CodeBlock stringifyClassElementValue(ClassElementValue value) {
-        return CodeBlock.of("$T.class", ClassName.bestGuess(Utility.typeSignatureToString(value.getClassString(), true)));
+        return CodeBlock.of("$T.class", toTypeName(Utility.typeSignatureToString(value.getClassString(), true)));
     }
 
     private static @NotNull CodeBlock stringifyAnnotationElementValue(AnnotationElementValue value) {
@@ -267,6 +324,7 @@ public class SpecConverter {
         }
     }
 
+    @SuppressWarnings("java:S3776")
     static Modifier[] decodeModifiers(AccessFlags flags) {
         EnumSet<Modifier> result = EnumSet.noneOf(Modifier.class);
 
