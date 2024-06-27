@@ -29,6 +29,7 @@ import org.apache.bcel.Repository
 import org.apache.bcel.classfile.Utility
 import org.apache.bcel.util.ClassPath
 import org.apache.bcel.util.ClassPathRepository
+import spock.lang.IgnoreIf
 
 class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
@@ -103,6 +104,170 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generated.getBlock("public void method()").javaDoc == "This is a method"
         generated.getBlock("public String getField()")
         generated.getBlock("public void setField(String arg0)")
+    }
+
+    @IgnoreIf({ GroovySystem.version.startsWith("2.") })
+    def "bug: visibility is off"() {
+        given:
+        createClass("""
+            package dummy
+     
+            import com.blackbuild.annodocimal.annotations.AnnoDoc
+            
+            class TestClass {
+                String field
+                
+                void method() {
+                    println "Hello"
+                }
+                
+                private void privateMethod() {
+                    println "Hello"
+                }
+                
+                protected void protectedMethod() {
+                    println "Hello"
+                }
+                
+                protected static class InnerClass {
+                    void innerMethod() {
+                        println "Hello"
+                    }
+                }
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generatedSource == '''package dummy;
+
+import groovy.lang.GroovyObject;
+import groovy.lang.MetaClass;
+import groovy.transform.Generated;
+import groovy.transform.Internal;
+import java.beans.Transient;
+import java.lang.String;
+
+public class TestClass implements GroovyObject {
+  @Generated
+  public TestClass() {
+  }
+
+  public void method() {
+  }
+
+  protected void protectedMethod() {
+  }
+
+  @Generated
+  @Internal
+  @Transient
+  public MetaClass getMetaClass() {
+  }
+
+  @Generated
+  @Internal
+  public void setMetaClass(MetaClass arg0) {
+  }
+
+  @Generated
+  public String getField() {
+  }
+
+  @Generated
+  public void setField(String arg0) {
+  }
+
+  protected static class InnerClass implements GroovyObject {
+    @Generated
+    public InnerClass() {
+    }
+
+    public void innerMethod() {
+    }
+
+    @Generated
+    @Internal
+    @Transient
+    public MetaClass getMetaClass() {
+    }
+
+    @Generated
+    @Internal
+    public void setMetaClass(MetaClass arg0) {
+    }
+  }
+}
+'''
+    }
+
+    @IgnoreIf({ !GroovySystem.version.startsWith("2.") })
+    def "bug: visibility is off groovy 2"() {
+        given:
+        createClass("""
+            package dummy
+     
+            import com.blackbuild.annodocimal.annotations.AnnoDoc
+            
+            class TestClass {
+                String field
+                
+                void method() {
+                    println "Hello"
+                }
+                
+                private void privateMethod() {
+                    println "Hello"
+                }
+                
+                protected void protectedMethod() {
+                    println "Hello"
+                }
+                
+                protected static class InnerClass {
+                    void innerMethod() {
+                        println "Hello"
+                    }
+                }
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generatedSource == '''package dummy;
+
+import groovy.lang.GroovyObject;
+import java.lang.String;
+
+public class TestClass implements GroovyObject {
+  public TestClass() {
+  }
+
+  public void method() {
+  }
+
+  protected void protectedMethod() {
+  }
+
+  public String getField() {
+  }
+
+  public void setField(String arg0) {
+  }
+
+  public static class InnerClass implements GroovyObject {
+    public InnerClass() {
+    }
+
+    public void innerMethod() {
+    }
+  }
+}
+'''
     }
 
     def "basic test with generated documentation and bad params"() {
