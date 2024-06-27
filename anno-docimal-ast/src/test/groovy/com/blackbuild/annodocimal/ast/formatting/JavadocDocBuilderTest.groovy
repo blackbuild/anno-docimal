@@ -278,6 +278,46 @@ This is paragraph 2"""
         docBuilder.paragraphs == ['This is paragraph 1', 'This is paragraph 2']
     }
 
+    def "when parsing, p-tags should be removed, ul, ol and h. should be considered paragraphs"() {
+        given:
+        def javadoc = """This is the title
+<p>
+paragraph without matching closing tag
+<p>
+paragraph with closing tag
+</p><h1>heading</h1>
+<ul>
+<li>list item 1</li>
+<li>list item 2</li>
+</ul>
+paragraph embedded between lists
+<ol>
+<li>list item 1</li>
+<li>list item 2</li>
+</ol>
+"""
+
+        when:
+        def docBuilder = new JavadocDocBuilder().fromRawText(javadoc)
+
+        then:
+        docBuilder.title == "This is the title"
+        docBuilder.paragraphs == [
+                'paragraph without matching closing tag',
+                'paragraph with closing tag',
+                '<h1>heading</h1>',
+                '''<ul>
+<li>list item 1</li>
+<li>list item 2</li>
+</ul>''',
+                'paragraph embedded between lists',
+                '''<ol>
+<li>list item 1</li>
+<li>list item 2</li>
+</ol>'''
+        ]
+    }
+
     def "copy from should not override existing entries"() {
         given:
         def docBuilder = new JavadocDocBuilder()

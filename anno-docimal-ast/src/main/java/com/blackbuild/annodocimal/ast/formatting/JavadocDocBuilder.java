@@ -101,10 +101,17 @@ public class JavadocDocBuilder extends AbstractDocBuilder {
     private void addParagraphs(StringBuilder builder) {
         if (paragraphs != null)
             for (String paragraph : paragraphs)
-                builder.append("<p>\n").append(paragraph).append("\n</p>\n");
+                builder.append(surroundWithParagraph(paragraph)).append("\n");
         if (additionalParagraphs != null)
             for (String paragraph : additionalParagraphs)
-                builder.append("<p>\n").append(paragraph).append("\n</p>\n");
+                builder.append(surroundWithParagraph(paragraph)).append("\n");
+    }
+
+    private String surroundWithParagraph(String paragraph) {
+        if (paragraph.startsWith("<"))
+            return paragraph;
+        else
+            return "<p>\n" + paragraph + "\n</p>";
     }
 
     private void addTitle(StringBuilder builder) {

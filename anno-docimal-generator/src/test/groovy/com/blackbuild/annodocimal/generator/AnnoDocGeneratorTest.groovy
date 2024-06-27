@@ -105,6 +105,29 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generated.getBlock("public void setField(String arg0)")
     }
 
+    def "basic test with generated documentation and bad params"() {
+        given:
+        createClass("""
+            package dummy
+     
+            import com.blackbuild.annodocimal.annotations.AnnoDoc
+            
+            class TestClass {
+                @AnnoDoc('''This is a method
+@param bad missing parameter''')
+                void method() {
+                    println "Hello"
+                }
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generated.getBlock("public void method()").javaDoc == "This is a method"
+    }
+
     def "basic test with generated documentation and custom annotations"() {
         given:
         parseClass '''

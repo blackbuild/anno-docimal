@@ -36,10 +36,9 @@ import org.jetbrains.annotations.NotNull;
 import javax.lang.model.element.Modifier;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Arrays.stream;
@@ -174,18 +173,39 @@ public class SpecConverter {
         Type returnType = constructorOrMethod.getReturnType();
         if (!isConstructor && !returnType.equals(Type.VOID))
             builder.returns(toTypeName(returnType));
-        for (AnnotationEntry annotation : constructorOrMethod.getAnnotationEntries())
-            if (isJavadocs(annotation))
-                builder.addJavadoc(getStringValue(annotation));
-            else
-                builder.addAnnotation(toAnnotationSpec(annotation));
 
         List<String> argumentNames = getArgumentNames(constructorOrMethod);
-
         IntStream.range(0, argumentNames.size())
                 .forEach(i -> builder.addParameter(toParameterSpec(constructorOrMethod, i, argumentNames.get(i))));
 
+        for (AnnotationEntry annotation : constructorOrMethod.getAnnotationEntries())
+            if (isJavadocs(annotation))
+                builder.addJavadoc(filterParams(getStringValue(annotation), argumentNames));
+            else
+                builder.addAnnotation(toAnnotationSpec(annotation));
+
         return builder.build();
+    }
+
+    private static final Pattern PARAM_PATTERN = Pattern.compile("(?m)^\\s*@param\\s+(\\w+)\\s*");
+
+    private static String filterParams(String stringValue, List<String> argumentNames) {
+        if (argumentNames.isEmpty() && !stringValue.contains("@param"))
+            return stringValue;
+
+        Set<String> names = PARAM_PATTERN.matcher(stringValue)
+                .results()
+                .map(match -> match.group(1))
+                .collect(Collectors.toSet());
+
+        argumentNames.forEach(names::remove);
+
+        if (names.isEmpty())
+            // all params point to actual arguments
+            return stringValue;
+
+        Pattern badParams = Pattern.compile("(?sm)^\\s*@param\\s+(" + String.join("|", names) + ").*?(?=(^@\\w+|$))");
+        return badParams.matcher(stringValue).replaceAll("");
     }
 
     private static TypeName toTypeName(Type type) {

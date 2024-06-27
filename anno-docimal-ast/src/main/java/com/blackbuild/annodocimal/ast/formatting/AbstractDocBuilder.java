@@ -25,16 +25,17 @@ package com.blackbuild.annodocimal.ast.formatting;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class AbstractDocBuilder implements DocBuilder {
 
     public static final String PARAM_TAG = "param";
     public static final String RETURN_TAG = "return";
     public static final String THROWS_TAG = "throws";
-    public static final String SINCE = "since";
-    public static final String DEPRECATED = "deprecated";
+    public static final String SINCE_TAG = "since";
+    public static final String DEPRECATED_TAG = "deprecated";
     public static final List<String> SPECIAL_TAGS = List.of(PARAM_TAG, RETURN_TAG, THROWS_TAG);
-    public static final List<String> SINGLE_TAGS = List.of(SINCE, DEPRECATED);
+    public static final List<String> SINGLE_TAGS = List.of(SINCE_TAG, DEPRECATED_TAG);
     protected String title;
     protected List<String> paragraphs;
     protected List<String> additionalParagraphs;
@@ -80,11 +81,38 @@ public abstract class AbstractDocBuilder implements DocBuilder {
     List<String> splitIntoParagraphs(String body) {
         if (body == null) return Collections.emptyList();
         if (body.isBlank()) return Collections.emptyList();
-        return Arrays.stream(body.split("<[pP]>"))
-                .map(s -> s.replaceAll("</[pP]>", ""))
+        return Arrays.stream(body.split("(?=<(p|ul|ol|h\\d)>)"))
                 .map(String::strip)
+                .flatMap(AbstractDocBuilder::fixParagraph)
                 .filter(AbstractDocBuilder::isNotBlank)
                 .collect(Collectors.toList());
+    }
+
+    private static Stream<String> fixParagraph(String block) {
+        // javadoc does not like <ul> tags surrounded by <p> tags
+        // also, it allows unmatched <p> tags as well as paragraphs
+        // without p tags. So we need to adjust that corner cases as well.
+        // see test cases
+        if (!block.startsWith("<")) return Stream.of(block);
+        String tag = block.substring(0, block.indexOf('>') + 1);
+        String content = block.substring(tag.length());
+        String endTag = "</" + tag.substring(1);
+        if (content.endsWith(endTag)) {
+            content = content.substring(0, content.length() - endTag.length());
+            return Stream.of(surroundWith(content, tag, endTag));
+        } else if (content.contains(endTag)) {
+            String[] split = content.split(endTag, 2);
+            return Stream.of(surroundWith(split[0], tag, endTag), split[1].strip());
+        } else {
+            return Stream.of(surroundWith(content, tag, endTag));
+        }
+    }
+
+    private static String surroundWith(String block, String tag, String endTag) {
+        if (tag.equals("<p>")) return block.strip();
+        if (tag.equals("<ul>") || tag.equals("<ol>"))
+            return tag + "\n" + block.strip() + "\n" + endTag;
+        else return tag + block.strip() + endTag;
     }
 
     @Override
@@ -178,12 +206,12 @@ public abstract class AbstractDocBuilder implements DocBuilder {
 
     @Override
     public DocBuilder since(String version) {
-        return tag(SINCE, version);
+        return tag(SINCE_TAG, version);
     }
 
     @Override
     public DocBuilder deprecated(String reason) {
-        return tag(DEPRECATED, reason);
+        return tag(DEPRECATED_TAG, reason);
     }
 
     @Override
