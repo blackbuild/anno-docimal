@@ -73,7 +73,7 @@ public class SpecConverter {
 
         for (AnnotationEntry annotation : type.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(getStringValue(annotation));
+                builder.addJavadoc(getStringValueOfJavadocAnnotation(annotation));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -157,7 +157,7 @@ public class SpecConverter {
 
         for (AnnotationEntry annotation : field.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(getStringValue(annotation));
+                builder.addJavadoc(getStringValueOfJavadocAnnotation(annotation));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -180,7 +180,7 @@ public class SpecConverter {
 
         for (AnnotationEntry annotation : constructorOrMethod.getAnnotationEntries())
             if (isJavadocs(annotation))
-                builder.addJavadoc(filterParams(getStringValue(annotation), argumentNames));
+                builder.addJavadoc(filterParams(getStringValueOfJavadocAnnotation(annotation), argumentNames));
             else
                 builder.addAnnotation(toAnnotationSpec(annotation));
 
@@ -238,12 +238,12 @@ public class SpecConverter {
         return toTypeName(type.getClassName());
     }
 
-    private static String getStringValue(AnnotationEntry annotation) {
+    private static String getStringValueOfJavadocAnnotation(AnnotationEntry annotation) {
         return stream(annotation.getElementValuePairs())
                 .filter(pair -> pair.getNameString().equals("value"))
                 .map(pair -> pair.getValue().stringifyValue())
                 .findFirst()
-                .orElse(null);
+                .orElseThrow(() -> new IllegalStateException("Encountered a javadoc annotation without a value: " + annotation));
     }
 
     static List<String> getArgumentNames(Method method) {
@@ -278,7 +278,7 @@ public class SpecConverter {
         if (annotationEntries.length > 0)
             for (AnnotationEntry annotation : annotationEntries[index].getAnnotationEntries())
                 if (isJavadocs(annotation))
-                    builder.addJavadoc(getStringValue(annotation));
+                    builder.addJavadoc(getStringValueOfJavadocAnnotation(annotation));
                 else
                     builder.addAnnotation(toAnnotationSpec(annotation));
 
