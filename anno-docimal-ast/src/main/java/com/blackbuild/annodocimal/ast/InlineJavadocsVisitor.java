@@ -24,10 +24,11 @@
 package com.blackbuild.annodocimal.ast;
 
 import com.blackbuild.annodocimal.ast.formatting.AnnoDocUtil;
+import com.blackbuild.annodocimal.ast.parser.SourceExtractor;
+import com.blackbuild.annodocimal.ast.parser.SourceExtractorFactory;
 import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.control.SourceUnit;
 
-import java.io.IOException;
 import java.util.Iterator;
 
 /**
@@ -40,11 +41,7 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
 
     public InlineJavadocsVisitor(SourceUnit sourceUnit) {
         this.sourceUnit = sourceUnit;
-        try {
-            this.sourceExtractor = GroovyDocToolSourceExtractor.create(sourceUnit);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.sourceExtractor = SourceExtractorFactory.getInstance().createSourceExtractor(sourceUnit);
     }
 
     @Override

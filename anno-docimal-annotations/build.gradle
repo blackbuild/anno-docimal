@@ -19,7 +19,7 @@ java {
 }
 
 dependencies {
-    compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
+    compileOnly "org.codehaus.groovy:groovy-all:3.0.21"
 }
 
 publishing {

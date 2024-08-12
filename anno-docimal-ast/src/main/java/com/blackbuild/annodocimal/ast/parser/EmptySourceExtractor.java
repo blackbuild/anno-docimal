@@ -21,15 +21,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.ast;
+package com.blackbuild.annodocimal.ast.parser;
 
 import org.codehaus.groovy.ast.AnnotatedNode;
 
-/**
- * Service capable of extracting the Javadoc from a given {@link AnnotatedNode}. Whith
- * groovy 3 this is trivial, since the Javadoc is directly available on the node. However,
- * with groovy 2, other means are necessary to extract the Javadoc.
- */
-public interface SourceExtractor {
-    String getJavaDoc(AnnotatedNode node);
+public class EmptySourceExtractor implements SourceExtractor {
+
+    public static final EmptySourceExtractor INSTANCE = new EmptySourceExtractor();
+
+    private EmptySourceExtractor() {
+        // singleton
+    }
+
+    @Override
+    public String getJavaDoc(AnnotatedNode node) {
+        return null;
+    }
 }

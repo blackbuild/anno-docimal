@@ -109,6 +109,33 @@ Second paragraph.
         innerClass.getMethod("innerMethod").getAnnotation(AnnoDoc).value() == 'Inner class method'
     }
 
+    def "Bug: Groovy 3 parser ignores second class in file"() {
+        when:
+        createClass "dummy/TestClass.groovy", '''
+package dummy
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+/**
+ * This is a test class
+ */
+@InlineJavadocs
+class TestClass {
+}
+
+/**
+ * This is a second test class
+ */
+@InlineJavadocs
+class TestClass2 {
+}
+'''
+
+        then:
+        getClass("dummy.TestClass").getAnnotation(AnnoDoc).value() == 'This is a test class'
+        getClass("dummy.TestClass2").getAnnotation(AnnoDoc).value() == 'This is a second test class'
+    }
+
     def "No javadoc should result in no annotation"() {
         when:
         createClass "dummy/TestClass.groovy", '''

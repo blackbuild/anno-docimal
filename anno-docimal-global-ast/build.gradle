@@ -34,8 +34,8 @@ dependencies {
     testImplementation "org.jetbrains:annotations:16.0.2"
 
     compileOnly "org.jetbrains:annotations:16.0.2"
-    compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
-    //compileOnly "org.codehaus.groovy:groovy-all:3.0.21"
+    // compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
+    compileOnly "org.codehaus.groovy:groovy-all:3.0.21"
 
     //compileOnly "com.intellij:openapi:7.0.3"
 

@@ -36,8 +36,8 @@ dependencies {
     testAnnotationProcessor project(":anno-docimal-apt")
 
     compileOnly "org.jetbrains:annotations:16.0.2"
-    compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
-    //compileOnly "org.codehaus.groovy:groovy-all:3.0.21"
+    // compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
+    compileOnly "org.codehaus.groovy:groovy-all:3.0.21"
 
     //compileOnly "com.intellij:openapi:7.0.3"
 
@@ -58,7 +58,6 @@ dependencies {
 
     testRuntimeOnly "net.bytebuddy:byte-buddy:1.9.3"
     testRuntimeOnly "org.objenesis:objenesis:2.6"
-
 }
 test {
     if (!rootProject.ext.groovyVersion.startsWith("2."))

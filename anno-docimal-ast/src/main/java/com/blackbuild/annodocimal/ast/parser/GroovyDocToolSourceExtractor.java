@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.ast;
+package com.blackbuild.annodocimal.ast.parser;
 
 import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.control.SourceUnit;
@@ -40,7 +40,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class GroovyDocToolSourceExtractor implements SourceExtractor {
+public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
 
     private static final String INSTANCE_METADATA_NAME = GroovyDocToolSourceExtractor.class.getName() + ".INSTANCE";
 
@@ -125,42 +125,6 @@ public class GroovyDocToolSourceExtractor implements SourceExtractor {
             return reformat(getJavaDocForField((FieldNode) node));
         else
             throw new IllegalArgumentException("Unsupported node type: " + node.getClass().getName());
-    }
-
-    private String reformat(String rawComment) {
-        if (rawComment == null) return null;
-
-        rawComment = rawComment.replaceAll("(?m)^\\s*\\*", "");
-
-        if (rawComment.isBlank()) return null;
-
-        String[] lines = rawComment.split("\n");
-        int minIndent = Integer.MAX_VALUE;
-        for (String line : lines) {
-            if (line.trim().isEmpty())
-                continue;
-
-            int indent = 0;
-            while (indent < line.length() && Character.isWhitespace(line.charAt(indent)))
-                indent++;
-
-            minIndent = Math.min(minIndent, indent);
-        }
-
-        int finalMinIndent = minIndent;
-        String joined = Arrays.stream(lines)
-                .map(line -> line.length() >= finalMinIndent ? line.substring(finalMinIndent) : "")
-                .collect(Collectors.joining("\n"));
-
-        int start = 0;
-        while (start < joined.length() && joined.charAt(start) == '\n')
-            start++;
-
-        int end = joined.length();
-        while (end > 0 && Character.isWhitespace(joined.charAt(end - 1)))
-            end--;
-
-        return joined.substring(start, end);
     }
 
     private String getJavaDocForField(FieldNode node) {
