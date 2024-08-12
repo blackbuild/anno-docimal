@@ -14,7 +14,7 @@ jobs:
   groovy_matrix:
     strategy:
       matrix:
-        groovyVersion: [ 3.0.21, 4.0.21 ]
+        groovyVersion: [ v3, v4 ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,0 +1,103 @@
+plugins {
+    id "java-library"
+    id 'groovy'
+    id 'jacoco'
+    id 'signing'
+    id 'maven-publish'
+    id 'com.github.hierynomus.license'
+}
+
+group rootProject.group
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+    withJavadocJar()
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-parameters'
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+jacocoTestReport {
+    reports {
+        xml.required = true
+    }
+}
+
+dependencies {
+    compileOnly libs.jb.anno
+    compileOnly libs.groovy.v3
+
+    testImplementation libs.jb.anno
+
+    testRuntimeOnly libs.bundles.spockRuntime
+    testRuntimeOnly libs.jpl
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from(components.java)
+                pom { pom ->
+                    project.getName()
+                    pom.name = project.name
+                    pom.description = project.description
+
+                    pom.url = 'https://github.com/blackbuild/anno-docimal.git'
+
+                    pom.scm {
+                        url = 'https://github.com/blackbuild/anno-docimal.git'
+                        connection = 'scm:git:https://github.com/blackbuild/anno-docimal.git'
+                        developerConnection = 'scm:git:https://github.com/blackbuild/anno-docimal.git'
+                    }
+
+                    pom.licenses {
+                        license {
+                            name = 'MIT License (MIT)'
+                            url = 'https://opensource.org/licenses/MIT'
+                            distribution = 'repo'
+                        }
+                    }
+
+                    pom.developers {
+                        developer {
+                            id = 'pauxus'
+                            name = 'Stephan Pauxberger'
+                            email = 'stephan@blackbuild.com'
+                            url = 'https://github.com/pauxus'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    signing {
+        required { gradle.taskGraph.hasTask("publish") || gradle.taskGraph.hasTask("publishToMavenLocal") }
+        sign publishing.publications.mavenJava
+    }
+
+}
+
+
+license {
+    header = rootProject.file("LICENSE")
+    mapping("java", "SLASHSTAR_STYLE")
+    mapping("groovy", "SLASHSTAR_STYLE")
+    mapping("gdsl", "SLASHSTAR_STYLE")
+    exclude("mockup/**")
+    exclude("**/META-INF/services/*")
+    strictCheck(true)
+}
+
+if (rootProject.ext.groovyVersion != "v2")
+    test {
+        useJUnitPlatform()
+    }
