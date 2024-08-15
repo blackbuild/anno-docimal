@@ -2,5 +2,5 @@ plugins {
     id "annodocimal.conventions"
 }
 
-description "Annontations for AnnoDocimal"
+description "Annotations for AnnoDocimal"
 

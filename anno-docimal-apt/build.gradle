@@ -1,7 +1,6 @@
 plugins {
-    id "annodocimal.conventions"
+    id "annodocimal-multigroovy.conventions"
 }
-
 
 description "Annotation Processor for AnnoDocimal"
 
@@ -9,10 +8,7 @@ dependencies {
     api project(':anno-docimal-annotations')
     compileOnly 'com.google.auto.service:auto-service-annotations:1.1.0'
     annotationProcessor 'com.google.auto.service:auto-service:1.1.0'
-
-    testImplementation libs.bundles.spock.groovy."$rootProject.ext.groovyVersion"
-
-    testImplementation  "com.google.testing.compile:compile-testing:0.21.0"
+    sharedTests  "com.google.testing.compile:compile-testing:0.21.0"
 }
 
 sonarqube {

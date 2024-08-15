@@ -50,7 +50,7 @@ dependencyResolutionManagement {
             library "bytebuddy", "net.bytebuddy:byte-buddy:1.9.3"
             library "objenesis", "org.objenesis:objenesis:2.6"
 
-            library "jpl", "org.junit.platform:junit-platform-launcher:1.9.0"
+            library "jpl", "org.junit.platform:junit-platform-launcher:1.9.2"
 
             bundle "spockRuntime", ["bytebuddy", "objenesis"]
         }

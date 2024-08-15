@@ -1,5 +1,5 @@
 plugins {
-    id "annodocimal.conventions"
+    id "annodocimal-multigroovy.conventions"
 }
 
 description "compileOnly part of AnnoDocimal"
@@ -9,5 +9,6 @@ dependencies {
     api project(':anno-docimal-annotations')
     api "com.squareup:javapoet:1.13.0"
     api "org.apache.bcel:bcel:6.8.2"
-    testImplementation libs.bundles.spock.groovy."$rootProject.ext.groovyVersion"
 }
+
+testing

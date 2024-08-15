@@ -1,5 +1,5 @@
 plugins {
-    id "annodocimal.conventions"
+    id "annodocimal-multigroovy.conventions"
 }
 
 description "compileOnly part of AnnoDocimal"
@@ -7,5 +7,4 @@ description "compileOnly part of AnnoDocimal"
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     api project(':anno-docimal-ast')
-    testImplementation libs.bundles.spock.groovy."$rootProject.ext.groovyVersion"
 }
