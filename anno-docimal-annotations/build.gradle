@@ -1,49 +1,6 @@
 plugins {
-    id 'java-library'
-    id 'groovy'
-    id 'signing'
-    id 'com.github.hierynomus.license'
-    id 'maven-publish'
+    id "annodocimal.conventions"
 }
 
-description "Annontations for AnnoDocimal"
-
-group rootProject.group
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
-    }
-    withJavadocJar()
-    withSourcesJar()
-}
-
-dependencies {
-    compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from(components.java)
-            pom { pom ->
-                rootProject.configurePom(pom, project)
-            }
-        }
-    }
-}
-
-signing {
-    required { gradle.taskGraph.hasTask("publish") || gradle.taskGraph.hasTask("publishToMavenLocal") }
-    sign publishing.publications.mavenJava
-}
-
-license {
-    header = rootProject.file("LICENSE")
-    mapping("java", "SLASHSTAR_STYLE")
-    mapping("groovy", "SLASHSTAR_STYLE")
-    mapping("gdsl", "SLASHSTAR_STYLE")
-    exclude("mockup/**")
-    strictCheck(true)
-}
+description "Annotations for AnnoDocimal"
 

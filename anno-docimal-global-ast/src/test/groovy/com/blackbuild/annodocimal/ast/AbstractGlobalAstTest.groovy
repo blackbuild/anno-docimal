@@ -46,6 +46,8 @@ abstract class AbstractGlobalAstTest extends Specification {
         compilerConfiguration.targetDirectory = outputDirectory
         loader = new GroovyClassLoader(oldLoader, compilerConfiguration)
         Thread.currentThread().contextClassLoader = loader
+        compilerConfiguration.optimizationOptions.groovydoc = Boolean.TRUE
+
     }
 
     def getSafeFilename() {

@@ -1,3 +1,10 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 plugins {
     id 'nebula.release'
     id 'base'
@@ -8,8 +15,9 @@ plugins {
     id "org.sonarqube"
 }
 ext {
-    groovyVersion = project.findProperty("groovyVersion") ?: '2.4.21'
-    // groovyVersion = '4.0.12'
+    groovyVersion = project.findProperty("groovyVersion") ?: 'v2'
+    if (!(groovyVersion in ['v2', 'v3', 'v4']))
+        throw new GradleException("Unsupported Groovy version $groovyVersion")
 }
 
 group 'com.blackbuild.annodocimal'
@@ -30,35 +38,3 @@ sonar {
         property "sonar.gradle.skipCompile", "true"
     }
 }
-
-def configurePom(pom, Project module) {
-    pom.name = module.name
-    pom.description = module.description
-
-    pom.url = 'https://github.com/blackbuild/anno-docimal.git'
-
-    pom.scm {
-        url = 'https://github.com/blackbuild/anno-docimal.git'
-        connection = 'scm:git:https://github.com/blackbuild/anno-docimal.git'
-        developerConnection = 'scm:git:https://github.com/blackbuild/anno-docimal.git'
-    }
-
-    pom.licenses {
-        license {
-            name = 'MIT License (MIT)'
-            url = 'https://opensource.org/licenses/MIT'
-            distribution = 'repo'
-        }
-    }
-
-    pom.developers {
-        developer {
-            id = 'pauxus'
-            name = 'Stephan Pauxberger'
-            email = 'stephan@blackbuild.com'
-            url = 'https://github.com/pauxus'
-        }
-    }
-}
-
-

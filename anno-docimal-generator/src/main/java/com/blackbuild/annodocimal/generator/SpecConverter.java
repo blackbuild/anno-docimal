@@ -57,15 +57,14 @@ public class SpecConverter {
 
     public static JavaFile toJavaFile(File source) throws IOException {
         JavaClass javaClass = new ClassParser(source.getAbsolutePath()).parse();
-        return JavaFile.builder(javaClass.getPackageName(), toTypeSpec(javaClass, false)).build();
+        return JavaFile.builder(javaClass.getPackageName(), toTypeSpec(javaClass, null)).build();
     }
 
-    public static TypeSpec toTypeSpec(JavaClass type, boolean staticInnerClass) {
+    public static TypeSpec toTypeSpec(JavaClass type, AccessFlags flags) {
         ClassName typeName = toTypeName(type);
         TypeSpec.Builder builder = TypeSpec.classBuilder(typeName)
                 .superclass(toTypeName(type.getSuperclassName()))
-                .addModifiers(decodeModifiers(type));
-        if (staticInnerClass) builder.addModifiers(Modifier.STATIC);
+                .addModifiers(decodeModifiers(flags != null ? flags : type));
 
         stream(type.getInterfaceNames())
                 .map(ClassName::bestGuess)
@@ -122,7 +121,7 @@ public class SpecConverter {
         String innerClassName = type.getConstantPool().getConstantString(innerClass.getInnerClassIndex(), org.apache.bcel.Const.CONSTANT_Class);
         try {
             JavaClass innerType = Repository.lookupClass(innerClassName);
-            return toTypeSpec(innerType, (innerClass.getInnerAccessFlags() & Const.ACC_STATIC) != 0);
+            return toTypeSpec(innerType, new InnerClassAccessFlags(innerClass));
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -138,8 +137,7 @@ public class SpecConverter {
 
     private static boolean shouldBeIncluded(FieldOrMethod member) {
         return !member.isSynthetic()
-                && member.isPublic()
-                && (member.getModifiers() & 1) != 0
+                && (member.isPublic() || member.isProtected())
                 && !member.getName().contains("$")
                 && !isInternal(member);
     }
@@ -364,5 +362,12 @@ public class SpecConverter {
         }
 
         return result.toArray(new Modifier[0]);
+    }
+
+    // dummy container to handle inner classes access flags
+    static class InnerClassAccessFlags extends AccessFlags {
+        public InnerClassAccessFlags(InnerClass innerClass) {
+            super(innerClass.getInnerAccessFlags());
+        }
     }
 }

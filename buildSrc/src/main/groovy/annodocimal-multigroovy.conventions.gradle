@@ -1,0 +1,61 @@
+plugins {
+    id "annodocimal.conventions"
+    id 'jvm-test-suite'
+    id 'jacoco'
+}
+
+dependencies {
+    testImplementation libs.bundles.spock.groovy.v2
+}
+
+configurations {
+    sharedTests
+}
+
+configurations.matching { it.name in ["testImplementation", "groovy3TestsImplementation", "groovy4TestsImplementation"]}.configureEach {
+    extendsFrom(configurations.sharedTests)
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+jacocoTestReport {
+    executionData(tasks.withType(Test))
+    reports {
+        xml.required = true
+    }
+}
+
+testing {
+    suites {
+        test {
+            useJUnit()
+        }
+
+        withType(JvmTestSuite).matching { it.name.startsWith("groovy") }.configureEach {
+            def groovyVersion = it.name.charAt(6)
+            useSpock(libs.versions.spock."g$groovyVersion")
+
+            sources {
+                groovy {
+                    srcDirs = ['src/test/groovy']
+                    destinationDirectory = file("build/classes/groovy/test-g$groovyVersion")
+                }
+            }
+
+            dependencies {
+                implementation project()
+                implementation libs.jb.anno
+                implementation libs.spock.junit4."g$groovyVersion"
+                implementation libs.groovy."v$groovyVersion"
+            }
+        }
+        groovy3Tests(JvmTestSuite)
+        groovy4Tests(JvmTestSuite)
+    }
+}
+
+tasks.named('check') {
+    dependsOn(testing.suites.groovy3Tests)
+    dependsOn(testing.suites.groovy4Tests)
+}

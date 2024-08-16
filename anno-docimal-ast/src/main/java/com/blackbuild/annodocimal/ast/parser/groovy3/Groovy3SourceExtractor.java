@@ -21,15 +21,35 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.ast;
+package com.blackbuild.annodocimal.ast.parser.groovy3;
 
+import com.blackbuild.annodocimal.ast.parser.AbstractSourceExtractor;
 import org.codehaus.groovy.ast.AnnotatedNode;
+import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.ast.FieldNode;
+import org.codehaus.groovy.ast.MethodNode;
 
-/**
- * Service capable of extracting the Javadoc from a given {@link AnnotatedNode}. Whith
- * groovy 3 this is trivial, since the Javadoc is directly available on the node. However,
- * with groovy 2, other means are necessary to extract the Javadoc.
- */
-public interface SourceExtractor {
-    String getJavaDoc(AnnotatedNode node);
+public class Groovy3SourceExtractor extends AbstractSourceExtractor {
+
+    private static final Groovy3SourceExtractor INSTANCE = new Groovy3SourceExtractor();
+
+    public static Groovy3SourceExtractor getInstance() {
+        return INSTANCE;
+    }
+
+    @Override
+    public String getJavaDoc(AnnotatedNode node) {
+
+
+        if (node instanceof FieldNode && ((FieldNode) node).getName().startsWith("$"))
+            return null;
+        if (node instanceof MethodNode) {
+            if (((MethodNode) node).getName().startsWith("$")) return null;
+            if (((MethodNode) node).isPrivate()) return null;
+        }
+        if (node instanceof ClassNode && ((ClassNode) node).getName().startsWith("$"))
+            return null;
+
+        return reformat(node.getGroovydoc().getContent());
+    }
 }

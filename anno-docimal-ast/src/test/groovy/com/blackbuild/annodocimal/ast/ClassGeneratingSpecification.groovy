@@ -48,6 +48,7 @@ abstract class ClassGeneratingSpecification extends Specification {
         compilerConfiguration = new CompilerConfiguration()
         ImportCustomizer imports = new ImportCustomizer().addStarImports(getClass().getPackageName())
         compilerConfiguration.addCompilationCustomizers(imports)
+        compilerConfiguration.optimizationOptions.groovydoc = Boolean.TRUE
 
         def outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")
         outputDirectory.deleteDir()
