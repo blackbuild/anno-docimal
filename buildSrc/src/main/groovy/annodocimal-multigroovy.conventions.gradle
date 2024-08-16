@@ -1,6 +1,7 @@
 plugins {
     id "annodocimal.conventions"
     id 'jvm-test-suite'
+    id 'jacoco'
 }
 
 dependencies {
@@ -13,6 +14,16 @@ configurations {
 
 configurations.matching { it.name in ["testImplementation", "groovy3TestsImplementation", "groovy4TestsImplementation"]}.configureEach {
     extendsFrom(configurations.sharedTests)
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+jacocoTestReport {
+    executionData(tasks.withType(Test))
+    reports {
+        xml.required = true
+    }
 }
 
 testing {

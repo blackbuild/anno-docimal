@@ -2,12 +2,12 @@ plugins {
     id "annodocimal.conventions"
     id 'com.gradle.plugin-publish'
     id 'java-gradle-plugin'
+    id 'jacoco'
 }
 
 description "AnnoDocimal Stub Generator Gradle Plugin"
 
 gradlePlugin {
-
     plugins {
         annoDocimalPlugin {
             id = 'com.blackbuild.annodocimal.plugin'
@@ -21,7 +21,6 @@ gradlePlugin {
     website = 'https://github.com/blackbuild/anno-docimal'
     vcsUrl = 'https://github.com/blackbuild/anno-docimal.git'
     description = project.description
-
 }
 
 dependencies {
@@ -29,6 +28,7 @@ dependencies {
     api project(':anno-docimal-generator')
     testImplementation libs.bundles.spock.groovy.v3
 }
+
 test {
     useJUnitPlatform()
     inputs.files(
@@ -39,5 +39,14 @@ test {
     doFirst {
         systemProperty("anno.docimal.ast.jars", project(":anno-docimal-ast").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
         systemProperty("anno.docimal.annotations.jar", project(":anno-docimal-annotations").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+jacocoTestReport {
+    reports {
+        xml.required = true
     }
 }
