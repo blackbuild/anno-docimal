@@ -1,11 +1,20 @@
 plugins {
-    id "annodocimal.conventions"
     id 'com.gradle.plugin-publish'
     id 'java-gradle-plugin'
+    id 'groovy'
     id 'jacoco'
+    id 'signing'
+    id 'com.github.hierynomus.license'
+    id 'maven-publish'
 }
 
 description "AnnoDocimal Stub Generator Gradle Plugin"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
 
 gradlePlugin {
     plugins {
@@ -23,25 +32,6 @@ gradlePlugin {
     description = project.description
 }
 
-dependencies {
-    // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
-    api project(':anno-docimal-generator')
-    testImplementation libs.bundles.spock.groovy.v3
-}
-
-test {
-    useJUnitPlatform()
-    inputs.files(
-            project(":anno-docimal-ast").tasks.named("jar"),
-            project(":anno-docimal-annotations").tasks.named("jar")
-    )
-
-    doFirst {
-        systemProperty("anno.docimal.ast.jars", project(":anno-docimal-ast").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
-        systemProperty("anno.docimal.annotations.jar", project(":anno-docimal-annotations").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
-    }
-}
-
 jacoco {
     toolVersion = "0.8.11"
 }
@@ -50,3 +40,76 @@ jacocoTestReport {
         xml.required = true
     }
 }
+group rootProject.group
+
+dependencies {
+    // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
+    api project(':anno-docimal-generator')
+    testImplementation libs.jb.anno
+    compileOnly libs.jb.anno
+    testImplementation libs.spock.g3
+    testRuntimeOnly libs.bundles.spockRuntime
+}
+
+test {
+    useJUnitPlatform()
+    inputs.files(project(":anno-docimal-ast").tasks.named("jar"), project(":anno-docimal-annotations").tasks.named("jar"))
+
+    doFirst {
+        systemProperty("anno.docimal.ast.jars", project(":anno-docimal-ast").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
+        systemProperty("anno.docimal.annotations.jar", project(":anno-docimal-annotations").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
+    }
+}
+
+publishing {
+    publications {
+        pluginMaven(MavenPublication)
+    }
+    publications.configureEach { publication ->
+        publication.pom { pom ->
+            project.getName()
+            pom.name = project.name
+            pom.description = project.description
+
+            pom.url = 'https://github.com/blackbuild/anno-docimal.git'
+
+            pom.scm {
+                url = 'https://github.com/blackbuild/anno-docimal.git'
+                connection = 'scm:git:https://github.com/blackbuild/anno-docimal.git'
+                developerConnection = 'scm:git:https://github.com/blackbuild/anno-docimal.git'
+            }
+
+            pom.licenses {
+                license {
+                    name = 'MIT License (MIT)'
+                    url = 'https://opensource.org/licenses/MIT'
+                    distribution = 'repo'
+                }
+            }
+
+            pom.developers {
+                developer {
+                    id = 'pauxus'
+                    name = 'Stephan Pauxberger'
+                    email = 'stephan@blackbuild.com'
+                    url = 'https://github.com/pauxus'
+                }
+            }
+        }
+    }
+}
+
+signing {
+    required { gradle.taskGraph.hasTask("publish") || gradle.taskGraph.hasTask("publishToMavenLocal") }
+    sign publishing.publications.pluginMaven
+}
+
+license {
+    header = rootProject.file("LICENSE")
+    mapping("java", "SLASHSTAR_STYLE")
+    mapping("groovy", "SLASHSTAR_STYLE")
+    mapping("gdsl", "SLASHSTAR_STYLE")
+    exclude("mockup/**")
+    strictCheck(true)
+}
+
