@@ -23,7 +23,9 @@
  */
 package com.blackbuild.annodocimal.generator
 
+import groovy.transform.CompileStatic
 import org.codehaus.groovy.control.CompilerConfiguration
+import org.codehaus.groovy.control.customizers.ASTTransformationCustomizer
 import org.intellij.lang.annotations.Language
 import org.junit.Rule
 import org.junit.rules.TestName
@@ -41,6 +43,15 @@ abstract class ClassGeneratingTest extends Specification {
     def setup() {
         oldLoader = Thread.currentThread().contextClassLoader
         compilerConfiguration = new CompilerConfiguration()
+
+        if (compilerConfiguration.hasProperty("parameters")) {
+            compilerConfiguration.parameters = true
+        } else {
+            // TODO not working, there seems to be no option for parameter name in groovy 2.4
+            compilerConfiguration.getOptimizationOptions().put("parameters", true)
+            compilerConfiguration.addCompilationCustomizers(new ASTTransformationCustomizer(CompileStatic.class))
+        }
+
         loader = new GroovyClassLoader(Thread.currentThread().getContextClassLoader(), compilerConfiguration)
         Thread.currentThread().contextClassLoader = loader
         outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")

@@ -1,6 +1,8 @@
 Anno-Docimal
 ============
 
+[![annodocimal logo](img/annodocimallogo.png)](https://github.com/blackbuild/anno-docimal)
+
 **NOTE**: This is a work in progress. I started doing rc-releases because I need that functionality. However, while I think the core concept is sound, the implementation is still in flux. This is especially true for the naming and API of helper classes. Refactorings should be easy enough, but will not necessarily be separately documented, so a look at the actual code changes might be necessary. This will of course change once the API has reached a more stable state.
 
 Anno-Docimal was mainly developed for supporting the [KlumDSL-Suite](https://github.com/klum-dsl), thus its improvements are driven by the needs of KlumAST and KlumDSL.

@@ -32,10 +32,11 @@ import org.apache.bcel.generic.ArrayType;
 import org.apache.bcel.generic.BasicType;
 import org.apache.bcel.generic.Type;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.ClassReader;
 
 import javax.lang.model.element.Modifier;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -55,9 +56,11 @@ public class SpecConverter {
         // static only
     }
 
-    public static JavaFile toJavaFile(File source) throws IOException {
-        JavaClass javaClass = new ClassParser(source.getAbsolutePath()).parse();
-        return JavaFile.builder(javaClass.getPackageName(), toTypeSpec(javaClass, null)).build();
+    public static JavaFile toJavaFile(InputStream source) throws IOException {
+        JavaPoetClassVisitor visitor = new JavaPoetClassVisitor();
+        ClassReader classReader = new ClassReader(source);
+        classReader.accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
+        return JavaFile.builder(visitor.getPackageName(), visitor.getType()).build();
     }
 
     public static TypeSpec toTypeSpec(JavaClass type, AccessFlags flags) {

@@ -30,7 +30,9 @@ import org.apache.bcel.classfile.Utility
 import org.apache.bcel.util.ClassPath
 import org.apache.bcel.util.ClassPathRepository
 import spock.lang.IgnoreIf
+import spock.lang.Unroll
 
+@Unroll
 class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
     String generatedSource
@@ -63,14 +65,116 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
         then:
         generated.packageName == "dummy"
-        generated.imports == ["groovy.lang.GroovyObject", "java.lang.String"]
-        generated.text == "public class TestClass implements GroovyObject"
-        generated.innerBlocks.size() == 4
+        generated.imports == ["java.lang.String"]
+        generated.text == "public class TestClass"
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()")
         generated.getBlock("public String getField()")
-        generated.getBlock("public void setField(String arg0)")
+        generated.getOneOf("public void setField(String *)", "param0", "value")
     }
+
+    def "class name conversion"() {
+        given:
+        createClass("""
+            package dummy
+            abstract class $signature {}
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generated.packageName == "dummy"
+        generated.strip("public abstract class") == signature
+
+        where:
+        signature << [
+                "TestClass",
+                "Test<T extends Number>",
+                "Test implements List<? super Number>",
+                "Test implements List<?>",
+                "Test<T, I extends Number> implements Map<I, List<T>>, Serializable",
+                "Test<T>",
+                "Test<T> implements List<List<T>>"
+        ]
+
+    }
+
+    def "method name conversion"() {
+        given:
+        createClass("""
+            package dummy
+            abstract class Dummy$generics {
+                $signature {}
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generatedSource.contains(adjustSignature(signature, params))
+
+        where:
+        signature                        | params    || generics
+        "void method()"                  | ""        || ""
+        "void method(String aString)"    | "aString" || ""
+        "void method(T aParam)"          | "aParam"  || "<T>"
+        "void method() throws Exception" | ""        || ""
+    }
+
+    def "private methods are ignored"() {
+        given:
+        createClass("""
+            package dummy
+
+            import groovy.transform.PackageScope
+            abstract class Dummy {
+                private void privateMethod() {}
+                protected void protectedMethod() {}
+                @PackageScope void packageMethod() {}
+                void publicMethod() {}
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        !generatedSource.contains("privateMethod()")
+        generatedSource.contains("protected void protectedMethod()")
+        generatedSource.contains("void packageMethod()")
+        generatedSource.contains("public void publicMethod()")
+    }
+
+    def "method name conversion with generic exceptions"() {
+        given:
+        createClass("""
+            package dummy
+            abstract class Dummy<T extends Exception> {
+                void method() throws T {}
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then: "Groovy erases the generic type of the exception"
+        generatedSource.contains("void method() throws Exception")
+    }
+
+    private String adjustSignature(String signature, String params) {
+        if (!GroovySystem.version.startsWith("2."))
+            return signature
+
+        // replace parameter names with param0, param1, ...
+        params.tokenize(",").eachWithIndex { param, index ->
+            signature = signature.replaceFirst(param, "param$index")
+        }
+
+        signature.replaceAll("Dummy", "TestClass")
+    }
+
 
     def "basic test with generated documentation"() {
         given:
@@ -96,8 +200,8 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
         then:
         generated.packageName == "dummy"
-        generated.imports == ["groovy.lang.GroovyObject", "java.lang.String"]
-        generated.text == "public class TestClass implements GroovyObject"
+        generated.imports == ["java.lang.String"]
+        generated.text == "public class TestClass"
         generated.javaDoc == "This is a test class"
         generated.innerBlocks.size() == 4
         generated.getBlock("public TestClass()")
@@ -143,14 +247,13 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         then:
         generatedSource == '''package dummy;
 
-import groovy.lang.GroovyObject;
 import groovy.lang.MetaClass;
 import groovy.transform.Generated;
 import groovy.transform.Internal;
 import java.beans.Transient;
 import java.lang.String;
 
-public class TestClass implements GroovyObject {
+public class TestClass {
   @Generated
   public TestClass() {
   }
@@ -180,7 +283,7 @@ public class TestClass implements GroovyObject {
   public void setField(String arg0) {
   }
 
-  protected static class InnerClass implements GroovyObject {
+  protected static class InnerClass {
     @Generated
     public InnerClass() {
     }
@@ -240,10 +343,9 @@ public class TestClass implements GroovyObject {
         then:
         generatedSource == '''package dummy;
 
-import groovy.lang.GroovyObject;
 import java.lang.String;
 
-public class TestClass implements GroovyObject {
+public class TestClass {
   public TestClass() {
   }
 
@@ -259,7 +361,7 @@ public class TestClass implements GroovyObject {
   public void setField(String arg0) {
   }
 
-  public static class InnerClass implements GroovyObject {
+  public static class InnerClass {
     public InnerClass() {
     }
 
@@ -291,6 +393,25 @@ public class TestClass implements GroovyObject {
 
         then:
         generated.getBlock("public void method()").javaDoc == "This is a method"
+    }
+
+    def "basic test with generics"() {
+        given:
+        createClass("""
+            package dummy
+     
+            class TestClass<T extends Number> {
+                void method(T age) {
+                    println "Hello " + age
+                }
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generated.getBlock("public void method(T age)")
     }
 
     def "basic test with generated documentation and custom annotations"() {
@@ -333,8 +454,8 @@ import java.lang.annotation.RetentionPolicy
 
         then:
         generated.packageName == "dummy"
-        generated.imports == ["bummy.MyAnnotation", "groovy.lang.GroovyObject", "java.lang.String"]
-        generated.text == "public class TestClass implements GroovyObject"
+        generated.imports == ["bummy.MyAnnotation", "java.lang.String"]
+        generated.text == "public class TestClass"
         generated.javaDoc == "This is a test class"
         generated.innerBlocks.size() == 4
         generated.getBlock("public TestClass()")
@@ -449,15 +570,15 @@ import java.lang.annotation.Target
 
         then:
         generated.packageName == "dummy"
-        generated.imports == ["groovy.lang.GroovyObject"]
-        generated.text == "public class TestClass implements GroovyObject"
+        generated.imports == []
+        generated.text == "public class TestClass"
         generated.innerBlocks.size() == 3
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()")
 
 
         when:
-        def innerClass = generated.getBlock("public static class InnerClass implements GroovyObject")
+        def innerClass = generated.getBlock("public static class InnerClass")
 
         then:
         innerClass.innerBlocks.size() == 2

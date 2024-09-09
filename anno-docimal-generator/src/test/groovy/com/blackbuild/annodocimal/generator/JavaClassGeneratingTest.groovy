@@ -21,37 +21,34 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.generator;
+package com.blackbuild.annodocimal.generator
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 
-public class AnnoDocGenerator {
+import com.google.testing.compile.Compilation
+import com.google.testing.compile.Compiler
+import com.google.testing.compile.JavaFileObjects
+import org.intellij.lang.annotations.Language
+import org.junit.Rule
+import org.junit.rules.TestName
+import spock.lang.Specification
 
-    private AnnoDocGenerator() {
-        // static only
+import javax.tools.JavaFileObject
+import javax.tools.StandardLocation
+
+import static com.google.testing.compile.Compiler.javac
+
+abstract class JavaClassGeneratingTest extends Specification {
+
+    @Rule TestName testName = new TestName()
+    Compiler compiler = javac().withOptions("-parameters")
+    Compilation compilation
+    JavaFileObject file
+
+    JavaFileObject compile(@Language("java") String code) {
+        String className = (code =~ ~/class\s+(\w+)/)[0][1]
+        String packageName = (code =~ ~/package\s+(\w+)/)[0][1]
+        compilation = compiler.compile(JavaFileObjects.forSourceString("$packageName.$className", code))
+        file = compilation.generatedFile(StandardLocation.CLASS_OUTPUT, packageName, className + ".class").get()
+        return file
     }
-
-    public static void generate(File sourceFile, Appendable output) throws IOException {
-        try (InputStream inputStream = new FileInputStream(sourceFile)) {
-            generate(inputStream, output);
-        }
-    }
-
-    public static void generate(InputStream inputStream, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(inputStream).writeTo(output);
-    }
-
-    public static void generate(File sourceFile, File targetFolder) throws IOException {
-        try (InputStream inputStream = new FileInputStream(sourceFile)) {
-            generate(inputStream, targetFolder);
-        }
-    }
-
-    public static void generate(InputStream inputStream, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(inputStream).writeTo(targetFolder);
-    }
-
 }

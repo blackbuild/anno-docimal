@@ -23,35 +23,45 @@
  */
 package com.blackbuild.annodocimal.generator;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import com.squareup.javapoet.TypeName;
+import org.codehaus.groovy.control.CompilerConfiguration;
+import org.objectweb.asm.signature.SignatureVisitor;
 
-public class AnnoDocGenerator {
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
-    private AnnoDocGenerator() {
-        // static only
+abstract class FormalParameterParser extends SignatureVisitor {
+    private List<TypeName> parameterBounds = new ArrayList<>();
+    private final Map<String, List<TypeName>> typeParameters = new LinkedHashMap<>();
+
+    protected FormalParameterParser() {
+        super(CompilerConfiguration.ASM_API_VERSION);
     }
 
-    public static void generate(File sourceFile, Appendable output) throws IOException {
-        try (InputStream inputStream = new FileInputStream(sourceFile)) {
-            generate(inputStream, output);
-        }
+    @Override
+    public void visitFormalTypeParameter(String name) {
+        parameterBounds = new ArrayList<>();
+        typeParameters.put(name, parameterBounds);
     }
 
-    public static void generate(InputStream inputStream, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(inputStream).writeTo(output);
+    @Override
+    public SignatureVisitor visitClassBound() {
+        return new TypeSignatureParser() {
+            @Override
+            void finished(TypeName result) {
+                parameterBounds.add(result);
+            }
+        };
     }
 
-    public static void generate(File sourceFile, File targetFolder) throws IOException {
-        try (InputStream inputStream = new FileInputStream(sourceFile)) {
-            generate(inputStream, targetFolder);
-        }
+    @Override
+    public SignatureVisitor visitInterfaceBound() {
+        return visitClassBound();
     }
 
-    public static void generate(InputStream inputStream, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(inputStream).writeTo(targetFolder);
+    public Map<String, List<TypeName>> getTypeParameters() {
+        return typeParameters;
     }
-
 }
