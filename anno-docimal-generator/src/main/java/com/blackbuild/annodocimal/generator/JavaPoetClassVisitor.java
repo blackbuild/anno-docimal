@@ -93,6 +93,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         if ("<clinit>".equals(name)) return null;
         if (name.contains("$")) return null;
         if ((access & Opcodes.ACC_PRIVATE) != 0) return null;
+        if ((access & Opcodes.ACC_SYNTHETIC) != 0) return null;
 
         final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(name).addModifiers(decodeModifiers(access));
 
@@ -212,19 +213,35 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-        /*
-        final FieldStub stub = new FieldStub(name, access, desc, signature, value);
-        if (result.fields == null) result.fields = new ArrayList<FieldStub>(1);
-        result.fields.add(stub);
+        if (name.contains("$")) return null;
+        if ((access & Opcodes.ACC_PRIVATE) != 0) return null;
+        if ((access & Opcodes.ACC_SYNTHETIC) != 0) return null;
+
+        final TypeName[] fieldType = {null};
+
+        if (signature != null) {
+            TypeSignatureParser signatureParser = new TypeSignatureParser() {
+                @Override
+                void finished(TypeName result) {
+                    fieldType[0] = result;
+                }
+            };
+            new SignatureReader(signature).accept(signatureParser);
+        } else {
+            fieldType[0] = toTypeName(Type.getType(desc));
+        }
+
         return new FieldVisitor(api) {
+//            @Override
+//            public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+//                return readAnnotationMembers(stub.addAnnotation(desc));
+//            }
+
             @Override
-            public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                return readAnnotationMembers(stub.addAnnotation(desc));
+            public void visitEnd() {
+                typeBuilder.addField(fieldType[0], name, decodeModifiers(access));
             }
         };
-
-         */
-        return null;
     }
 
     static String fromInternalName(String name) {

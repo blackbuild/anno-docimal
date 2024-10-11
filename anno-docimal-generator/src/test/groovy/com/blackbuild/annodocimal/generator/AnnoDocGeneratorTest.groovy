@@ -73,7 +73,7 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generated.getOneOf("public void setField(String *)", "param0", "value")
     }
 
-    def "class name conversion"() {
+    def "class conversion"() {
         given:
         createClass("""
             package dummy
@@ -100,7 +100,7 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
     }
 
-    def "method name conversion"() {
+    def "method conversion"() {
         given:
         createClass("""
             package dummy
@@ -116,11 +116,12 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generatedSource.contains(adjustSignature(signature, params))
 
         where:
-        signature                        | params    || generics
-        "void method()"                  | ""        || ""
-        "void method(String aString)"    | "aString" || ""
-        "void method(T aParam)"          | "aParam"  || "<T>"
-        "void method() throws Exception" | ""        || ""
+        signature                                   | params    | generics
+        "void method()"                             | ""        | ""
+        "void method(String aString)"               | "aString" | ""
+        "void method(T aParam)"                     | "aParam"  | "<T>"
+        "void method() throws Exception"            | ""        | ""
+        "public <T extends List> T method(T input)" | "input"   | ""
     }
 
     def "private methods are ignored"() {
@@ -147,7 +148,29 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generatedSource.contains("public void publicMethod()")
     }
 
-    def "method name conversion with generic exceptions"() {
+    def "field conversion"() {
+        given:
+        createClass("""
+            package dummy
+            class Dummy$generics {
+                $signature
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.contains(signature)
+
+        where:
+        signature      | generics
+        "public int field"    | ""
+        "public Object field" | ""
+        "public T field"      | "<T>"
+    }
+
+    def "method conversion with generic exceptions"() {
         given:
         createClass("""
             package dummy
