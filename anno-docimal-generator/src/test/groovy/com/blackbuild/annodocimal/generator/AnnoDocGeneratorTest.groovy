@@ -30,6 +30,7 @@ import org.apache.bcel.classfile.Utility
 import org.apache.bcel.util.ClassPath
 import org.apache.bcel.util.ClassPathRepository
 import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Unroll
 
 @Unroll
@@ -124,6 +125,30 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         "public <T extends List> T method(T input)" | "input"   | ""
     }
 
+    def "method conversion with param annotation"() {
+        given:
+        createClass("""
+            package dummy
+
+            import dummyanno.*
+            import java.lang.annotation.* 
+
+            abstract class Dummy$generics {
+                $signature {}
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generatedSource.contains(signature)
+
+        where:
+        signature                                                  | generics
+        "void method(@WithPrimitives(intValue = 5) String param0)" | ""
+    }
+
     def "private methods are ignored"() {
         given:
         createClass("""
@@ -148,10 +173,93 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generatedSource.contains("public void publicMethod()")
     }
 
+    def "method conversion with annotations"() {
+        given:
+        createClass("""
+            package dummy
+            
+            import dummyanno.*
+            import java.lang.annotation.* 
+
+            abstract class Dummy {
+                $anno void method() {}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(annoStringToRegexp(anno + " public void method"))
+
+        where:
+        anno << [ // Groovy has problems with byte, char, double, short literals as anno members
+                  //"@WithPrimitives",
+                  //"@WithPrimitives(intValue = 1)",
+                  //"@WithPrimitives(booleanValue = true)",
+                  //"@WithPrimitives(floatValue = 1.0f)",
+                  //"@WithPrimitives(longValue = 1L)",
+                  //'@WithPrimitives(stringValue = "bla")',
+                  //'@WithPrimitives(intArray = [1, 2])',
+                  //'@WithPrimitives(classValue = ArrayList.class)',
+                  //"@WithPrimitives(intValue = 1, booleanValue = true)",
+                  //"@WithEnum(RetentionPolicy.RUNTIME)",
+                  "@Nested(primitiveValue = @WithPrimitives)",
+                  //"@Nested(primitiveValue = @WithPrimitives(intValue = 1))",
+                  //"@Nested(primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
+                  //"@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME))",
+                  //"@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1))",
+                  //"@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
+                  //"@Nested(primitivesArray = [@WithPrimitives(intValue = 1), @WithPrimitives(intValue = 2)])",
+        ]
+    }
+
+    @Requires({ GroovySystem.version.startsWith("5.") })
+    def "method conversion with annotations G5"() {
+        // TODO: Move special cases to java tests
+        given:
+        createClass("""
+            package dummy
+            
+            import dummyanno.*
+
+            abstract class Dummy {
+                $anno void method() {}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(annoStringToRegexp(anno + " public void method"))
+
+        where:
+        anno << [ // Groovy has problems with byte, char, double, short
+                  "@WithPrimitives(byteValue = 1 as byte)",
+                  "@WithPrimitives(charValue = 'a')",
+                  "@WithPrimitives(doubleValue = 1.0)",
+                  "@WithPrimitives(shortValue = 1)",
+        ]
+    }
+
+    String annoStringToRegexp(String anno) {
+        anno.replace("(", "\\s*\\(\\s*")
+                .replace(")", "\\s*\\)\\s*")
+                .replace(",", "\\s*,\\s*")
+                .replace(" ", "\\s*")
+                .replace("[", "\\{")
+                .replace("]", "\\}")
+                .replace("\\s*\\s*", "\\s*")
+    }
+
+
     def "field conversion"() {
         given:
         createClass("""
             package dummy
+            import dummyanno.*
+
             class Dummy$generics {
                 $signature
             }
@@ -161,13 +269,15 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generateSourceText()
 
         then:
-        generatedSource.contains(signature)
+        generatedSource.find(annoStringToRegexp(signature))
 
         where:
-        signature      | generics
-        "public int field"    | ""
-        "public Object field" | ""
-        "public T field"      | "<T>"
+        signature                                        | generics
+        "public int field"                               | ""
+        "public Object field"                            | ""
+        "public T field"                                 | "<T>"
+        "@WithPrimitives public int field"               | ""
+        "@WithPrimitives(intValue = 5) public int field" | ""
     }
 
     def "method conversion with generic exceptions"() {

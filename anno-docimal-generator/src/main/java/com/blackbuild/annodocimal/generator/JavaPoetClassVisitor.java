@@ -30,10 +30,7 @@ import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 
 import javax.lang.model.element.Modifier;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class JavaPoetClassVisitor extends ClassVisitor {
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
@@ -102,6 +99,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         Type[] argumentTypes = methodType.getArgumentTypes();
         List<TypeName> parameterTypes = new ArrayList<>(argumentTypes.length);
         List<String> argumentNames = new ArrayList<>(argumentTypes.length);
+        Map<Integer, List<AnnotationSpec>> parameterAnnotations = new HashMap<>();
 
         if (signature != null) {
             FormalParameterParser v = new FormalParameterParser() {
@@ -153,32 +151,26 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         }
 
         return new MethodVisitor(api) {
-            /*
             @Override
             public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                return readAnnotationMembers(stub.addAnnotation(desc));
+                return new MemberAnnotationVisitor(Type.getType(desc)) {
+                    @Override
+                    void finish(AnnotationSpec annotationSpec) {
+                        methodBuilder.addAnnotation(annotationSpec);
+                    }
+                };
             }
 
             @Override
             public AnnotationVisitor visitParameterAnnotation(int parameter, String desc, boolean visible) {
-                if (stub.parameterAnnotations == null)
-                    stub.parameterAnnotations = new HashMap<Integer, List<AnnotationStub>>(1);
-                List<AnnotationStub> list = stub.parameterAnnotations.computeIfAbsent(parameter, k -> new ArrayList<AnnotationStub>());
-                AnnotationStub annotationStub = new AnnotationStub(desc);
-                list.add(annotationStub);
-                return readAnnotationMembers(annotationStub);
-            }
-
-            @Override
-            public AnnotationVisitor visitAnnotationDefault() {
-                return new AsmDecompiler.AnnotationReader() {
+                List<AnnotationSpec> list = parameterAnnotations.computeIfAbsent(parameter, k -> new ArrayList<>());
+                return new MemberAnnotationVisitor(Type.getType(desc)) {
                     @Override
-                    void visitAttribute(String name, Object value) {
-                        stub.annotationDefault = value;
+                    void finish(AnnotationSpec annotationSpec) {
+                        list.add(annotationSpec);
                     }
                 };
             }
-             */
 
             @Override
             public void visitParameter(String name, int ignored) {
@@ -189,11 +181,14 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
             @Override
             public void visitEnd() {
-                int i = 0;
-                for (TypeName parameterType : parameterTypes) {
+                for (int i = 0; i < parameterTypes.size(); i++) {
                     String paramName = argumentNames.size() > i ? argumentNames.get(i) : "param" + i;
-                    methodBuilder.addParameter(parameterType, paramName);
-                    i++;
+                    List<AnnotationSpec> annotations = parameterAnnotations.get(i);
+                    ParameterSpec.Builder parameterBuilder = ParameterSpec.builder(parameterTypes.get(i), paramName);
+                    if (annotations != null)
+                        for (AnnotationSpec annotation : annotations)
+                            parameterBuilder.addAnnotation(annotation);
+                    methodBuilder.addParameter(parameterBuilder.build());
                 }
                 typeBuilder.addMethod(methodBuilder.build());
             }
@@ -207,8 +202,12 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-        // return readAnnotationMembers(result.addAnnotation(desc));
-        return null;
+        return new MemberAnnotationVisitor(Type.getType(desc)) {
+            @Override
+            void finish(AnnotationSpec annotationSpec) {
+                typeBuilder.addAnnotation(annotationSpec);
+            }
+        };
     }
 
     @Override
@@ -217,7 +216,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         if ((access & Opcodes.ACC_PRIVATE) != 0) return null;
         if ((access & Opcodes.ACC_SYNTHETIC) != 0) return null;
 
-        final TypeName[] fieldType = {null};
+        final TypeName[] fieldType = {null}; // Array to allow write access from inner class
 
         if (signature != null) {
             TypeSignatureParser signatureParser = new TypeSignatureParser() {
@@ -232,14 +231,24 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         }
 
         return new FieldVisitor(api) {
-//            @Override
-//            public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-//                return readAnnotationMembers(stub.addAnnotation(desc));
-//            }
+            List<AnnotationSpec> annotations;
+
+            @Override
+            public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+                return new MemberAnnotationVisitor(Type.getType(desc)) {
+                    @Override
+                    void finish(AnnotationSpec annotationSpec) {
+                        if (annotations == null) annotations = new ArrayList<>();
+                        annotations.add(annotationSpec);
+                    }
+                };
+            }
 
             @Override
             public void visitEnd() {
-                typeBuilder.addField(fieldType[0], name, decodeModifiers(access));
+                typeBuilder.addField(FieldSpec.builder(fieldType[0], name, decodeModifiers(access))
+                        .addAnnotations(annotations != null ? annotations : Collections.emptyList())
+                        .build());
             }
         };
     }
