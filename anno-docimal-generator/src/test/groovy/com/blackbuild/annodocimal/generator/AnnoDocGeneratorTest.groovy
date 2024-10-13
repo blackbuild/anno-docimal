@@ -340,7 +340,7 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()").javaDoc == "This is a method"
         generated.getBlock("public String getField()")
-        generated.getBlock("public void setField(String arg0)")
+        generated.getBlock("public void setField(String param0)") || generated.getBlock("public void setField(String value)")
     }
 
     @IgnoreIf({ GroovySystem.version.startsWith("2.") })
@@ -544,7 +544,7 @@ public class TestClass {
         generateSource()
 
         then:
-        generated.getBlock("public void method(T age)")
+        generated.getBlock("public void method(T age)") || generated.getBlock("public void method(T param0)")
     }
 
     def "basic test with generated documentation and custom annotations"() {
@@ -594,7 +594,7 @@ import java.lang.annotation.RetentionPolicy
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()").javaDoc == "This is a method"
         generated.getBlock("public String getField()")
-        generated.getBlock("public void setField(String arg0)")
+        generated.getBlock("public void setField(String param0)") || generated.getBlock("public void setField(String value)")
     }
 
     def "basic annotation conversion"() {
@@ -660,7 +660,7 @@ import java.lang.annotation.Target
         then:
         noExceptionThrown()
         generatedSource.contains('''@MyAnnotation(
-    charValue = '\u0000',
+    charValue = '\\u0000',
     intValue = 1,
     name = "Test",
     floatValue = 3.0f,

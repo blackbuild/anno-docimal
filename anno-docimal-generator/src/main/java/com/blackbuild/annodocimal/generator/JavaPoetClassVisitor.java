@@ -24,6 +24,7 @@
 package com.blackbuild.annodocimal.generator;
 
 import com.squareup.javapoet.*;
+import org.apache.bcel.classfile.AnnotationEntry;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.objectweb.asm.*;
 import org.objectweb.asm.signature.SignatureReader;
@@ -31,6 +32,8 @@ import org.objectweb.asm.signature.SignatureVisitor;
 
 import javax.lang.model.element.Modifier;
 import java.util.*;
+
+import static java.util.Arrays.stream;
 
 public class JavaPoetClassVisitor extends ClassVisitor {
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
@@ -153,23 +156,13 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         return new MethodVisitor(api) {
             @Override
             public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                return new MemberAnnotationVisitor(Type.getType(desc)) {
-                    @Override
-                    void finish(AnnotationSpec annotationSpec) {
-                        methodBuilder.addAnnotation(annotationSpec);
-                    }
-                };
+                return MemberAnnotationVisitor.create(Type.getType(desc), methodBuilder);
             }
 
             @Override
             public AnnotationVisitor visitParameterAnnotation(int parameter, String desc, boolean visible) {
                 List<AnnotationSpec> list = parameterAnnotations.computeIfAbsent(parameter, k -> new ArrayList<>());
-                return new MemberAnnotationVisitor(Type.getType(desc)) {
-                    @Override
-                    void finish(AnnotationSpec annotationSpec) {
-                        list.add(annotationSpec);
-                    }
-                };
+                return MemberAnnotationVisitor.create(Type.getType(desc), list);
             }
 
             @Override
@@ -177,7 +170,6 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                 // ignore access, not relevant for our cause
                 argumentNames.add(name);
             }
-
 
             @Override
             public void visitEnd() {
@@ -202,12 +194,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-        return new MemberAnnotationVisitor(Type.getType(desc)) {
-            @Override
-            void finish(AnnotationSpec annotationSpec) {
-                typeBuilder.addAnnotation(annotationSpec);
-            }
-        };
+        return MemberAnnotationVisitor.create(Type.getType(desc), typeBuilder);
     }
 
     @Override
@@ -231,26 +218,31 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         }
 
         return new FieldVisitor(api) {
-            List<AnnotationSpec> annotations;
+            private final List<AnnotationSpec> annotations = new ArrayList<>();
+            private String javadoc;
 
             @Override
             public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                return new MemberAnnotationVisitor(Type.getType(desc)) {
-                    @Override
-                    void finish(AnnotationSpec annotationSpec) {
-                        if (annotations == null) annotations = new ArrayList<>();
-                        annotations.add(annotationSpec);
-                    }
-                };
+                return MemberAnnotationVisitor.create(Type.getType(desc), annotations);
             }
 
             @Override
             public void visitEnd() {
-                typeBuilder.addField(FieldSpec.builder(fieldType[0], name, decodeModifiers(access))
-                        .addAnnotations(annotations != null ? annotations : Collections.emptyList())
-                        .build());
+                FieldSpec.Builder field = FieldSpec.builder(fieldType[0], name, decodeModifiers(access))
+                        .addAnnotations(annotations);
+                if (javadoc != null)
+                    field.addJavadoc(javadoc);
+                typeBuilder.addField(field.build());
             }
         };
+    }
+
+    static String getStringValueOfJavadocAnnotation(AnnotationEntry annotation) {
+        return stream(annotation.getElementValuePairs())
+                .filter(pair -> pair.getNameString().equals("value"))
+                .map(pair -> pair.getValue().stringifyValue())
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Encountered a javadoc annotation without a value: " + annotation));
     }
 
     static String fromInternalName(String name) {
