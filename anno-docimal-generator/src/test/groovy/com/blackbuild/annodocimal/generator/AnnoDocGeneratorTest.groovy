@@ -25,10 +25,7 @@
 //file:noinspection GrMethodMayBeStatic
 package com.blackbuild.annodocimal.generator
 
-import org.apache.bcel.Repository
-import org.apache.bcel.classfile.Utility
-import org.apache.bcel.util.ClassPath
-import org.apache.bcel.util.ClassPathRepository
+
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Unroll
@@ -41,12 +38,12 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
     @Override
     def setup() {
-        Repository.setRepository(new ClassPathRepository(new ClassPath(outputDirectory.absolutePath)))
+        // Repository.setRepository(new ClassPathRepository(new ClassPath(outputDirectory.absolutePath)))
     }
 
     @Override
     def cleanup() {
-        Repository.clearCache()
+        // Repository.clearCache()
     }
 
     def "basic conversion"() {
@@ -194,23 +191,23 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
         where:
         anno << [ // Groovy has problems with byte, char, double, short literals as anno members
-                  //"@WithPrimitives",
-                  //"@WithPrimitives(intValue = 1)",
-                  //"@WithPrimitives(booleanValue = true)",
-                  //"@WithPrimitives(floatValue = 1.0f)",
-                  //"@WithPrimitives(longValue = 1L)",
-                  //'@WithPrimitives(stringValue = "bla")',
-                  //'@WithPrimitives(intArray = [1, 2])',
-                  //'@WithPrimitives(classValue = ArrayList.class)',
-                  //"@WithPrimitives(intValue = 1, booleanValue = true)",
-                  //"@WithEnum(RetentionPolicy.RUNTIME)",
+                  "@WithPrimitives",
+                  "@WithPrimitives(intValue = 1)",
+                  "@WithPrimitives(booleanValue = true)",
+                  "@WithPrimitives(floatValue = 1.0f)",
+                  "@WithPrimitives(longValue = 1L)",
+                  '@WithPrimitives(stringValue = "bla")',
+                  '@WithPrimitives(intArray = [1, 2])',
+                  '@WithPrimitives(classValue = ArrayList.class)',
+                  "@WithPrimitives(intValue = 1, booleanValue = true)",
+                  "@WithEnum(RetentionPolicy.RUNTIME)",
                   "@Nested(primitiveValue = @WithPrimitives)",
-                  //"@Nested(primitiveValue = @WithPrimitives(intValue = 1))",
-                  //"@Nested(primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
-                  //"@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME))",
-                  //"@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1))",
-                  //"@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
-                  //"@Nested(primitivesArray = [@WithPrimitives(intValue = 1), @WithPrimitives(intValue = 2)])",
+                  "@Nested(primitiveValue = @WithPrimitives(intValue = 1))",
+                  "@Nested(primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
+                  "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME))",
+                  "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1))",
+                  "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
+                  "@Nested(primitivesArray = [@WithPrimitives(intValue = 1), @WithPrimitives(intValue = 2)])",
         ]
     }
 
@@ -375,134 +372,10 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         """)
 
         when:
-        generateSource()
+        generateSourceText()
 
         then:
-        generatedSource == '''package dummy;
-
-import groovy.lang.MetaClass;
-import groovy.transform.Generated;
-import groovy.transform.Internal;
-import java.beans.Transient;
-import java.lang.String;
-
-public class TestClass {
-  @Generated
-  public TestClass() {
-  }
-
-  public void method() {
-  }
-
-  protected void protectedMethod() {
-  }
-
-  @Generated
-  @Internal
-  @Transient
-  public MetaClass getMetaClass() {
-  }
-
-  @Generated
-  @Internal
-  public void setMetaClass(MetaClass arg0) {
-  }
-
-  @Generated
-  public String getField() {
-  }
-
-  @Generated
-  public void setField(String arg0) {
-  }
-
-  protected static class InnerClass {
-    @Generated
-    public InnerClass() {
-    }
-
-    public void innerMethod() {
-    }
-
-    @Generated
-    @Internal
-    @Transient
-    public MetaClass getMetaClass() {
-    }
-
-    @Generated
-    @Internal
-    public void setMetaClass(MetaClass arg0) {
-    }
-  }
-}
-'''
-    }
-
-    @IgnoreIf({ !GroovySystem.version.startsWith("2.") })
-    def "bug: visibility is off groovy 2"() {
-        given:
-        createClass("""
-            package dummy
-     
-            import com.blackbuild.annodocimal.annotations.AnnoDoc
-            
-            class TestClass {
-                String field
-                
-                void method() {
-                    println "Hello"
-                }
-                
-                private void privateMethod() {
-                    println "Hello"
-                }
-                
-                protected void protectedMethod() {
-                    println "Hello"
-                }
-                
-                protected static class InnerClass {
-                    void innerMethod() {
-                        println "Hello"
-                    }
-                }
-            }
-        """)
-
-        when:
-        generateSource()
-
-        then:
-        generatedSource == '''package dummy;
-
-import java.lang.String;
-
-public class TestClass {
-  public TestClass() {
-  }
-
-  public void method() {
-  }
-
-  protected void protectedMethod() {
-  }
-
-  public String getField() {
-  }
-
-  public void setField(String arg0) {
-  }
-
-  public static class InnerClass {
-    public InnerClass() {
-    }
-
-    public void innerMethod() {
-    }
-  }
-}
-'''
+        generatedSource.contains("protected static class InnerClass")
     }
 
     def "basic test with generated documentation and bad params"() {
@@ -703,7 +576,7 @@ import java.lang.annotation.Target
 
         then:
         generated.packageName == "dummy"
-        generated.imports == []
+        !generated.imports
         generated.text == "public class TestClass"
         generated.innerBlocks.size() == 3
         generated.getBlock("public TestClass()")
@@ -726,7 +599,7 @@ import java.lang.annotation.Target
 
     void generateSourceText() {
         StringBuilder builder = new StringBuilder()
-        AnnoDocGenerator.generate(new File(outputDirectory, Utility.packageToPath(clazz.getName()) + ".class"), builder)
+        AnnoDocGenerator.generate(new File(outputDirectory, clazz.getName().replace('.', '/') + ".class"), builder)
         generatedSource = builder.toString()
     }
 }

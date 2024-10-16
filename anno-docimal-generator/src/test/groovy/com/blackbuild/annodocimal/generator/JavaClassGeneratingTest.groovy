@@ -23,7 +23,6 @@
  */
 package com.blackbuild.annodocimal.generator
 
-
 import com.google.testing.compile.Compilation
 import com.google.testing.compile.Compiler
 import com.google.testing.compile.JavaFileObjects
@@ -32,9 +31,6 @@ import org.junit.Rule
 import org.junit.rules.TestName
 import spock.lang.Specification
 
-import javax.tools.JavaFileObject
-import javax.tools.StandardLocation
-
 import static com.google.testing.compile.Compiler.javac
 
 abstract class JavaClassGeneratingTest extends Specification {
@@ -42,13 +38,38 @@ abstract class JavaClassGeneratingTest extends Specification {
     @Rule TestName testName = new TestName()
     Compiler compiler = javac().withOptions("-parameters")
     Compilation compilation
-    JavaFileObject file
+    File outputDirectory
+    File file
 
-    JavaFileObject compile(@Language("java") String code) {
+    def setup() {
+        outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")
+        outputDirectory.deleteDir()
+        outputDirectory.mkdirs()
+    }
+
+    def getSafeFilename() {
+        testName.methodName.replaceAll("\\W+", "_")
+    }
+
+
+    File compile(@Language("java") String code) {
         String className = (code =~ ~/class\s+(\w+)/)[0][1]
         String packageName = (code =~ ~/package\s+(\w+)/)[0][1]
         compilation = compiler.compile(JavaFileObjects.forSourceString("$packageName.$className", code))
-        file = compilation.generatedFile(StandardLocation.CLASS_OUTPUT, packageName, className + ".class").get()
+
+        compilation.generatedFiles().each { fileObject ->
+            def targetFile = new File(outputDirectory, fileObject.getName())
+            targetFile.parentFile.mkdirs()
+            fileObject.openInputStream().withStream { is ->
+                targetFile.withOutputStream { os ->
+                    os << is
+                }
+            }
+            if (!fileObject.name.contains('$')) {
+                file = targetFile
+            }
+        }
+
         return file
     }
 }

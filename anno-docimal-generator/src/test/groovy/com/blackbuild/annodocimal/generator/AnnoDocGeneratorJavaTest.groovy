@@ -57,6 +57,38 @@ class AnnoDocGeneratorJavaTest extends JavaClassGeneratingTest {
         "void method() throws Exception" | ""
     }
 
+    def "inner class visibility"() {
+        given:
+        compile("""
+            package dummy;
+            public abstract class Dummy {
+                public class Inner {}
+                protected class InnerProtected {}
+                private class InnerPrivate {}
+                class InnerDefault {}
+                public static class InnerStatic {}
+                protected static class InnerProtectedStatic {}
+                private static class InnerPrivateStatic {}
+                static class InnerDefaultStatic {}
+                protected abstract static class InnerAbstractStatic {}
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generatedSource.contains("public class Inner")
+        generatedSource.contains("protected class InnerProtected")
+        generatedSource.contains("private class InnerPrivate")
+        generatedSource.contains("class InnerDefault") && !generatedSource.contains("public class InnerDefault")
+        generatedSource.contains("public static class InnerStatic")
+        generatedSource.contains("protected static class InnerProtectedStatic")
+        generatedSource.contains("private static class InnerPrivateStatic")
+        generatedSource.contains("static class InnerDefaultStatic") && !generatedSource.contains("public static class InnerDefaultStatic")
+        generatedSource.contains("protected abstract static class InnerAbstractStatic")
+    }
+
     void generateSource() {
         generateSourceText()
         generated = SourceBlock.fromtext(generatedSource)
@@ -64,13 +96,7 @@ class AnnoDocGeneratorJavaTest extends JavaClassGeneratingTest {
 
     void generateSourceText() {
         StringBuilder builder = new StringBuilder()
-        InputStream is = null
-        try {
-            is = file.openInputStream()
-            AnnoDocGenerator.generate(is, builder)
-        } finally {
-            is?.close()
-        }
+        AnnoDocGenerator.generate(file, builder)
         generatedSource = builder.toString()
     }
 }

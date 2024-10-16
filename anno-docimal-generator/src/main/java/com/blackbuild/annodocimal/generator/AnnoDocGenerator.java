@@ -24,9 +24,7 @@
 package com.blackbuild.annodocimal.generator;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 
 public class AnnoDocGenerator {
 
@@ -34,24 +32,12 @@ public class AnnoDocGenerator {
         // static only
     }
 
-    public static void generate(File sourceFile, Appendable output) throws IOException {
-        try (InputStream inputStream = new FileInputStream(sourceFile)) {
-            generate(inputStream, output);
-        }
+    public static void generate(File classFile, Appendable output) throws IOException {
+        SpecConverter.toJavaFile(classFile).writeTo(output);
     }
 
-    public static void generate(InputStream inputStream, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(inputStream).writeTo(output);
-    }
-
-    public static void generate(File sourceFile, File targetFolder) throws IOException {
-        try (InputStream inputStream = new FileInputStream(sourceFile)) {
-            generate(inputStream, targetFolder);
-        }
-    }
-
-    public static void generate(InputStream inputStream, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(inputStream).writeTo(targetFolder);
+    public static void generate(File classFile, File targetFolder) throws IOException {
+        SpecConverter.toJavaFile(classFile).writeTo(targetFolder);
     }
 
 }

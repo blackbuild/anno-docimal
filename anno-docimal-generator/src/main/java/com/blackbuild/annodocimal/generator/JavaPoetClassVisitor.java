@@ -24,30 +24,33 @@
 package com.blackbuild.annodocimal.generator;
 
 import com.squareup.javapoet.*;
-import org.apache.bcel.classfile.AnnotationEntry;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.objectweb.asm.*;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 
 import javax.lang.model.element.Modifier;
+import java.io.IOException;
 import java.util.*;
-
-import static java.util.Arrays.stream;
 
 public class JavaPoetClassVisitor extends ClassVisitor {
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
+    private final SpecConverter specConverter;
     private TypeSpec.Builder typeBuilder;
     private TypeSpec type;
     private String packageName;
+    private final int innerClassModifiers;
+    private ClassName className;
 
-    public JavaPoetClassVisitor() {
+    public JavaPoetClassVisitor(SpecConverter specConverter, int innerClassModifiers) {
         super(CompilerConfiguration.ASM_API_VERSION);
+        this.specConverter = specConverter;
+        this.innerClassModifiers = innerClassModifiers;
     }
 
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaceNames) {
-        ClassName className = ClassName.bestGuess(fromInternalName(name));
+        className = fromInternalNameToClassName(name);
         typeBuilder = TypeSpec.classBuilder(className.simpleName());
         if (signature != null) {
             ClassSignatureParser.parseClassSignature(signature, typeBuilder);
@@ -58,12 +61,11 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                     typeBuilder.addSuperinterface(ClassName.bestGuess(fromInternalName(interf)));
         }
         packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
-        typeBuilder.addModifiers(decodeModifiers(access));
+        typeBuilder.addModifiers(decodeModifiers(innerClassModifiers != -1 ? innerClassModifiers : access));
     }
 
     @Override
     public void visitInnerClass(String name, String outerName, String innerName, int access) {
-        // TODO implement
         /*
          * Class files generated for inner classes have an INNERCLASS
          * reference to self. The top level class access modifiers for
@@ -82,10 +84,31 @@ public class JavaPoetClassVisitor extends ClassVisitor {
          *   public final class org/foo/Groovy8632$Builder extends org/foo/Groovy8632Abstract$Builder  {
          *     public final static INNERCLASS org/foo/Groovy8632$Builder org/foo/Groovy8632 Builder
          *     public static abstract INNERCLASS org/foo/Groovy8632Abstract$Builder org/foo/Groovy8632Abstract Builder
-        if (fromInternalName(name).equals(result.className)) {
+         */
+        if (innerName == null) return; // anonymous inner class
+        if (name.replace('/', '.').equals(className.reflectionName())) {
+            typeBuilder.modifiers.clear();
+            typeBuilder.addModifiers(decodeModifiers(access));
+            return;
+        }
+
+        try {
+            String simpleName = name.substring(name.lastIndexOf('/') + 1);
+            JavaPoetClassVisitor innerReader = specConverter.readClass(simpleName, access);
+            typeBuilder.addType(innerReader.getType());
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+
+        /*
+        if (fromInternalName(name).equals(typeBuilder.className)) {
             result.innerClassModifiers = access;
         }
+
          */
+        //typeBuilder.addType()
     }
 
     @Override
@@ -237,17 +260,22 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         };
     }
 
-    static String getStringValueOfJavadocAnnotation(AnnotationEntry annotation) {
-        return stream(annotation.getElementValuePairs())
-                .filter(pair -> pair.getNameString().equals("value"))
-                .map(pair -> pair.getValue().stringifyValue())
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Encountered a javadoc annotation without a value: " + annotation));
-    }
-
     static String fromInternalName(String name) {
         return name.replace('/', '.');
+    }
 
+    static ClassName fromInternalNameToClassName(String name) {
+        String packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
+        String className = name.substring(name.lastIndexOf('/') + 1);
+
+        if (!className.contains("$")) {
+            return ClassName.get(packageName, className);
+        }
+
+        String outerClassName = className.substring(0, className.lastIndexOf('$'));
+        String nestedClassName = className.substring(className.lastIndexOf('$') + 1);
+
+        return ClassName.get(packageName, outerClassName, nestedClassName.split("\\$"));
     }
 
     static Modifier[] decodeModifiers(int flags) {

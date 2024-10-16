@@ -24,16 +24,16 @@
 package com.blackbuild.annodocimal.plugin;
 
 import com.blackbuild.annodocimal.generator.AnnoDocGenerator;
-import org.apache.bcel.Repository;
-import org.apache.bcel.util.ClassPath;
-import org.apache.bcel.util.ClassPathRepository;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileVisitDetails;
-import org.gradle.api.tasks.*;
+import org.gradle.api.tasks.CacheableTask;
+import org.gradle.api.tasks.CompileClasspath;
+import org.gradle.api.tasks.OutputDirectory;
+import org.gradle.api.tasks.TaskAction;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -58,7 +58,6 @@ public abstract class CreateClassStubs extends DefaultTask {
 
     @TaskAction
     public void execute() {
-        Repository.setRepository(new ClassPathRepository(new ClassPath(getClassesDir().getAsPath())));
         getClassesDir().getAsFileTree()
                 .matching(f -> f.exclude("**/*$*").include("**/*.class"))
                 .visit(this::handleClassFile);

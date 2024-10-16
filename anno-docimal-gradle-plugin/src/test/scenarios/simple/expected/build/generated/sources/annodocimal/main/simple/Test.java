@@ -1,11 +1,9 @@
 package simple;
 
-import groovy.lang.GroovyObject;
-
 /**
  * This is a test class
  */
-public class Test implements GroovyObject {
+public class Test {
   public Test() {
   }
 
@@ -18,7 +16,7 @@ public class Test implements GroovyObject {
   /**
    * Inner class
    */
-  public static class InnerClass implements GroovyObject {
+  public static class InnerClass {
     public InnerClass() {
     }
 
