@@ -42,11 +42,11 @@ public class SpecConverter {
         this.packageDir = packageDir;
     }
 
-    public JavaPoetClassVisitor readClass(String className, int innerClassModifiers) throws IOException {
+    public JavaPoetClassVisitor readClass(String className) throws IOException {
         File classFile = new File(packageDir, className.replace('.', '/') + ".class");
 
         try (InputStream source = new FileInputStream(classFile)) {
-            JavaPoetClassVisitor visitor = new JavaPoetClassVisitor(this, innerClassModifiers);
+            JavaPoetClassVisitor visitor = new JavaPoetClassVisitor(this);
             ClassReader classReader = new ClassReader(source);
             classReader.accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
             return visitor;
@@ -54,7 +54,7 @@ public class SpecConverter {
     }
 
     public static JavaFile toJavaFile(File classFile) throws IOException {
-        JavaPoetClassVisitor outerType = new SpecConverter(classFile.getParentFile()).readClass(classFile.getName().replace(".class", ""), -1);
+        JavaPoetClassVisitor outerType = new SpecConverter(classFile.getParentFile()).readClass(classFile.getName().replace(".class", ""));
         return JavaFile.builder(outerType.getPackageName(), outerType.getType()).build();
     }
 

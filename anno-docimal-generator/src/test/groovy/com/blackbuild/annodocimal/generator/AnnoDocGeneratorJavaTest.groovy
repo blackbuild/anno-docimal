@@ -57,6 +57,35 @@ class AnnoDocGeneratorJavaTest extends JavaClassGeneratingTest {
         "void method() throws Exception" | ""
     }
 
+    def "default interface methods"() {
+        given:
+        compile("""
+            package dummy;
+            public interface Dummy {
+                void method();
+                default void defaultMethod() {}
+                static void staticMethod() {}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource == """package dummy;
+
+public interface Dummy {
+  void method();
+
+  default void defaultMethod() {
+  }
+
+  static void staticMethod() {
+  }
+}
+"""
+    }
+
     def "inner class visibility"() {
         given:
         compile("""

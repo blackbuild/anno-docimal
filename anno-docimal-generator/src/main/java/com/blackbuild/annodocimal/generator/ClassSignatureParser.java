@@ -35,7 +35,7 @@ import java.util.Map;
 
 class ClassSignatureParser {
 
-     static void parseClassSignature(String signature, TypeSpec.Builder builder) {
+     static void parseClassSignature(String signature, TypeSpec.Builder builder, TypeSpec.Kind kind) {
         final List<TypeName> interfaces = new ArrayList<>();
         FormalParameterParser v = new FormalParameterParser() {
 
@@ -44,7 +44,7 @@ class ClassSignatureParser {
                 return new TypeSignatureParser() {
                     @Override
                     void finished(TypeName result) {
-                        if (!result.toString().equals("java.lang.Object"))
+                        if (kind == TypeSpec.Kind.CLASS)
                             builder.superclass(result);
                     }
                 };

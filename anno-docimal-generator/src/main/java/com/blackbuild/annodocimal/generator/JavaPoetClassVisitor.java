@@ -39,29 +39,63 @@ public class JavaPoetClassVisitor extends ClassVisitor {
     private TypeSpec.Builder typeBuilder;
     private TypeSpec type;
     private String packageName;
-    private final int innerClassModifiers;
     private ClassName className;
+    private TypeSpec.Kind kind;
 
-    public JavaPoetClassVisitor(SpecConverter specConverter, int innerClassModifiers) {
+    public JavaPoetClassVisitor(SpecConverter specConverter) {
         super(CompilerConfiguration.ASM_API_VERSION);
         this.specConverter = specConverter;
-        this.innerClassModifiers = innerClassModifiers;
     }
 
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaceNames) {
-        className = fromInternalNameToClassName(name);
-        typeBuilder = TypeSpec.classBuilder(className.simpleName());
+        prepareTypeBuilder(access, name);
         if (signature != null) {
-            ClassSignatureParser.parseClassSignature(signature, typeBuilder);
+            ClassSignatureParser.parseClassSignature(signature, typeBuilder, kind);
         } else {
-            typeBuilder.superclass(ClassName.bestGuess(fromInternalName(superName)));
+            if (kind == TypeSpec.Kind.CLASS)
+                typeBuilder.superclass(ClassName.bestGuess(fromInternalName(superName)));
             for (String interf : interfaceNames)
                 if (!interf.equals("groovy/lang/GroovyObject"))
                     typeBuilder.addSuperinterface(ClassName.bestGuess(fromInternalName(interf)));
         }
         packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
-        typeBuilder.addModifiers(decodeModifiers(innerClassModifiers != -1 ? innerClassModifiers : access));
+    }
+
+    private void prepareTypeBuilder(int access, String name) {
+        className = fromInternalNameToClassName(name);
+        kind = toJavaPoetKind(access);
+        if (kind == TypeSpec.Kind.ENUM)
+            access &= ~Opcodes.ACC_FINAL;
+        if (kind == TypeSpec.Kind.ANNOTATION || kind == TypeSpec.Kind.INTERFACE)
+            access &= ~Opcodes.ACC_ABSTRACT;
+        typeBuilder = createTypeBuilder(className, kind).addModifiers(decodeModifiers(access));
+    }
+
+    private static TypeSpec.Kind toJavaPoetKind(int access) {
+        if ((access & Opcodes.ACC_INTERFACE) != 0)
+            return TypeSpec.Kind.INTERFACE;
+        else if ((access & Opcodes.ACC_ENUM) != 0)
+            return TypeSpec.Kind.ENUM;
+        else if ((access & Opcodes.ACC_ANNOTATION) != 0)
+            return TypeSpec.Kind.ANNOTATION;
+        else
+            return TypeSpec.Kind.CLASS;
+    }
+
+    private static TypeSpec.Builder createTypeBuilder(ClassName className, TypeSpec.Kind kind) {
+        switch (kind) {
+            case INTERFACE:
+                return TypeSpec.interfaceBuilder(className);
+            case ENUM:
+                return TypeSpec.enumBuilder(className);
+            case ANNOTATION:
+                return TypeSpec.annotationBuilder(className);
+            case CLASS:
+                return TypeSpec.classBuilder(className);
+            default:
+                throw new IllegalArgumentException("Unknown kind: " + kind);
+        }
     }
 
     @Override
@@ -92,9 +126,13 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             return;
         }
 
+        if (innerName.equals("Helper") && typeBuilder.annotations.stream().anyMatch(a -> a.type.toString().equals("groovy.transform.Trait"))) {
+            return;
+        }
+
         try {
             String simpleName = name.substring(name.lastIndexOf('/') + 1);
-            JavaPoetClassVisitor innerReader = specConverter.readClass(simpleName, access);
+            JavaPoetClassVisitor innerReader = specConverter.readClass(simpleName);
             typeBuilder.addType(innerReader.getType());
 
         } catch (IOException e) {
@@ -113,12 +151,13 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-        if ("<clinit>".equals(name)) return null;
-        if (name.contains("$")) return null;
-        if ((access & Opcodes.ACC_PRIVATE) != 0) return null;
-        if ((access & Opcodes.ACC_SYNTHETIC) != 0) return null;
+        if (shouldIgnoreMethod(access, name)) return null;
 
         final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(name).addModifiers(decodeModifiers(access));
+
+        if (kind == TypeSpec.Kind.INTERFACE && (access & Opcodes.ACC_ABSTRACT) == 0 && (access & Opcodes.ACC_STATIC) == 0) {
+            methodBuilder.addModifiers(Modifier.DEFAULT);
+        }
 
         Type methodType = Type.getMethodType(desc);
 
@@ -179,7 +218,13 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         return new MethodVisitor(api) {
             @Override
             public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                return MemberAnnotationVisitor.create(Type.getType(desc), methodBuilder);
+                Type annotationType = Type.getType(desc);
+                if (annotationType.getClassName().equals("org.codehaus.groovy.transform.trait.Traits$Implemented")) {
+                    methodBuilder.modifiers.remove(Modifier.ABSTRACT);
+                    methodBuilder.addModifiers(Modifier.DEFAULT);
+                    return null;
+                }
+                return MemberAnnotationVisitor.create(annotationType, methodBuilder);
             }
 
             @Override
@@ -210,6 +255,24 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         };
     }
 
+    private boolean shouldIgnoreMethod(int access, String name) {
+        if ("<clinit>".equals(name)) return true;
+        if (name.contains("$")) return true;
+        if ((access & Opcodes.ACC_PRIVATE) != 0) return true;
+        if ((access & Opcodes.ACC_SYNTHETIC) != 0) return true;
+        if (name.equals("getMetaClass")) return true;
+        if (name.equals("setMetaClass")) return true;
+        if (kind == TypeSpec.Kind.ENUM) {
+            if (name.equals("<init>")) return true;
+            if (name.equals("valueOf")) return true;
+            if (name.equals("values")) return true;
+            if (name.equals("previous")) return true;
+            if (name.equals("next")) return true;
+        }
+
+        return false;
+    }
+
     @Override
     public void visitEnd() {
         type = typeBuilder.build();
@@ -222,9 +285,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-        if (name.contains("$")) return null;
-        if ((access & Opcodes.ACC_PRIVATE) != 0) return null;
-        if ((access & Opcodes.ACC_SYNTHETIC) != 0) return null;
+        if (shouldIgnoreField(access, name)) return null;
 
         final TypeName[] fieldType = {null}; // Array to allow write access from inner class
 
@@ -240,24 +301,47 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             fieldType[0] = toTypeName(Type.getType(desc));
         }
 
-        return new FieldVisitor(api) {
-            private final List<AnnotationSpec> annotations = new ArrayList<>();
-            private String javadoc;
+        if ((access & Opcodes.ACC_ENUM) != 0) {
+            return new FieldVisitor(api) {
+                private TypeSpec.Builder enumClass = TypeSpec.anonymousClassBuilder(CodeBlock.builder().build());
 
-            @Override
-            public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                return MemberAnnotationVisitor.create(Type.getType(desc), annotations);
-            }
+                @Override
+                public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+                    return MemberAnnotationVisitor.create(Type.getType(desc), enumClass);
+                }
 
-            @Override
-            public void visitEnd() {
-                FieldSpec.Builder field = FieldSpec.builder(fieldType[0], name, decodeModifiers(access))
-                        .addAnnotations(annotations);
-                if (javadoc != null)
-                    field.addJavadoc(javadoc);
-                typeBuilder.addField(field.build());
-            }
-        };
+                @Override
+                public void visitEnd() {
+                    typeBuilder.addEnumConstant(name, enumClass.build());
+                }
+            };
+        } else {
+            return new FieldVisitor(api) {
+                private FieldSpec.Builder field = FieldSpec.builder(fieldType[0], name, decodeModifiers(access));
+
+                @Override
+                public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+                    return MemberAnnotationVisitor.create(Type.getType(desc), field);
+                }
+
+                @Override
+                public void visitEnd() {
+                    typeBuilder.addField(field.build());
+                }
+            };
+        }
+
+    }
+
+    private boolean shouldIgnoreField(int access, String name) {
+        if (name.contains("$")) return true;
+        if ((access & Opcodes.ACC_PRIVATE) != 0) return true;
+        if ((access & Opcodes.ACC_SYNTHETIC) != 0) return true;
+        if (kind == TypeSpec.Kind.ENUM) {
+            if (name.equals("MAX_VALUE")) return true;
+            if (name.equals("MIN_VALUE")) return true;
+        }
+        return false;
     }
 
     static String fromInternalName(String name) {

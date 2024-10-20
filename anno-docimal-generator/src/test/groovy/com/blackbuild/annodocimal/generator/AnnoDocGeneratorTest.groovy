@@ -95,7 +95,127 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
                 "Test<T>",
                 "Test<T> implements List<List<T>>"
         ]
+    }
 
+    def "basic enum conversion"() {
+        given:
+        createClass("""
+            package dummy
+            enum MyEnum {
+                A, B, C
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource ==~ ~/package dummy;\s*public enum MyEnum \{\s*A,\s*B,\s*C\s*}\s*/
+    }
+
+    def "basic enum conversion with implements and generics"() {
+        given:
+        createClass("""
+            package dummy
+            enum $signature {
+                A, B, C
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.contains("public enum $signature {")
+
+        where:
+        signature << [
+                "MyEnum",
+                "MyEnum implements Serializable",
+                "MyEnum implements GenericsHolder<String>"
+        ]
+    }
+
+    def "enum conversion with annotations"() {
+        given:
+        createClass("""
+            package dummy
+
+            import dummyanno.WithPrimitives
+            
+            @WithPrimitives
+            enum MyEnum {
+                @WithPrimitives(intValue = 1) A, 
+                @WithPrimitives(intValue = 1) B, 
+                @WithPrimitives(intValue = 1) C
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(annoStringToRegexp("@WithPrimitives public enum MyEnum"))
+        generatedSource.find(annoStringToRegexp("@WithPrimitives(intValue = 1) A,"))
+        generatedSource.find(annoStringToRegexp("@WithPrimitives(intValue = 1) B,"))
+        generatedSource.find(annoStringToRegexp("@WithPrimitives(intValue = 1) C"))
+    }
+
+    def "enum conversion with annotations and javadoc"() {
+        given:
+        createClass("""
+            package dummy
+
+import com.blackbuild.annodocimal.annotations.AnnoDoc
+import dummyanno.WithPrimitives
+            
+            @WithPrimitives
+            @AnnoDoc("This is a test enum")
+            enum MyEnum {
+                @AnnoDoc("Value A") @WithPrimitives(intValue = 1) A, 
+                @AnnoDoc("Value B") @WithPrimitives(intValue = 1) B, 
+                @AnnoDoc("Value C") @WithPrimitives(intValue = 1) C
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(toJavadoc("This is a test enum") + annoStringToRegexp(" @WithPrimitives public enum MyEnum"))
+        generatedSource.find(toJavadoc("Value A") + annoStringToRegexp(" @WithPrimitives(intValue = 1) A,"))
+        generatedSource.find(toJavadoc("Value B") + annoStringToRegexp(" @WithPrimitives(intValue = 1) B,"))
+        generatedSource.find(toJavadoc("Value C") + annoStringToRegexp(" @WithPrimitives(intValue = 1) C"))
+    }
+
+    String toJavadoc(String text) {
+        return ("/\\*\\*\\s*" + text.readLines().collect { "\\*\\s*$it" }.join("\\s*") + "\\s*\\*\\/")
+    }
+
+    def "interface conversion"() {
+        given:
+        createClass("""
+            package dummy
+            interface $signature {}
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generated.packageName == "dummy"
+        generated.strip("public interface") == signature
+
+        where:
+        signature << [
+                "TestInterface",
+                "TestInterface<T extends Number>",
+                "TestInterface extends List<? super Number>",
+                "TestInterface extends List<?>",
+                "TestInterface<T, I extends Number> extends Map<I, List<T>>, Serializable",
+                "TestInterface<T>",
+                "TestInterface<T> extends List<List<T>>"
+        ]
     }
 
     def "method conversion"() {
@@ -103,12 +223,37 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         createClass("""
             package dummy
             abstract class Dummy$generics {
-                $signature {}
+                $signature${signature.endsWith("{") ? "}" : ""}
             }
         """)
 
         when:
-        generateSource()
+        generateSourceText()
+
+        then:
+        generatedSource.contains(adjustSignature(signature, params))
+
+        where:
+        signature                                     | params    | generics
+        "void method() {"                             | ""        | ""
+        "void method(String aString) {"               | "aString" | ""
+        "void method(T aParam) {"                     | "aParam"  | "<T>"
+        "void method() throws Exception {"            | ""        | ""
+        "public <T extends List> T method(T input) {" | "input"   | ""
+        "abstract void method()"                      | ""        | ""
+    }
+
+    def "interface method conversion"() {
+        given:
+        createClass("""
+            package dummy
+            interface Dummy$generics {
+                $signature
+            }
+        """)
+
+        when:
+        generateSourceText()
 
         then:
         generatedSource.contains(adjustSignature(signature, params))
@@ -119,7 +264,33 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         "void method(String aString)"               | "aString" | ""
         "void method(T aParam)"                     | "aParam"  | "<T>"
         "void method() throws Exception"            | ""        | ""
-        "public <T extends List> T method(T input)" | "input"   | ""
+    }
+
+    @IgnoreIf({ GroovySystem.version.startsWith("2.") })
+    def "interface method conversion G3"() {
+        given:
+        createClass("""
+            package dummy
+            interface Dummy {
+                default String method() {}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource == '''package dummy;
+
+import groovy.transform.Trait;
+import java.lang.String;
+
+@Trait
+public interface Dummy {
+  default String method() {
+  }
+}
+'''
     }
 
     def "method conversion with param annotation"() {
