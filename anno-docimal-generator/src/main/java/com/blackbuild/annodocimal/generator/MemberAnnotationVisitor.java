@@ -58,7 +58,7 @@ public class MemberAnnotationVisitor {
         protected final AnnotationSpec.Builder builder;
         private final Object target;
 
-        private Regular(Type type, Object target) {
+        Regular(Type type, Object target) {
             super(CompilerConfiguration.ASM_API_VERSION);
             builder = AnnotationSpec.builder(toClassName(type));
             this.target = target;

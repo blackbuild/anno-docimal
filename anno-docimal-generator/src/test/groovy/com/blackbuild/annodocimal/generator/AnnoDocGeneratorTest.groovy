@@ -218,6 +218,39 @@ import dummyanno.WithPrimitives
         ]
     }
 
+    def "annotation conversion"() {
+        given:
+        createClass("""
+            package dummy
+
+            import dummyanno.WithPrimitives
+            
+            @WithPrimitives
+            @interface MyAnnotation {
+                @WithPrimitives int intValue() default 0
+                String stringValue()
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource == '''package dummy;
+
+import dummyanno.WithPrimitives;
+import java.lang.String;
+
+@WithPrimitives
+public @interface MyAnnotation {
+  @WithPrimitives
+  int intValue() default 0;
+
+  String stringValue();
+}
+'''
+    }
+
     def "method conversion"() {
         given:
         createClass("""

@@ -55,8 +55,9 @@ class ClassSignatureParser {
                 return new TypeSignatureParser() {
                     @Override
                     void finished(TypeName result) {
-                        if (!result.toString().equals("groovy.lang.GroovyObject"))
-                            interfaces.add(result);
+                        if (result.toString().equals("groovy.lang.GroovyObject")) return;
+                        if (kind == TypeSpec.Kind.ANNOTATION && result.toString().equals("java.lang.annotation.Annotation")) return;
+                        interfaces.add(result);
                     }
                 };
             }

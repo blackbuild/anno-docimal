@@ -55,11 +55,18 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         } else {
             if (kind == TypeSpec.Kind.CLASS)
                 typeBuilder.superclass(ClassName.bestGuess(fromInternalName(superName)));
-            for (String interf : interfaceNames)
-                if (!interf.equals("groovy/lang/GroovyObject"))
-                    typeBuilder.addSuperinterface(ClassName.bestGuess(fromInternalName(interf)));
+            for (String interf : interfaceNames) {
+                if (interf.equals("groovy/lang/GroovyObject")) continue;
+                if (kind == TypeSpec.Kind.ANNOTATION && interf.equals("java/lang/annotation/Annotation")) continue;
+                typeBuilder.addSuperinterface(ClassName.bestGuess(fromInternalName(interf)));
+            }
         }
         packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
+    }
+
+    @Override
+    public void visitAttribute(Attribute attribute) {
+        super.visitAttribute(attribute);
     }
 
     private void prepareTypeBuilder(int access, String name) {
@@ -73,12 +80,12 @@ public class JavaPoetClassVisitor extends ClassVisitor {
     }
 
     private static TypeSpec.Kind toJavaPoetKind(int access) {
-        if ((access & Opcodes.ACC_INTERFACE) != 0)
+        if ((access & Opcodes.ACC_ANNOTATION) != 0)
+            return TypeSpec.Kind.ANNOTATION;
+        else if ((access & Opcodes.ACC_INTERFACE) != 0)
             return TypeSpec.Kind.INTERFACE;
         else if ((access & Opcodes.ACC_ENUM) != 0)
             return TypeSpec.Kind.ENUM;
-        else if ((access & Opcodes.ACC_ANNOTATION) != 0)
-            return TypeSpec.Kind.ANNOTATION;
         else
             return TypeSpec.Kind.CLASS;
     }
@@ -237,6 +244,19 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             public void visitParameter(String name, int ignored) {
                 // ignore access, not relevant for our cause
                 argumentNames.add(name);
+            }
+
+            @Override
+            public AnnotationVisitor visitAnnotationDefault() {
+                return new MemberAnnotationVisitor.Regular(Type.getType(Object.class), null) {
+
+                    @Override
+                    public void visitEnd() {
+                        if (this.builder.members.size() != 1)
+                            throw new IllegalStateException("Expected exactly one member in default value");
+                        this.builder.members.values().stream().map(l -> l.get(0)).forEach(methodBuilder::defaultValue);
+                    }
+                };
             }
 
             @Override
