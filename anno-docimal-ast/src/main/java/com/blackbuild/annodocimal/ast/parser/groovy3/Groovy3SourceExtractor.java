@@ -39,8 +39,6 @@ public class Groovy3SourceExtractor extends AbstractSourceExtractor {
 
     @Override
     public String getJavaDoc(AnnotatedNode node) {
-
-
         if (node instanceof FieldNode && ((FieldNode) node).getName().startsWith("$"))
             return null;
         if (node instanceof MethodNode) {

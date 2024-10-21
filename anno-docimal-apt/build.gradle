@@ -11,6 +11,14 @@ dependencies {
     sharedTests  "com.google.testing.compile:compile-testing:0.21.0"
 }
 
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from(components.java)
+        }
+    }
+}
+
 sonarqube {
     properties {
         property 'sonar.coverage.exclusions', "**"
