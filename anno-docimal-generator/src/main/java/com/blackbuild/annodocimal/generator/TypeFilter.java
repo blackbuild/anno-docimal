@@ -23,21 +23,9 @@
  */
 package com.blackbuild.annodocimal.generator;
 
-import java.io.File;
-import java.io.IOException;
+public class TypeFilter {
 
-public class AnnoDocGenerator {
+    private TypeFilter() {}
 
-    private AnnoDocGenerator() {
-        // static only
-    }
-
-    public static void generate(File classFile, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(output);
-    }
-
-    public static void generate(File classFile, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(targetFolder);
-    }
 
 }

@@ -23,62 +23,53 @@
  */
 package com.blackbuild.annodocimal.generator
 
-import groovy.transform.CompileStatic
-import org.codehaus.groovy.control.CompilerConfiguration
-import org.codehaus.groovy.control.customizers.ASTTransformationCustomizer
+import com.google.testing.compile.Compilation
+import com.google.testing.compile.Compiler
+import com.google.testing.compile.JavaFileObjects
 import org.intellij.lang.annotations.Language
 import org.junit.Rule
 import org.junit.rules.TestName
 import spock.lang.Specification
 
-abstract class ClassGeneratingTest extends Specification {
+import static com.google.testing.compile.Compiler.javac
+
+abstract class JavaClassGeneratingTest extends Specification {
 
     @Rule TestName testName = new TestName()
-    ClassLoader oldLoader
-    GroovyClassLoader loader
-    CompilerConfiguration compilerConfiguration
-    Class<?> clazz
+    Compiler compiler = javac().withOptions("-parameters")
+    Compilation compilation
     File outputDirectory
+    File file
 
     def setup() {
-        oldLoader = Thread.currentThread().contextClassLoader
-        compilerConfiguration = new CompilerConfiguration()
-
-        if (compilerConfiguration.hasProperty("parameters")) {
-            compilerConfiguration.parameters = true
-        } else {
-            // TODO not working, there seems to be no option for parameter name in groovy 2.4
-            compilerConfiguration.getOptimizationOptions().put("parameters", true)
-            compilerConfiguration.addCompilationCustomizers(new ASTTransformationCustomizer(CompileStatic.class))
-        }
-
-        loader = new GroovyClassLoader(Thread.currentThread().getContextClassLoader(), compilerConfiguration)
-        Thread.currentThread().contextClassLoader = loader
         outputDirectory = new File("build/test-classes/${getClass().simpleName}/$safeFilename")
         outputDirectory.deleteDir()
         outputDirectory.mkdirs()
-        compilerConfiguration.targetDirectory = outputDirectory
     }
 
     def getSafeFilename() {
         testName.methodName.replaceAll("\\W+", "_")
     }
 
-    def cleanup() {
-        Thread.currentThread().contextClassLoader = oldLoader
+
+    File compile(@Language("java") String code) {
+        String className = (code =~ ~/(?:class|interface|enum)\s+(\w+)/)[0][1]
+        String packageName = (code =~ ~/package\s+(\w+)/)[0][1]
+        compilation = compiler.compile(JavaFileObjects.forSourceString("$packageName.$className", code))
+
+        compilation.generatedFiles().each { fileObject ->
+            def targetFile = new File(outputDirectory, fileObject.getName())
+            targetFile.parentFile.mkdirs()
+            fileObject.openInputStream().withStream { is ->
+                targetFile.withOutputStream { os ->
+                    os << is
+                }
+            }
+            if (!fileObject.name.contains('$')) {
+                file = targetFile
+            }
+        }
+
+        return file
     }
-
-    void createClass(@Language("groovy") String code) {
-        clazz = parseClass(code)
-    }
-
-    Class<?> parseClass(@Language("groovy") String code) {
-        loader.parseClass(code)
-    }
-
-
-
-
-
-
 }

@@ -29,7 +29,8 @@ package com.blackbuild.annodocimal.generator
  */
 class SourceBlock {
     // Groovy 3+ adds additional annotations and their imports
-    public static final ArrayList<String> GROOVY3_IGNORED_IMPORTS = ["groovy.lang.MetaClass",
+    public static final ArrayList<String> GROOVY3_IGNORED_IMPORTS = ["java.lang.Object",
+                                                                     "groovy.lang.MetaClass",
                                                                      "groovy.transform.Generated",
                                                                      "groovy.transform.Internal",
                                                                      "java.beans.Transient"]
@@ -53,6 +54,12 @@ class SourceBlock {
 
         rootBlock.cleanEmptyAndIgnoredBlocks()
         return rootBlock
+    }
+
+    String strip(CharSequence... strips) {
+        def result = text
+        strips.each { result = result - it }
+        return result.trim()
     }
 
     SourceBlock addLine(String line) {
@@ -173,6 +180,12 @@ class SourceBlock {
 
     SourceBlock getBlock(String name) {
         return innerBlocks.find { it.text == name }
+    }
+
+    SourceBlock getOneOf(String pattern, String... replacements) {
+        return replacements.findResult {
+            getBlock(pattern.replace("*", it))
+        } as SourceBlock
     }
 
     @Override

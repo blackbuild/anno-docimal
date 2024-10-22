@@ -21,23 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.generator;
+package com.blackbuild.annodocimal.generator
 
-import java.io.File;
-import java.io.IOException;
+import org.objectweb.asm.Type
+import spock.lang.Specification
 
-public class AnnoDocGenerator {
+class TypeConversionTest extends Specification {
 
-    private AnnoDocGenerator() {
-        // static only
-    }
+    def "typename of inner class is correctly retrieved"() {
+        when:
+        def result = TypeConversion.toTypeName(Type.getType(Map.Entry))
 
-    public static void generate(File classFile, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(output);
-    }
-
-    public static void generate(File classFile, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(targetFolder);
+        then:
+        result.toString() == "java.util.Map.Entry"
     }
 
 }

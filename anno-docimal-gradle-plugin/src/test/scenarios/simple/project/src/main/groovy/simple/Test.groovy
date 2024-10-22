@@ -8,6 +8,14 @@ class Test {
     @AnnoDoc("A method")
     void aMethod() {}
 
+    @AnnoDoc("""Method with param
+
+@param input The input
+@return The input in lower case""")
+    String methodWithParam(String input) {
+        return input.toLowerCase()
+    }
+
     @AnnoDoc("Inner class")
     static class InnerClass {
         @AnnoDoc("Inner class method")

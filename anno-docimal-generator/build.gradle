@@ -8,7 +8,6 @@ dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     api project(':anno-docimal-annotations')
     api "com.squareup:javapoet:1.13.0"
-    api "org.apache.bcel:bcel:6.8.2"
+    api "org.ow2.asm:asm-tree:9.7"
+    sharedTests "com.google.testing.compile:compile-testing:0.21.0"
 }
-
-testing

@@ -21,23 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.generator;
+package dummyanno;
 
-import java.io.File;
-import java.io.IOException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
-public class AnnoDocGenerator {
-
-    private AnnoDocGenerator() {
-        // static only
-    }
-
-    public static void generate(File classFile, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(output);
-    }
-
-    public static void generate(File classFile, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(targetFolder);
-    }
-
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Nested {
+    WithPrimitives primitiveValue() default @WithPrimitives;
+    WithEnum enumValue() default @WithEnum(value = RetentionPolicy.CLASS);
+    WithPrimitives[] primitivesArray() default {};
 }

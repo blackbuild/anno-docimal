@@ -23,21 +23,45 @@
  */
 package com.blackbuild.annodocimal.generator;
 
-import java.io.File;
-import java.io.IOException;
+import com.squareup.javapoet.TypeName;
+import org.codehaus.groovy.control.CompilerConfiguration;
+import org.objectweb.asm.signature.SignatureVisitor;
 
-public class AnnoDocGenerator {
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
-    private AnnoDocGenerator() {
-        // static only
+abstract class FormalParameterParser extends SignatureVisitor {
+    private List<TypeName> parameterBounds = new ArrayList<>();
+    private final Map<String, List<TypeName>> typeParameters = new LinkedHashMap<>();
+
+    protected FormalParameterParser() {
+        super(CompilerConfiguration.ASM_API_VERSION);
     }
 
-    public static void generate(File classFile, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(output);
+    @Override
+    public void visitFormalTypeParameter(String name) {
+        parameterBounds = new ArrayList<>();
+        typeParameters.put(name, parameterBounds);
     }
 
-    public static void generate(File classFile, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(targetFolder);
+    @Override
+    public SignatureVisitor visitClassBound() {
+        return new TypeSignatureParser() {
+            @Override
+            void finished(TypeName result) {
+                parameterBounds.add(result);
+            }
+        };
     }
 
+    @Override
+    public SignatureVisitor visitInterfaceBound() {
+        return visitClassBound();
+    }
+
+    public Map<String, List<TypeName>> getTypeParameters() {
+        return typeParameters;
+    }
 }

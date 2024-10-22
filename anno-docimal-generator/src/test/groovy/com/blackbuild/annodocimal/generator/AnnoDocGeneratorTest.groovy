@@ -25,12 +25,12 @@
 //file:noinspection GrMethodMayBeStatic
 package com.blackbuild.annodocimal.generator
 
-import org.apache.bcel.Repository
-import org.apache.bcel.classfile.Utility
-import org.apache.bcel.util.ClassPath
-import org.apache.bcel.util.ClassPathRepository
-import spock.lang.IgnoreIf
 
+import spock.lang.IgnoreIf
+import spock.lang.Requires
+import spock.lang.Unroll
+
+@Unroll
 class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
     String generatedSource
@@ -38,12 +38,12 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
     @Override
     def setup() {
-        Repository.setRepository(new ClassPathRepository(new ClassPath(outputDirectory.absolutePath)))
+        // Repository.setRepository(new ClassPathRepository(new ClassPath(outputDirectory.absolutePath)))
     }
 
     @Override
     def cleanup() {
-        Repository.clearCache()
+        // Repository.clearCache()
     }
 
     def "basic conversion"() {
@@ -63,14 +63,452 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
         then:
         generated.packageName == "dummy"
-        generated.imports == ["groovy.lang.GroovyObject", "java.lang.String"]
-        generated.text == "public class TestClass implements GroovyObject"
-        generated.innerBlocks.size() == 4
+        generated.imports == ["java.lang.String"]
+        generated.text == "public class TestClass"
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()")
         generated.getBlock("public String getField()")
-        generated.getBlock("public void setField(String arg0)")
+        generated.getOneOf("public void setField(String *)", "param0", "value")
     }
+
+    def "class conversion"() {
+        given:
+        createClass("""
+            package dummy
+            abstract class $signature {}
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generated.packageName == "dummy"
+        generated.strip("public abstract class") == signature
+
+        where:
+        signature << [
+                "TestClass",
+                "Test<T extends Number>",
+                "Test implements List<? super Number>",
+                "Test implements List<?>",
+                "Test<T, I extends Number> implements Map<I, List<T>>, Serializable",
+                "Test<T>",
+                "Test<T> implements List<List<T>>"
+        ]
+    }
+
+    def "basic enum conversion"() {
+        given:
+        createClass("""
+            package dummy
+            enum MyEnum {
+                A, B, C
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource ==~ ~/package dummy;\s*public enum MyEnum \{\s*A,\s*B,\s*C\s*}\s*/
+    }
+
+    def "basic enum conversion with implements and generics"() {
+        given:
+        createClass("""
+            package dummy
+            enum $signature {
+                A, B, C
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.contains("public enum $signature {")
+
+        where:
+        signature << [
+                "MyEnum",
+                "MyEnum implements Serializable",
+                "MyEnum implements GenericsHolder<String>"
+        ]
+    }
+
+    def "enum conversion with annotations"() {
+        given:
+        createClass("""
+            package dummy
+
+            import dummyanno.WithPrimitives
+            
+            @WithPrimitives
+            enum MyEnum {
+                @WithPrimitives(intValue = 1) A, 
+                @WithPrimitives(intValue = 1) B, 
+                @WithPrimitives(intValue = 1) C
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(annoStringToRegexp("@WithPrimitives public enum MyEnum"))
+        generatedSource.find(annoStringToRegexp("@WithPrimitives(intValue = 1) A,"))
+        generatedSource.find(annoStringToRegexp("@WithPrimitives(intValue = 1) B,"))
+        generatedSource.find(annoStringToRegexp("@WithPrimitives(intValue = 1) C"))
+    }
+
+    def "enum conversion with annotations and javadoc"() {
+        given:
+        createClass("""
+            package dummy
+
+import com.blackbuild.annodocimal.annotations.AnnoDoc
+import dummyanno.WithPrimitives
+            
+            @WithPrimitives
+            @AnnoDoc("This is a test enum")
+            enum MyEnum {
+                @AnnoDoc("Value A") @WithPrimitives(intValue = 1) A, 
+                @AnnoDoc("Value B") @WithPrimitives(intValue = 1) B, 
+                @AnnoDoc("Value C") @WithPrimitives(intValue = 1) C
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(toJavadoc("This is a test enum") + annoStringToRegexp(" @WithPrimitives public enum MyEnum"))
+        generatedSource.find(toJavadoc("Value A") + annoStringToRegexp(" @WithPrimitives(intValue = 1) A,"))
+        generatedSource.find(toJavadoc("Value B") + annoStringToRegexp(" @WithPrimitives(intValue = 1) B,"))
+        generatedSource.find(toJavadoc("Value C") + annoStringToRegexp(" @WithPrimitives(intValue = 1) C"))
+    }
+
+    String toJavadoc(String text) {
+        return ("/\\*\\*\\s*" + text.readLines().collect { "\\*\\s*$it" }.join("\\s*") + "\\s*\\*\\/")
+    }
+
+    def "interface conversion"() {
+        given:
+        createClass("""
+            package dummy
+            interface $signature {}
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generated.packageName == "dummy"
+        generated.strip("public interface") == signature
+
+        where:
+        signature << [
+                "TestInterface",
+                "TestInterface<T extends Number>",
+                "TestInterface extends List<? super Number>",
+                "TestInterface extends List<?>",
+                "TestInterface<T, I extends Number> extends Map<I, List<T>>, Serializable",
+                "TestInterface<T>",
+                "TestInterface<T> extends List<List<T>>"
+        ]
+    }
+
+    def "annotation conversion"() {
+        given:
+        createClass("""
+            package dummy
+
+            import dummyanno.WithPrimitives
+            
+            @WithPrimitives
+            @interface MyAnnotation {
+                @WithPrimitives int intValue() default 0
+                String stringValue()
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource == '''package dummy;
+
+import dummyanno.WithPrimitives;
+import java.lang.String;
+
+@WithPrimitives
+public @interface MyAnnotation {
+  @WithPrimitives
+  int intValue() default 0;
+
+  String stringValue();
+}
+'''
+    }
+
+    def "method conversion"() {
+        given:
+        createClass("""
+            package dummy
+            abstract class Dummy$generics {
+                $signature${signature.endsWith("{") ? "}" : ""}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.contains(adjustSignature(signature, params))
+
+        where:
+        signature                                     | params    | generics
+        "void method() {"                             | ""        | ""
+        "void method(String aString) {"               | "aString" | ""
+        "void method(T aParam) {"                     | "aParam"  | "<T>"
+        "void method() throws Exception {"            | ""        | ""
+        "public <T extends List> T method(T input) {" | "input"   | ""
+        "abstract void method()"                      | ""        | ""
+    }
+
+    def "interface method conversion"() {
+        given:
+        createClass("""
+            package dummy
+            interface Dummy$generics {
+                $signature
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.contains(adjustSignature(signature, params))
+
+        where:
+        signature                                   | params    | generics
+        "void method()"                             | ""        | ""
+        "void method(String aString)"               | "aString" | ""
+        "void method(T aParam)"                     | "aParam"  | "<T>"
+        "void method() throws Exception"            | ""        | ""
+    }
+
+    @IgnoreIf({ GroovySystem.version.startsWith("2.") })
+    def "interface method conversion G3"() {
+        given:
+        createClass("""
+            package dummy
+            interface Dummy {
+                default String method() {}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource == '''package dummy;
+
+import groovy.transform.Trait;
+import java.lang.String;
+
+@Trait
+public interface Dummy {
+  default String method() {
+  }
+}
+'''
+    }
+
+    def "method conversion with param annotation"() {
+        given:
+        createClass("""
+            package dummy
+
+            import dummyanno.*
+            import java.lang.annotation.* 
+
+            abstract class Dummy$generics {
+                $signature {}
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generatedSource.contains(signature)
+
+        where:
+        signature                                                  | generics
+        "void method(@WithPrimitives(intValue = 5) String param0)" | ""
+    }
+
+    def "private methods are ignored"() {
+        given:
+        createClass("""
+            package dummy
+
+            import groovy.transform.PackageScope
+            abstract class Dummy {
+                private void privateMethod() {}
+                protected void protectedMethod() {}
+                @PackageScope void packageMethod() {}
+                void publicMethod() {}
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        !generatedSource.contains("privateMethod()")
+        generatedSource.contains("protected void protectedMethod()")
+        generatedSource.contains("void packageMethod()")
+        generatedSource.contains("public void publicMethod()")
+    }
+
+    def "method conversion with annotations"() {
+        given:
+        createClass("""
+            package dummy
+            
+            import dummyanno.*
+            import java.lang.annotation.* 
+
+            abstract class Dummy {
+                $anno void method() {}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(annoStringToRegexp(anno + " public void method"))
+
+        where:
+        anno << [ // Groovy has problems with byte, char, double, short literals as anno members
+                  "@WithPrimitives",
+                  "@WithPrimitives(intValue = 1)",
+                  "@WithPrimitives(booleanValue = true)",
+                  "@WithPrimitives(floatValue = 1.0f)",
+                  "@WithPrimitives(longValue = 1L)",
+                  '@WithPrimitives(stringValue = "bla")',
+                  '@WithPrimitives(intArray = [1, 2])',
+                  '@WithPrimitives(classValue = ArrayList.class)',
+                  "@WithPrimitives(intValue = 1, booleanValue = true)",
+                  "@WithEnum(RetentionPolicy.RUNTIME)",
+                  "@Nested(primitiveValue = @WithPrimitives)",
+                  "@Nested(primitiveValue = @WithPrimitives(intValue = 1))",
+                  "@Nested(primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
+                  "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME))",
+                  "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1))",
+                  "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
+                  "@Nested(primitivesArray = [@WithPrimitives(intValue = 1), @WithPrimitives(intValue = 2)])",
+        ]
+    }
+
+    @Requires({ GroovySystem.version.startsWith("5.") })
+    def "method conversion with annotations G5"() {
+        // TODO: Move special cases to java tests
+        given:
+        createClass("""
+            package dummy
+            
+            import dummyanno.*
+
+            abstract class Dummy {
+                $anno void method() {}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(annoStringToRegexp(anno + " public void method"))
+
+        where:
+        anno << [ // Groovy has problems with byte, char, double, short
+                  "@WithPrimitives(byteValue = 1 as byte)",
+                  "@WithPrimitives(charValue = 'a')",
+                  "@WithPrimitives(doubleValue = 1.0)",
+                  "@WithPrimitives(shortValue = 1)",
+        ]
+    }
+
+    String annoStringToRegexp(String anno) {
+        anno.replace("(", "\\s*\\(\\s*")
+                .replace(")", "\\s*\\)\\s*")
+                .replace(",", "\\s*,\\s*")
+                .replace(" ", "\\s*")
+                .replace("[", "\\{")
+                .replace("]", "\\}")
+                .replace("\\s*\\s*", "\\s*")
+    }
+
+
+    def "field conversion"() {
+        given:
+        createClass("""
+            package dummy
+            import dummyanno.*
+
+            class Dummy$generics {
+                $signature
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.find(annoStringToRegexp(signature))
+
+        where:
+        signature                                        | generics
+        "public int field"                               | ""
+        "public Object field"                            | ""
+        "public T field"                                 | "<T>"
+        "@WithPrimitives public int field"               | ""
+        "@WithPrimitives(intValue = 5) public int field" | ""
+    }
+
+    def "method conversion with generic exceptions"() {
+        given:
+        createClass("""
+            package dummy
+            abstract class Dummy<T extends Exception> {
+                void method() throws T {}
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then: "Groovy erases the generic type of the exception"
+        generatedSource.contains("void method() throws Exception")
+    }
+
+    private String adjustSignature(String signature, String params) {
+        if (!GroovySystem.version.startsWith("2."))
+            return signature
+
+        // replace parameter names with param0, param1, ...
+        params.tokenize(",").eachWithIndex { param, index ->
+            signature = signature.replaceFirst(param, "param$index")
+        }
+
+        signature.replaceAll("Dummy", "TestClass")
+    }
+
 
     def "basic test with generated documentation"() {
         given:
@@ -96,14 +534,39 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
         then:
         generated.packageName == "dummy"
-        generated.imports == ["groovy.lang.GroovyObject", "java.lang.String"]
-        generated.text == "public class TestClass implements GroovyObject"
+        generated.imports == ["java.lang.String"]
+        generated.text == "public class TestClass"
         generated.javaDoc == "This is a test class"
         generated.innerBlocks.size() == 4
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()").javaDoc == "This is a method"
         generated.getBlock("public String getField()")
-        generated.getBlock("public void setField(String arg0)")
+        generated.getBlock("public void setField(String param0)") || generated.getBlock("public void setField(String value)")
+    }
+
+    def "bug: handling of extension to InnerClasses"() {
+        given:
+        createClass '''
+            package parent
+            
+            class Owner {
+                static class Inner {}
+                interface InnerInterface {}
+            }
+'''
+        createClass("""
+            package dummy
+     
+            import parent.Owner
+     
+            class TestClass extends Owner.Inner implements Owner.InnerInterface {}                        
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.contains("public class TestClass extends Owner.Inner implements Owner.InnerInterface")
     }
 
     @IgnoreIf({ GroovySystem.version.startsWith("2.") })
@@ -138,136 +601,10 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
         """)
 
         when:
-        generateSource()
+        generateSourceText()
 
         then:
-        generatedSource == '''package dummy;
-
-import groovy.lang.GroovyObject;
-import groovy.lang.MetaClass;
-import groovy.transform.Generated;
-import groovy.transform.Internal;
-import java.beans.Transient;
-import java.lang.String;
-
-public class TestClass implements GroovyObject {
-  @Generated
-  public TestClass() {
-  }
-
-  public void method() {
-  }
-
-  protected void protectedMethod() {
-  }
-
-  @Generated
-  @Internal
-  @Transient
-  public MetaClass getMetaClass() {
-  }
-
-  @Generated
-  @Internal
-  public void setMetaClass(MetaClass arg0) {
-  }
-
-  @Generated
-  public String getField() {
-  }
-
-  @Generated
-  public void setField(String arg0) {
-  }
-
-  protected static class InnerClass implements GroovyObject {
-    @Generated
-    public InnerClass() {
-    }
-
-    public void innerMethod() {
-    }
-
-    @Generated
-    @Internal
-    @Transient
-    public MetaClass getMetaClass() {
-    }
-
-    @Generated
-    @Internal
-    public void setMetaClass(MetaClass arg0) {
-    }
-  }
-}
-'''
-    }
-
-    @IgnoreIf({ !GroovySystem.version.startsWith("2.") })
-    def "bug: visibility is off groovy 2"() {
-        given:
-        createClass("""
-            package dummy
-     
-            import com.blackbuild.annodocimal.annotations.AnnoDoc
-            
-            class TestClass {
-                String field
-                
-                void method() {
-                    println "Hello"
-                }
-                
-                private void privateMethod() {
-                    println "Hello"
-                }
-                
-                protected void protectedMethod() {
-                    println "Hello"
-                }
-                
-                protected static class InnerClass {
-                    void innerMethod() {
-                        println "Hello"
-                    }
-                }
-            }
-        """)
-
-        when:
-        generateSource()
-
-        then:
-        generatedSource == '''package dummy;
-
-import groovy.lang.GroovyObject;
-import java.lang.String;
-
-public class TestClass implements GroovyObject {
-  public TestClass() {
-  }
-
-  public void method() {
-  }
-
-  protected void protectedMethod() {
-  }
-
-  public String getField() {
-  }
-
-  public void setField(String arg0) {
-  }
-
-  public static class InnerClass implements GroovyObject {
-    public InnerClass() {
-    }
-
-    public void innerMethod() {
-    }
-  }
-}
-'''
+        generatedSource.contains("protected static class InnerClass")
     }
 
     def "basic test with generated documentation and bad params"() {
@@ -291,6 +628,25 @@ public class TestClass implements GroovyObject {
 
         then:
         generated.getBlock("public void method()").javaDoc == "This is a method"
+    }
+
+    def "basic test with generics"() {
+        given:
+        createClass("""
+            package dummy
+     
+            class TestClass<T extends Number> {
+                void method(T age) {
+                    println "Hello " + age
+                }
+            }
+        """)
+
+        when:
+        generateSource()
+
+        then:
+        generated.getBlock("public void method(T age)") || generated.getBlock("public void method(T param0)")
     }
 
     def "basic test with generated documentation and custom annotations"() {
@@ -333,14 +689,14 @@ import java.lang.annotation.RetentionPolicy
 
         then:
         generated.packageName == "dummy"
-        generated.imports == ["bummy.MyAnnotation", "groovy.lang.GroovyObject", "java.lang.String"]
-        generated.text == "public class TestClass implements GroovyObject"
+        generated.imports == ["bummy.MyAnnotation", "java.lang.String"]
+        generated.text == "public class TestClass"
         generated.javaDoc == "This is a test class"
         generated.innerBlocks.size() == 4
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()").javaDoc == "This is a method"
         generated.getBlock("public String getField()")
-        generated.getBlock("public void setField(String arg0)")
+        generated.getBlock("public void setField(String param0)") || generated.getBlock("public void setField(String value)")
     }
 
     def "basic annotation conversion"() {
@@ -406,7 +762,7 @@ import java.lang.annotation.Target
         then:
         noExceptionThrown()
         generatedSource.contains('''@MyAnnotation(
-    charValue = '\u0000',
+    charValue = '\\u0000',
     intValue = 1,
     name = "Test",
     floatValue = 3.0f,
@@ -449,15 +805,15 @@ import java.lang.annotation.Target
 
         then:
         generated.packageName == "dummy"
-        generated.imports == ["groovy.lang.GroovyObject"]
-        generated.text == "public class TestClass implements GroovyObject"
+        !generated.imports
+        generated.text == "public class TestClass"
         generated.innerBlocks.size() == 3
         generated.getBlock("public TestClass()")
         generated.getBlock("public void method()")
 
 
         when:
-        def innerClass = generated.getBlock("public static class InnerClass implements GroovyObject")
+        def innerClass = generated.getBlock("public static class InnerClass")
 
         then:
         innerClass.innerBlocks.size() == 2
@@ -472,7 +828,7 @@ import java.lang.annotation.Target
 
     void generateSourceText() {
         StringBuilder builder = new StringBuilder()
-        AnnoDocGenerator.generate(new File(outputDirectory, Utility.packageToPath(clazz.getName()) + ".class"), builder)
+        AnnoDocGenerator.generate(new File(outputDirectory, clazz.getName().replace('.', '/') + ".class"), builder)
         generatedSource = builder.toString()
     }
 }

@@ -21,23 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.generator;
+package dummy;
 
-import java.io.File;
-import java.io.IOException;
-
-public class AnnoDocGenerator {
-
-    private AnnoDocGenerator() {
-        // static only
-    }
-
-    public static void generate(File classFile, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(output);
-    }
-
-    public static void generate(File classFile, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(targetFolder);
-    }
-
+public interface GenericsHolder<T> {
 }

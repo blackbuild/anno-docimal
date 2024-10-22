@@ -9,12 +9,11 @@ repositories {
 }
 
 dependencies {
-    compileOnly "org.codehaus.groovy:groovy-all:2.4.21"
+    compileOnly "org.codehaus.groovy:groovy-all:3.0.21"
     compileOnly files('%%anno.docimal.ast.jar%%')
     implementation files('%%anno.docimal.annotations.jar%%')
 }
 
-afterEvaluate {
-    def ccs = tasks.getByName("createClassStubs")
-    ccs.inputs
+tasks.withType(GroovyCompile).configureEach {
+    groovyOptions.parameters = true
 }
