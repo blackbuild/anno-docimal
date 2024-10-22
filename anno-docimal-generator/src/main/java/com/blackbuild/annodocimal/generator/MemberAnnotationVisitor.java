@@ -32,14 +32,10 @@ import org.objectweb.asm.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.lang.Character.isISOControl;
-import static java.util.stream.Collectors.toList;
 
 public class MemberAnnotationVisitor {
 
@@ -65,7 +61,7 @@ public class MemberAnnotationVisitor {
         }
 
         private static ClassName toClassName(Type type) {
-            return ClassName.bestGuess(type.getClassName());
+            return TypeConversion.fromInternalNameToClassName(type.getInternalName());
         }
 
         @Override
@@ -208,9 +204,9 @@ public class MemberAnnotationVisitor {
     public static class Javadoc extends AnnotationVisitor {
 
         private final Object target;
-        private String javadocText;
+        protected String javadocText;
 
-        private Javadoc(Object target) {
+        Javadoc(Object target) {
             super(CompilerConfiguration.ASM_API_VERSION);
             this.target = target;
         }
@@ -225,7 +221,7 @@ public class MemberAnnotationVisitor {
         public void visitEnd() {
             if (javadocText == null) return;
             if (target instanceof MethodSpec.Builder) {
-                ((MethodSpec.Builder) target).addJavadoc(filterParams(javadocText));
+                ((MethodSpec.Builder) target).addJavadoc(javadocText);
             } else if (target instanceof FieldSpec.Builder) {
                 ((FieldSpec.Builder) target).addJavadoc(javadocText);
             } else if (target instanceof TypeSpec.Builder) {
@@ -233,29 +229,6 @@ public class MemberAnnotationVisitor {
             }
         }
 
-        private static final Pattern PARAM_PATTERN = Pattern.compile("(?m)^\\s*@param\\s+(\\w+)\\s*");
-
-        private String filterParams(String stringValue) {
-            MethodSpec.Builder methodSpec = ((MethodSpec.Builder) target);
-            if (methodSpec.parameters.isEmpty() && !stringValue.contains("@param"))
-                return stringValue;
-
-            List<String> argumentNames = methodSpec.parameters.stream().map(p -> p.name).collect(toList());
-
-            Set<String> names = PARAM_PATTERN.matcher(stringValue)
-                    .results()
-                    .map(match -> match.group(1))
-                    .collect(Collectors.toSet());
-
-            argumentNames.forEach(names::remove);
-
-            if (names.isEmpty())
-                // all params point to actual arguments
-                return stringValue;
-
-            Pattern badParams = Pattern.compile("(?sm)^\\s*@param\\s+(" + String.join("|", names) + ").*?(?=(^@\\w+|$))");
-            return badParams.matcher(stringValue).replaceAll("");
-        }
 
     }
 }

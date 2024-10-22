@@ -64,7 +64,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public void visitClassType(final String name) {
-        baseName = JavaPoetClassVisitor.fromInternalName(name);
+        baseName = name;
     }
 
     @Override
@@ -98,7 +98,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public void visitEnd() {
-        ClassName baseType = ClassName.bestGuess(baseName);
+        ClassName baseType = TypeConversion.fromInternalNameToClassName(baseName);
         if (arguments.isEmpty()) {
             finished(baseType);
         } else {

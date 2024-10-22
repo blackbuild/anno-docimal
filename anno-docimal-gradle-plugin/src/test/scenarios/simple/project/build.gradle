@@ -13,8 +13,3 @@ dependencies {
     compileOnly files('%%anno.docimal.ast.jar%%')
     implementation files('%%anno.docimal.annotations.jar%%')
 }
-
-afterEvaluate {
-    def ccs = tasks.getByName("createClassStubs")
-    ccs.inputs
-}

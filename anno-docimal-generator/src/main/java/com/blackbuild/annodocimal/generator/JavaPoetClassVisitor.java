@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.generator;
 
+import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.squareup.javapoet.*;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.objectweb.asm.*;
@@ -32,6 +33,10 @@ import org.objectweb.asm.signature.SignatureVisitor;
 import javax.lang.model.element.Modifier;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Pattern;
+
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 public class JavaPoetClassVisitor extends ClassVisitor {
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
@@ -54,11 +59,11 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             ClassSignatureParser.parseClassSignature(signature, typeBuilder, kind);
         } else {
             if (kind == TypeSpec.Kind.CLASS)
-                typeBuilder.superclass(ClassName.bestGuess(fromInternalName(superName)));
+                typeBuilder.superclass(TypeConversion.fromInternalNameToClassName(superName));
             for (String interf : interfaceNames) {
                 if (interf.equals("groovy/lang/GroovyObject")) continue;
                 if (kind == TypeSpec.Kind.ANNOTATION && interf.equals("java/lang/annotation/Annotation")) continue;
-                typeBuilder.addSuperinterface(ClassName.bestGuess(fromInternalName(interf)));
+                typeBuilder.addSuperinterface(TypeConversion.fromInternalNameToClassName(interf));
             }
         }
         packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
@@ -70,13 +75,13 @@ public class JavaPoetClassVisitor extends ClassVisitor {
     }
 
     private void prepareTypeBuilder(int access, String name) {
-        className = fromInternalNameToClassName(name);
+        className = TypeConversion.fromInternalNameToClassName(name);
         kind = toJavaPoetKind(access);
         if (kind == TypeSpec.Kind.ENUM)
             access &= ~Opcodes.ACC_FINAL;
         if (kind == TypeSpec.Kind.ANNOTATION || kind == TypeSpec.Kind.INTERFACE)
             access &= ~Opcodes.ACC_ABSTRACT;
-        typeBuilder = createTypeBuilder(className, kind).addModifiers(decodeModifiers(access));
+        typeBuilder = createTypeBuilder(className, kind).addModifiers(TypeConversion.decodeModifiers(access));
     }
 
     private static TypeSpec.Kind toJavaPoetKind(int access) {
@@ -126,10 +131,10 @@ public class JavaPoetClassVisitor extends ClassVisitor {
          *     public final static INNERCLASS org/foo/Groovy8632$Builder org/foo/Groovy8632 Builder
          *     public static abstract INNERCLASS org/foo/Groovy8632Abstract$Builder org/foo/Groovy8632Abstract Builder
          */
-        if (innerName == null) return; // anonymous inner class
+        if (innerName == null || outerName == null) return; // anonymous inner class
         if (name.replace('/', '.').equals(className.reflectionName())) {
             typeBuilder.modifiers.clear();
-            typeBuilder.addModifiers(decodeModifiers(access));
+            typeBuilder.addModifiers(TypeConversion.decodeModifiers(access));
             return;
         }
 
@@ -160,7 +165,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
     public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
         if (shouldIgnoreMethod(access, name)) return null;
 
-        final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(name).addModifiers(decodeModifiers(access));
+        final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(name).addModifiers(TypeConversion.decodeModifiers(access));
 
         if (kind == TypeSpec.Kind.INTERFACE && (access & Opcodes.ACC_ABSTRACT) == 0 && (access & Opcodes.ACC_STATIC) == 0) {
             methodBuilder.addModifiers(Modifier.DEFAULT);
@@ -211,18 +216,20 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                     .forEach(methodBuilder::addTypeVariable);
         } else {
             if (!name.equals("<init>")) {
-                methodBuilder.returns(toTypeName(methodType.getReturnType()));
+                methodBuilder.returns(TypeConversion.toTypeName(methodType.getReturnType()));
             }
             for (Type argumentType: argumentTypes) {
-                parameterTypes.add(toTypeName(argumentType));
+                parameterTypes.add(TypeConversion.toTypeName(argumentType));
             }
             if (exceptions != null)
                 for (String exception : exceptions) {
-                    methodBuilder.addException(ClassName.bestGuess(fromInternalName(exception)));
+                    methodBuilder.addException(TypeConversion.fromInternalNameToClassName(exception));
                 }
         }
 
         return new MethodVisitor(api) {
+            String extractedJavadoc = null;
+
             @Override
             public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
                 Type annotationType = Type.getType(desc);
@@ -231,7 +238,15 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                     methodBuilder.addModifiers(Modifier.DEFAULT);
                     return null;
                 }
-                return MemberAnnotationVisitor.create(annotationType, methodBuilder);
+                if (annotationType.getClassName().equals(AnnoDoc.class.getName())) {
+                    return new MemberAnnotationVisitor.Javadoc(null) {
+                        @Override
+                        public void visitEnd() {
+                            extractedJavadoc = javadocText;
+                        }
+                    };
+                }
+                return new MemberAnnotationVisitor.Regular(annotationType, methodBuilder);
             }
 
             @Override
@@ -270,8 +285,41 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                             parameterBuilder.addAnnotation(annotation);
                     methodBuilder.addParameter(parameterBuilder.build());
                 }
+
+                if (extractedJavadoc != null) {
+                    methodBuilder.addJavadoc(filterParams(extractedJavadoc));
+                }
+
                 typeBuilder.addMethod(methodBuilder.build());
             }
+
+            private final Pattern PARAM_PATTERN = Pattern.compile("(?m)^\\s*@param\\s+(\\w+)\\s*");
+
+            private String filterParams(String rawJavadoc) {
+                if (methodBuilder.parameters.isEmpty() && !rawJavadoc.contains("@param"))
+                    return rawJavadoc;
+
+                if (parameterTypes.size() > argumentNames.size())
+                    // method has more parameters than arguments or we have missing parameters option in compiler (or Groovy 2.4)
+                    return rawJavadoc;
+
+                List<String> argumentNames = methodBuilder.parameters.stream().map(p -> p.name).collect(toList());
+
+                Set<String> names = PARAM_PATTERN.matcher(rawJavadoc)
+                        .results()
+                        .map(match -> match.group(1))
+                        .collect(toSet());
+
+                argumentNames.forEach(names::remove);
+
+                if (names.isEmpty())
+                    // all params point to actual arguments
+                    return rawJavadoc;
+
+                Pattern badParams = Pattern.compile("(?sm)^\\s*@param\\s+(" + String.join("|", names) + ").*?(?=(^@\\w+|$))");
+                return badParams.matcher(rawJavadoc).replaceAll("");
+            }
+
         };
     }
 
@@ -318,7 +366,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             };
             new SignatureReader(signature).accept(signatureParser);
         } else {
-            fieldType[0] = toTypeName(Type.getType(desc));
+            fieldType[0] = TypeConversion.toTypeName(Type.getType(desc));
         }
 
         if ((access & Opcodes.ACC_ENUM) != 0) {
@@ -337,7 +385,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             };
         } else {
             return new FieldVisitor(api) {
-                private FieldSpec.Builder field = FieldSpec.builder(fieldType[0], name, decodeModifiers(access));
+                private FieldSpec.Builder field = FieldSpec.builder(fieldType[0], name, TypeConversion.decodeModifiers(access));
 
                 @Override
                 public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
@@ -364,74 +412,12 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         return false;
     }
 
-    static String fromInternalName(String name) {
-        return name.replace('/', '.');
-    }
-
-    static ClassName fromInternalNameToClassName(String name) {
-        String packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
-        String className = name.substring(name.lastIndexOf('/') + 1);
-
-        if (!className.contains("$")) {
-            return ClassName.get(packageName, className);
-        }
-
-        String outerClassName = className.substring(0, className.lastIndexOf('$'));
-        String nestedClassName = className.substring(className.lastIndexOf('$') + 1);
-
-        return ClassName.get(packageName, outerClassName, nestedClassName.split("\\$"));
-    }
-
-    static Modifier[] decodeModifiers(int flags) {
-        EnumSet<Modifier> result = EnumSet.noneOf(Modifier.class);
-
-        if ((flags & Opcodes.ACC_PUBLIC) != 0) result.add(Modifier.PUBLIC);
-        if ((flags & Opcodes.ACC_PRIVATE) != 0) result.add(Modifier.PRIVATE);
-        if ((flags & Opcodes.ACC_PROTECTED) != 0) result.add(Modifier.PROTECTED);
-        if ((flags & Opcodes.ACC_STATIC) != 0) result.add(Modifier.STATIC);
-        if ((flags & Opcodes.ACC_FINAL) != 0) result.add(Modifier.FINAL);
-        if ((flags & Opcodes.ACC_ABSTRACT) != 0) result.add(Modifier.ABSTRACT);
-
-        return result.toArray(new Modifier[0]);
-    }
-
     public TypeSpec getType() {
         return Objects.requireNonNull(type);
     }
 
     public String getPackageName() {
         return packageName;
-    }
-
-    private static TypeName toTypeName(Type type) {
-        switch (type.getSort()) {
-            case Type.OBJECT:
-                return ClassName.bestGuess(type.getClassName());
-            case Type.ARRAY:
-                return ArrayTypeName.of(toTypeName(type.getElementType()));
-            case Type.METHOD:
-                throw new IllegalArgumentException("Method type not supported");
-            case Type.VOID:
-                return TypeName.VOID;
-            case Type.BOOLEAN:
-                return TypeName.BOOLEAN;
-            case Type.BYTE:
-                return TypeName.BYTE;
-            case Type.CHAR:
-                return TypeName.CHAR;
-            case Type.DOUBLE:
-                return TypeName.DOUBLE;
-            case Type.FLOAT:
-                return TypeName.FLOAT;
-            case Type.INT:
-                return TypeName.INT;
-            case Type.LONG:
-                return TypeName.LONG;
-            case Type.SHORT:
-                return TypeName.SHORT;
-            default:
-                throw new IllegalArgumentException("Unknown type: " + type);
-        }
     }
 
 }

@@ -57,6 +57,4 @@ public class SpecConverter {
         JavaPoetClassVisitor outerType = new SpecConverter(classFile.getParentFile()).readClass(classFile.getName().replace(".class", ""));
         return JavaFile.builder(outerType.getPackageName(), outerType.getType()).build();
     }
-
-
 }

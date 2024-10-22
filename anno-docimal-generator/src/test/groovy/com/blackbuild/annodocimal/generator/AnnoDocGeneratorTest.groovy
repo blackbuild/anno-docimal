@@ -544,6 +544,31 @@ public interface Dummy {
         generated.getBlock("public void setField(String param0)") || generated.getBlock("public void setField(String value)")
     }
 
+    def "bug: handling of extension to InnerClasses"() {
+        given:
+        createClass '''
+            package parent
+            
+            class Owner {
+                static class Inner {}
+                interface InnerInterface {}
+            }
+'''
+        createClass("""
+            package dummy
+     
+            import parent.Owner
+     
+            class TestClass extends Owner.Inner implements Owner.InnerInterface {}                        
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.contains("public class TestClass extends Owner.Inner implements Owner.InnerInterface")
+    }
+
     @IgnoreIf({ GroovySystem.version.startsWith("2.") })
     def "bug: visibility is off"() {
         given:
