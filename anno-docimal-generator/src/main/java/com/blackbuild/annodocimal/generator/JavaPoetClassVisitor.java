@@ -39,7 +39,6 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 public class JavaPoetClassVisitor extends ClassVisitor {
-    private static final String[] EMPTY_STRING_ARRAY = new String[0];
     private final SpecConverter specConverter;
     private TypeSpec.Builder typeBuilder;
     private TypeSpec type;
