@@ -10,7 +10,8 @@ class Test {
 
     @AnnoDoc("""Method with param
 
-@param input The input""")
+@param input The input
+@return The input in lower case""")
     String methodWithParam(String input) {
         return input.toLowerCase()
     }

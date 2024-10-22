@@ -300,7 +300,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                     return rawJavadoc;
 
                 if (parameterTypes.size() > argumentNames.size())
-                    // method has more parameters than arguments or we have missing parameters option in compiler (or Groovy 2.4)
+                    // method has more parameters than arguments, or we have missing 'parameters' option in compiler (or Groovy 2.4)
                     return rawJavadoc;
 
                 List<String> argumentNames = methodBuilder.parameters.stream().map(p -> p.name).collect(toList());
