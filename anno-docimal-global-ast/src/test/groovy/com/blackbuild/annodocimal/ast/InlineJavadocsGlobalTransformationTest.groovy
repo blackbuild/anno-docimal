@@ -49,8 +49,6 @@ class InlineJavadocsGlobalTransformationTest extends AbstractGlobalAstTest {
         createClass "dummy/TestClass.groovy", '''
 package dummy
 
-import com.blackbuild.annodocimal.annotations.InlineJavadocs
-
 /**
  * This is a test class
  */
