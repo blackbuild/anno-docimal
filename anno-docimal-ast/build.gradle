@@ -11,3 +11,11 @@ dependencies {
     testFixturesAnnotationProcessor project(":anno-docimal-apt")
     sharedTests testFixtures(project)
 }
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from(components.java)
+        }
+    }
+}

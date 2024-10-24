@@ -1,8 +1,7 @@
 plugins {
     id "annodocimal-base.conventions"
+    id 'maven-publish'
 }
-
-description "Annotations for AnnoDocimal"
 
 publishing {
     publications {
