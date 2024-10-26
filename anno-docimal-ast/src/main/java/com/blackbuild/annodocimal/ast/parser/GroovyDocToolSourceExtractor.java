@@ -56,15 +56,10 @@ public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
         if (compileUnit == null || compileUnit.getModules().isEmpty())
             return EmptySourceExtractor.INSTANCE;
 
-        // since CompileUnit has no Metatdata Groovy 2, we improvise
-        // Modules should be complete by this stage, so we use the metadata of the
-        // first module in the list
-        Object existingExtractor = compileUnit.getModules().get(0).getNodeMetaData(INSTANCE_METADATA_NAME);
+        SourceExtractor existingExtractor = GroovyVersionHandler.getCompileUnitMetadata(compileUnit, INSTANCE_METADATA_NAME, SourceExtractor.class);
 
-        if (existingExtractor instanceof SourceExtractor)
-            return (SourceExtractor) existingExtractor;
         if (existingExtractor != null)
-            throw new IllegalStateException("Unexpected metadata type: " + existingExtractor.getClass().getName());
+            return existingExtractor;
 
         List<SourceUnitHolder> files = compileUnit.getModules().stream()
                 .map(SourceUnitHolder::createSourceUnitHolder)
@@ -82,7 +77,7 @@ public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
 
         GroovyDocToolSourceExtractor result = new GroovyDocToolSourceExtractor(docTool.getRootDoc());
 
-        compileUnit.getModules().get(0).setNodeMetaData(INSTANCE_METADATA_NAME, result);
+        GroovyVersionHandler.setCompileUnitMetadata(compileUnit, INSTANCE_METADATA_NAME, result);
         return result;
     }
 

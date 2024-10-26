@@ -23,8 +23,8 @@
  */
 package com.blackbuild.annodocimal.ast.parser;
 
-import groovy.lang.GroovySystem;
 import org.codehaus.groovy.control.SourceUnit;
+import org.codehaus.groovy.control.messages.WarningMessage;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -39,7 +39,22 @@ public class SourceExtractorFactory {
     }
 
     public SourceExtractor createSourceExtractor(SourceUnit sourceUnit) {
-        if (GroovySystem.getVersion().startsWith("2.")) {
+        if (GroovyVersionHandler.isLegacyGroovy()) {
+            try {
+                return GroovyDocToolSourceExtractor.create(sourceUnit);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        if (!sourceUnit.getConfiguration().getParameters())
+            sourceUnit.getErrorCollector().addWarning(WarningMessage.LIKELY_ERRORS, "'parameters' compiler option is not set. " +
+                    "This is required for AnnoDocimal to work correctly. " +
+                    "Please add 'parameters = true' to your compiler options.", sourceUnit.getCST(), sourceUnit);
+
+        if (!sourceUnit.getConfiguration().getOptimizationOptions().containsKey("groovydoc")) {
+            sourceUnit.getErrorCollector().addWarning(WarningMessage.LIKELY_ERRORS, "'groovydoc' optimization option is not set. " +
+                    "Falling back to deprecated legacy (Groovy 2) extractor", sourceUnit.getCST(), sourceUnit);
             try {
                 return GroovyDocToolSourceExtractor.create(sourceUnit);
             } catch (IOException e) {
@@ -49,9 +64,8 @@ public class SourceExtractorFactory {
 
         // use reflection since we are compatible to Groovy2
         // FIXME #2
-        Class<?> aClass = null;
         try {
-            aClass = this.getClass().getClassLoader().loadClass(G3_EXTRACTOR_CLASS_NAME);
+            Class<?> aClass = this.getClass().getClassLoader().loadClass(G3_EXTRACTOR_CLASS_NAME);
             return (SourceExtractor) aClass.getDeclaredMethod("getInstance").invoke(null);
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException(e);
