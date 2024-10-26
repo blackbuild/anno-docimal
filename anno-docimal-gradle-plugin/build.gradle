@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
     id "annodocimal-base.conventions"
     id "annodocimal-jacoco.conventions"
@@ -10,6 +12,13 @@ description "AnnoDocimal Stub Generator Gradle Plugin"
 
 gradlePlugin {
     plugins {
+        annoDocimalBasePlugin {
+            id = 'com.blackbuild.annodocimal.base-plugin'
+            displayName = 'AnnoDocimal Base Plugin'
+            description = 'Create Javadocs for generated code'
+            implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalBasePlugin'
+            tags.addAll 'testing', 'groovy', 'cps', 'jenkins'
+        }
         annoDocimalPlugin {
             id = 'com.blackbuild.annodocimal.plugin'
             displayName = 'AnnoDocimal Plugin'
@@ -40,7 +49,7 @@ test {
     }
 }
 
-tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+tasks.named('shadowJar', ShadowJar) {
     enableRelocation true
     archiveClassifier.set('')
 }

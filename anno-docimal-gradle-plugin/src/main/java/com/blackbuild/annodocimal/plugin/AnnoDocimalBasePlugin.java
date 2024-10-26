@@ -25,21 +25,26 @@ package com.blackbuild.annodocimal.plugin;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.tasks.compile.GroovyCompile;
-import org.gradle.api.tasks.compile.JavaCompile;
+import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.tasks.GroovySourceDirectorySet;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.javadoc.Javadoc;
 
-public class AnnoDocimalPlugin implements Plugin<Project> {
+public class AnnoDocimalBasePlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
-        project.getPluginManager().apply(AnnoDocimalBasePlugin.class);
-        // TODO: only usable with Groovy 3+
-        project.getTasks().withType(GroovyCompile.class).configureEach(task -> {
-            task.getGroovyOptions().getOptimizationOptions().put("groovydoc", true);
-            task.getGroovyOptions().setParameters(true);
+        TaskProvider<CreateClassStubs> provider = project.getTasks().register("createClassStubs", CreateClassStubs.class, task -> {
+            SourceSet mainSourceSet = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+            task.classes(mainSourceSet.getExtensions().getByType(GroovySourceDirectorySet.class).getClassesDirectory());
+            task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("generated/sources/annodocimal/main"));
         });
 
-        project.getTasks().withType(JavaCompile.class).configureEach(task ->
-                task.getOptions().getCompilerArgs().add("-parameters")
-        );
+        project.getTasks().named("javadoc", task -> {
+            task.dependsOn(provider);
+            ((Javadoc) task).setSource(provider.flatMap(CreateClassStubs::getOutputDirectory));
+        });
+
+
     }
 }
