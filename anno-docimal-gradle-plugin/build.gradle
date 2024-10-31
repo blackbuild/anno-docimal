@@ -1,11 +1,8 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
     id "annodocimal-base.conventions"
     id "annodocimal-jacoco.conventions"
     id 'com.gradle.plugin-publish'
     id 'java-gradle-plugin'
-    id 'com.gradleup.shadow' version '8.3.3'
 }
 
 description "AnnoDocimal Stub Generator Gradle Plugin"
@@ -47,11 +44,6 @@ test {
         systemProperty("anno.docimal.ast.jars", project(":anno-docimal-ast").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
         systemProperty("anno.docimal.annotations.jar", project(":anno-docimal-annotations").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
     }
-}
-
-tasks.named('shadowJar', ShadowJar) {
-    enableRelocation true
-    archiveClassifier.set('')
 }
 
 publishing {
