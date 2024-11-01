@@ -23,7 +23,6 @@
  */
 package com.blackbuild.annodocimal.generator;
 
-import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.squareup.javapoet.*;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.objectweb.asm.*;
@@ -39,6 +38,7 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 public class JavaPoetClassVisitor extends ClassVisitor {
+    static final String ANNO_DOC_CLASS = "com.blackbuild.annodocimal.annotations.AnnoDoc";
     private final SpecConverter specConverter;
     private TypeSpec.Builder typeBuilder;
     private TypeSpec type;
@@ -237,7 +237,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                     methodBuilder.addModifiers(Modifier.DEFAULT);
                     return null;
                 }
-                if (annotationType.getClassName().equals(AnnoDoc.class.getName())) {
+                if (annotationType.getClassName().equals(ANNO_DOC_CLASS)) {
                     return new MemberAnnotationVisitor.Javadoc(null) {
                         @Override
                         public void visitEnd() {

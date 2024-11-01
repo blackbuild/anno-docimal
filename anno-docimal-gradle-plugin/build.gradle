@@ -3,6 +3,7 @@ plugins {
     id "annodocimal-jacoco.conventions"
     id 'com.gradle.plugin-publish'
     id 'java-gradle-plugin'
+    id 'com.gradleup.shadow' version '8.3.4'
 }
 
 description "AnnoDocimal Stub Generator Gradle Plugin"
@@ -31,8 +32,11 @@ gradlePlugin {
 }
 
 dependencies {
+    shadow localGroovy()
+    shadow gradleApi()
+
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
-    api project(':anno-docimal-generator')
+    api project(path: ':anno-docimal-generator', configuration: "shadow")
     testImplementation libs.spock.g3
 }
 
@@ -44,6 +48,10 @@ test {
         systemProperty("anno.docimal.ast.jars", project(":anno-docimal-ast").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
         systemProperty("anno.docimal.annotations.jar", project(":anno-docimal-annotations").tasks.getByName("jar").archiveFile.getAsFile().get().absolutePath)
     }
+}
+
+tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    archiveClassifier.set('')
 }
 
 publishing {

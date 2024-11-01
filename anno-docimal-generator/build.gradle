@@ -1,20 +1,21 @@
 plugins {
     id "annodocimal-multigroovy.conventions"
-    id 'com.gradleup.shadow' version '8.3.3'
+    id 'com.gradleup.shadow' version '8.3.4'
 }
 
 description "compileOnly part of AnnoDocimal"
 
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
-    api project(':anno-docimal-annotations')
-    api "com.squareup:javapoet:1.13.0"
-    api "org.ow2.asm:asm-tree:9.7"
+    implementation "com.squareup:javapoet:1.13.0"
+    implementation "org.ow2.asm:asm-tree:9.7"
     sharedTests "com.google.testing.compile:compile-testing:0.21.0"
+    sharedTests project(':anno-docimal-annotations')
+    sharedTests "com.squareup:javapoet:1.13.0"
 }
 
 tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-    relocate 'com.square.javapoet', 'shadow.javapoet'
+    relocate 'com.squareup.javapoet', 'shadow.javapoet'
     relocate 'org.objectweb.asm', 'shadow.asm'
 }
 
