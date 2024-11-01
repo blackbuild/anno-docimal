@@ -15,14 +15,14 @@ gradlePlugin {
             displayName = 'AnnoDocimal Base Plugin'
             description = 'Create Javadocs for generated code'
             implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalBasePlugin'
-            tags.addAll 'testing', 'groovy', 'cps', 'jenkins'
+            tags.addAll 'groovy', 'ast', 'javadoc'
         }
         annoDocimalPlugin {
             id = 'com.blackbuild.annodocimal.plugin'
             displayName = 'AnnoDocimal Plugin'
             description = 'Create Javadocs for generated code'
             implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalPlugin'
-            tags.addAll 'testing', 'groovy', 'cps', 'jenkins'
+            tags.addAll 'groovy', 'ast', 'javadoc'
         }
     }
 
