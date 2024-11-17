@@ -25,21 +25,43 @@ package com.blackbuild.annodocimal.plugin;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.ResolvedDependency;
 import org.gradle.api.tasks.compile.GroovyCompile;
+import org.gradle.api.tasks.compile.GroovyCompileOptions;
 import org.gradle.api.tasks.compile.JavaCompile;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class AnnoDocimalPlugin implements Plugin<Project> {
+
     @Override
     public void apply(Project project) {
         project.getPluginManager().apply(AnnoDocimalBasePlugin.class);
-        // TODO: only usable with Groovy 3+
-        project.getTasks().withType(GroovyCompile.class).configureEach(task -> {
-            task.getGroovyOptions().getOptimizationOptions().put("groovydoc", true);
-            task.getGroovyOptions().setParameters(true);
-        });
+
+        project.getTasks().withType(GroovyCompile.class, task ->
+                task.doFirst(t ->
+                        project.getConfigurations().getByName("compileClasspath", conf -> {
+                            if (conf.getResolvedConfiguration().getFirstLevelModuleDependencies().stream().noneMatch(AnnoDocimalPlugin::isGroovy24Dependency)) {
+                                GroovyCompileOptions groovyOptions = task.getGroovyOptions();
+                                Map<String, Boolean> optimizationOptions = groovyOptions.getOptimizationOptions();
+                                if (optimizationOptions == null) {
+                                    optimizationOptions = new HashMap<>();
+                                    groovyOptions.setOptimizationOptions(optimizationOptions);
+                                }
+                                optimizationOptions.put("groovydoc", true);
+                                groovyOptions.setParameters(true);
+                            }
+                        })
+                )
+        );
 
         project.getTasks().withType(JavaCompile.class).configureEach(task ->
                 task.getOptions().getCompilerArgs().add("-parameters")
         );
+    }
+
+    private static boolean isGroovy24Dependency(ResolvedDependency dep) {
+        return dep.getModuleGroup().equals("org.codehaus.groovy") && dep.getModuleVersion().startsWith("2.4.");
     }
 }
