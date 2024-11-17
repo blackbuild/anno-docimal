@@ -23,8 +23,7 @@
  */
 package com.blackbuild.annodocimal.plugin;
 
-import org.gradle.api.Plugin;
-import org.gradle.api.Project;
+import org.gradle.api.*;
 import org.gradle.api.artifacts.ResolvedDependency;
 import org.gradle.api.tasks.compile.GroovyCompile;
 import org.gradle.api.tasks.compile.GroovyCompileOptions;
@@ -35,25 +34,15 @@ import java.util.Map;
 
 public class AnnoDocimalPlugin implements Plugin<Project> {
 
+    private Project project;
+
     @Override
     public void apply(Project project) {
+        this.project = project;
         project.getPluginManager().apply(AnnoDocimalBasePlugin.class);
 
-        project.getTasks().withType(GroovyCompile.class, task ->
-                task.doFirst(t ->
-                        project.getConfigurations().getByName("compileClasspath", conf -> {
-                            if (conf.getResolvedConfiguration().getFirstLevelModuleDependencies().stream().noneMatch(AnnoDocimalPlugin::isGroovy24Dependency)) {
-                                GroovyCompileOptions groovyOptions = task.getGroovyOptions();
-                                Map<String, Boolean> optimizationOptions = groovyOptions.getOptimizationOptions();
-                                if (optimizationOptions == null) {
-                                    optimizationOptions = new HashMap<>();
-                                    groovyOptions.setOptimizationOptions(optimizationOptions);
-                                }
-                                optimizationOptions.put("groovydoc", true);
-                                groovyOptions.setParameters(true);
-                            }
-                        })
-                )
+        project.getTasks().withType(GroovyCompile.class).configureEach(task ->
+                task.doFirst(new SetGroovyCompilerOptions())
         );
 
         project.getTasks().withType(JavaCompile.class).configureEach(task ->
@@ -63,5 +52,25 @@ public class AnnoDocimalPlugin implements Plugin<Project> {
 
     private static boolean isGroovy24Dependency(ResolvedDependency dep) {
         return dep.getModuleGroup().equals("org.codehaus.groovy") && dep.getModuleVersion().startsWith("2.4.");
+    }
+
+    @NonNullApi
+    private class SetGroovyCompilerOptions implements Action<Task> {
+
+        @Override
+        public void execute(Task task) {
+            project.getConfigurations().getByName("compileClasspath", conf -> {
+                if (conf.getResolvedConfiguration().getFirstLevelModuleDependencies().stream().noneMatch(AnnoDocimalPlugin::isGroovy24Dependency)) {
+                    GroovyCompileOptions groovyOptions = ((GroovyCompile) task).getGroovyOptions();
+                    Map<String, Boolean> optimizationOptions = groovyOptions.getOptimizationOptions();
+                    if (optimizationOptions == null) {
+                        optimizationOptions = new HashMap<>();
+                        groovyOptions.setOptimizationOptions(optimizationOptions);
+                    }
+                    optimizationOptions.put("groovydoc", true);
+                    groovyOptions.setParameters(true);
+                }
+            });
+        }
     }
 }
