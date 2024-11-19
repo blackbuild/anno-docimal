@@ -27,6 +27,7 @@ package com.blackbuild.annodocimal.generator
 
 
 import spock.lang.IgnoreIf
+import spock.lang.Issue
 import spock.lang.Requires
 import spock.lang.Unroll
 
@@ -111,6 +112,27 @@ class AnnoDocGeneratorTest extends ClassGeneratingTest {
 
         then:
         generatedSource ==~ ~/package dummy;\s*public enum MyEnum \{\s*A,\s*B,\s*C\s*}\s*/
+    }
+
+    @Issue("31")
+    def "inner enum final modifier"() {
+        given:
+        createClass("""
+            package dummy
+            
+            class MyClass {
+                enum MyEnum {
+                    A, B, C
+                }
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource.contains('public enum MyEnum')
+        !generatedSource.contains('public final enum MyEnum')
     }
 
     def "basic enum conversion with implements and generics"() {

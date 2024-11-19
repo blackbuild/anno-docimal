@@ -133,6 +133,12 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         if (innerName == null || outerName == null) return; // anonymous inner class
         if (name.replace('/', '.').equals(className.reflectionName())) {
             typeBuilder.modifiers.clear();
+            kind = toJavaPoetKind(access);
+            if (kind == TypeSpec.Kind.ENUM)
+                access &= ~Opcodes.ACC_FINAL;
+            if (kind == TypeSpec.Kind.ANNOTATION || kind == TypeSpec.Kind.INTERFACE)
+                access &= ~Opcodes.ACC_ABSTRACT;
+
             typeBuilder.addModifiers(TypeConversion.decodeModifiers(access));
             return;
         }
