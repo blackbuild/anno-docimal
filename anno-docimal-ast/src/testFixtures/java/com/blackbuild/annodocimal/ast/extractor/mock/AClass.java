@@ -62,6 +62,18 @@ public class AClass {
     public String field = "field";
 
     /**
+     * A private field.
+     */
+    private String privateField = "private field";
+
+    /**
+     * A private deprecated field.
+     * @deprecated Do something else instead.
+     */
+    @Deprecated
+    private String privateDeprecatedField = "private field";
+
+    /**
      * A field with a longer comment.
      * This comment is longer than the comment of the field above.
      * @template bla blub
