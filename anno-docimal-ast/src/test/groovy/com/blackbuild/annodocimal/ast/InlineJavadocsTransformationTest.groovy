@@ -211,6 +211,7 @@ class TestClass {
 }
 '''
         then:
+        clazz.getDeclaredField("name").getAnnotation(AnnoDoc) != null
         clazz.getDeclaredField("privateField").getAnnotation(AnnoDoc) != null
         clazz.getDeclaredField("protectedField").getAnnotation(AnnoDoc) != null
         clazz.getDeclaredField('$internalField').getAnnotation(AnnoDoc) == null

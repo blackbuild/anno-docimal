@@ -15,8 +15,8 @@ plugins {
     id "org.sonarqube"
 }
 ext {
-    groovyVersion = project.findProperty("groovyVersion") ?: 'v2'
-    if (!(groovyVersion in ['v2', 'v3', 'v4']))
+    groovyVersion = project.findProperty("groovyVersion") as String ?: 'v3'
+    if (!(groovyVersion in ['v3', 'v4', 'v5']))
         throw new GradleException("Unsupported Groovy version $groovyVersion")
 }
 

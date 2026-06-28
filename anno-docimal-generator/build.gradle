@@ -8,8 +8,8 @@ description "compileOnly part of AnnoDocimal"
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     implementation "com.squareup:javapoet:1.13.0"
-    implementation "org.ow2.asm:asm-tree:9.7"
-    sharedTests "com.google.testing.compile:compile-testing:0.21.0"
+    implementation "org.ow2.asm:asm-tree:9.10.1"
+    sharedTests "com.google.testing.compile:compile-testing:0.23.0"
     sharedTests project(':anno-docimal-annotations')
     sharedTests "com.squareup:javapoet:1.13.0"
 }

@@ -10,7 +10,7 @@ group rootProject.group
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
+        languageVersion = JavaLanguageVersion.of(17)
     }
     withJavadocJar()
     withSourcesJar()
@@ -18,6 +18,10 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << '-parameters'
+}
+tasks.withType(GroovyCompile).configureEach {
+    groovyOptions.optimizationOptions.groovydoc = true
+    groovyOptions.parameters = true
 }
 
 dependencies {

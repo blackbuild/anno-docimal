@@ -41,6 +41,8 @@ class ClassDocExtractorTest extends Specification {
         ClassDocExtractor.extractDocumentation(clazz.getDeclaredField("field"), "bla") == "A field."
         ClassDocExtractor.extractDocumentation(ClassHelper.make(AClass.InnerClass), "bla") == "An inner class."
         ClassDocExtractor.extractDocumentation(ClassHelper.make(AClass.InnerClass).getDeclaredMethod("innerMethod"), "bla") == "Another method that does nothing."
+        ClassDocExtractor.extractDocumentation(clazz.getDeclaredField("privateField"), "bla") == "A private field."
+        ClassDocExtractor.extractDocumentation(clazz.getDeclaredField("privateDeprecatedField"), "bla") == "A private deprecated field.\n@deprecated Do something else instead."
     }
 
 
