@@ -34,7 +34,9 @@ public class AClass {
     /**
      * Creates a new instance of {@link AClass}.
      */
-    public AClass() {}
+    public AClass() {
+        // only for comment
+    }
 
     /**
      * A method that does nothing.

@@ -31,6 +31,10 @@ import org.codehaus.groovy.ast.CompileUnit;
  */
 public class GroovyVersionHandler {
 
+    private GroovyVersionHandler() {
+        /* This utility class should not be instantiated */
+    }
+
     public static String getGroovyVersion() {
         return GroovySystem.getVersion();
     }

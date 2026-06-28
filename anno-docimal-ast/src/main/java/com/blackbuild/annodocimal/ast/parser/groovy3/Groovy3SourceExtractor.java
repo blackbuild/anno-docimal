@@ -31,21 +31,15 @@ import org.codehaus.groovy.ast.MethodNode;
 
 public class Groovy3SourceExtractor extends AbstractSourceExtractor {
 
-    private static final Groovy3SourceExtractor INSTANCE = new Groovy3SourceExtractor();
-
-    public static Groovy3SourceExtractor getInstance() {
-        return INSTANCE;
-    }
-
     @Override
     public String getJavaDoc(AnnotatedNode node) {
-        if (node instanceof FieldNode && ((FieldNode) node).getName().startsWith("$"))
+        if (node instanceof FieldNode fieldNode && fieldNode.getName().startsWith("$"))
             return null;
-        if (node instanceof MethodNode) {
-            if (((MethodNode) node).getName().startsWith("$")) return null;
-            if (((MethodNode) node).isPrivate()) return null;
+        if (node instanceof MethodNode methodNode) {
+            if (methodNode.getName().startsWith("$")) return null;
+            if (methodNode.isPrivate()) return null;
         }
-        if (node instanceof ClassNode && ((ClassNode) node).getName().startsWith("$"))
+        if (node instanceof ClassNode classNode && classNode.getName().startsWith("$"))
             return null;
 
         return reformat(node.getGroovydoc().getContent());

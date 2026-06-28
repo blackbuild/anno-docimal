@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.regex.Pattern;
 
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 public class JavaPoetClassVisitor extends ClassVisitor {
@@ -66,11 +65,6 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             }
         }
         packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
-    }
-
-    @Override
-    public void visitAttribute(Attribute attribute) {
-        super.visitAttribute(attribute);
     }
 
     private void prepareTypeBuilder(int access, String name) {
@@ -298,7 +292,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                 typeBuilder.addMethod(methodBuilder.build());
             }
 
-            private final Pattern PARAM_PATTERN = Pattern.compile("(?m)^\\s*@param\\s+(\\w+)\\s*");
+            private static final Pattern PARAM_PATTERN = Pattern.compile("(?m)^\\s*@param\\s+(\\w+)\\s*");
 
             private String filterParams(String rawJavadoc) {
                 if (methodBuilder.parameters.isEmpty() && !rawJavadoc.contains("@param"))
@@ -308,7 +302,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
                     // method has more parameters than arguments, or we have missing 'parameters' option in compiler (or Groovy 2.4)
                     return rawJavadoc;
 
-                List<String> argumentNames = methodBuilder.parameters.stream().map(p -> p.name).collect(toList());
+                List<String> argumentNames = methodBuilder.parameters.stream().map(p -> p.name).toList();
 
                 Set<String> names = PARAM_PATTERN.matcher(rawJavadoc)
                         .results()

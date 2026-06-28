@@ -185,6 +185,7 @@ public interface DocBuilder {
      * @param reason the reason for deprecation
      * @return this builder
      */
+    @SuppressWarnings({"java:S1123", "java:S1133"})
     DocBuilder deprecated(String reason);
 
     /**

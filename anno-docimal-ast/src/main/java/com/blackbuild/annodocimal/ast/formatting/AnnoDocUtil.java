@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
-import static java.util.stream.Collectors.toList;
 
 /**
  * Utility class for annotation docBuilder. Contains methods for creating, reading and parsing AnnoDoc annotations and
@@ -68,8 +67,8 @@ public class AnnoDocUtil {
      */
     public static void addDocumentation(@NotNull AnnotatedNode node, @NotNull DocBuilder docBuilder) {
         List<String> paramNames;
-        if (node instanceof MethodNode)
-            paramNames = Arrays.stream(((MethodNode) node).getParameters()).map(Parameter::getName).collect(toList());
+        if (node instanceof MethodNode methodNode)
+            paramNames = Arrays.stream(methodNode.getParameters()).map(Parameter::getName).toList();
         else
             paramNames = emptyList();
         addDocumentation(node, docBuilder.toJavadoc(paramNames));

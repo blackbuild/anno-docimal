@@ -34,8 +34,11 @@ import java.util.List;
 import java.util.Map;
 
 class ClassSignatureParser {
+     private ClassSignatureParser() {
+          /* This utility class should not be instantiated */
+     }
 
-     static void parseClassSignature(String signature, TypeSpec.Builder builder, TypeSpec.Kind kind) {
+    static void parseClassSignature(String signature, TypeSpec.Builder builder, TypeSpec.Kind kind) {
         final List<TypeName> interfaces = new ArrayList<>();
         FormalParameterParser v = new FormalParameterParser() {
 
