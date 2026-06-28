@@ -25,7 +25,6 @@
 //file:noinspection GrMethodMayBeStatic
 package com.blackbuild.annodocimal.generator
 
-
 import spock.lang.IgnoreIf
 import spock.lang.Issue
 import spock.lang.Requires
@@ -314,15 +313,15 @@ public @interface MyAnnotation {
         generatedSource.contains(adjustSignature(signature, params))
 
         where:
-        signature                                   | params    | generics
-        "void method()"                             | ""        | ""
-        "void method(String aString)"               | "aString" | ""
-        "void method(T aParam)"                     | "aParam"  | "<T>"
-        "void method() throws Exception"            | ""        | ""
+        signature                        | params    | generics
+        "void method()"                  | ""        | ""
+        "void method(String aString)"    | "aString" | ""
+        "void method(T aParam)"          | "aParam"  | "<T>"
+        "void method() throws Exception" | ""        | ""
     }
 
-    @IgnoreIf({ GroovySystem.version.startsWith("2.") })
-    def "interface method conversion G3"() {
+    @Requires({ GroovySystem.version ==~ /^[34]\..*$/ })
+    def "interface method conversion G3 and G4"() {
         given:
         createClass("""
             package dummy
@@ -341,6 +340,33 @@ import groovy.transform.Trait;
 import java.lang.String;
 
 @Trait
+public interface Dummy {
+  default String method() {
+  }
+}
+'''
+    }
+
+    @IgnoreIf({ GroovySystem.version ==~ /^[34]\..*$/ })
+    def "interface method conversion G5+"() {
+        given:
+        println "Groovy version: ${GroovySystem.version}"
+
+        createClass("""
+            package dummy
+            interface Dummy {
+                default String method() {}
+            }
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        generatedSource == '''package dummy;
+
+import java.lang.String;
+
 public interface Dummy {
   default String method() {
   }
@@ -396,6 +422,7 @@ public interface Dummy {
         generatedSource.contains("public void publicMethod()")
     }
 
+    @IgnoreIf({ GroovySystem.version ==~ /^4\..*$/ })
     def "method conversion with annotations"() {
         given:
         createClass("""
@@ -437,14 +464,14 @@ public interface Dummy {
         ]
     }
 
-    @Requires({ GroovySystem.version.startsWith("5.") })
-    def "method conversion with annotations G5"() {
-        // TODO: Move special cases to java tests
+    @Requires({ GroovySystem.version ==~ /^4\..*$/ })
+    def "method conversion with annotations G4: #description "() {
         given:
         createClass("""
             package dummy
             
             import dummyanno.*
+            import java.lang.annotation.* 
 
             abstract class Dummy {
                 $anno void method() {}
@@ -455,15 +482,31 @@ public interface Dummy {
         generateSourceText()
 
         then:
-        generatedSource.find(annoStringToRegexp(anno + " public void method"))
+        generatedSource.find(annoStringToRegexp(expectedOverride ?: anno + " public void method"))
 
         where:
-        anno << [ // Groovy has problems with byte, char, double, short
-                  "@WithPrimitives(byteValue = 1 as byte)",
-                  "@WithPrimitives(charValue = 'a')",
-                  "@WithPrimitives(doubleValue = 1.0)",
-                  "@WithPrimitives(shortValue = 1)",
-        ]
+        description                                      | anno                                                                                                                           || expectedOverride
+        "empty"                                          | "@WithPrimitives"                                                                                                              || null
+        "single int"                                     | "@WithPrimitives(intValue = 1)"                                                                                                || null
+        "single boolean"                                 | "@WithPrimitives(booleanValue = true)"                                                                                         || null
+        "single float"                                   | "@WithPrimitives(floatValue = 1.0f)"                                                                                           || null
+        "single long"                                    | "@WithPrimitives(longValue = 1L)"                                                                                              || null
+        "single string"                                  | '@WithPrimitives(stringValue = "bla")'                                                                                         || null
+        "single int array"                               | '@WithPrimitives(intArray = [1, 2])'                                                                                           || null
+        "single class"                                   | '@WithPrimitives(classValue = ArrayList.class)'                                                                                || null
+        "multiple values"                                | "@WithPrimitives(intValue = 1, booleanValue = true)"                                                                           || "@WithPrimitives(booleanValue = true, intValue = 1)"
+        "single enum"                                    | "@WithEnum(RetentionPolicy.RUNTIME)"                                                                                           || null
+        "nested primitive"                               | "@Nested(primitiveValue = @WithPrimitives)"                                                                                    || null
+        "nested primitive with value"                    | "@Nested(primitiveValue = @WithPrimitives(intValue = 1))"                                                                      || null
+        "nested primitive with multiple values"          | "@Nested(primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))"                                                 || "@Nested(primitiveValue = @WithPrimitives(booleanValue = true, intValue = 1))"
+        "nested enum"                                    | "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME))"                                                                      || null
+        "nested enum and primitive"                      | "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1))"                      || null
+        "nested enum and primitive with multiple values" | "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))" || "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(booleanValue = true, intValue = 1))"
+        "nested primitives array"                        | "@Nested(primitivesArray = [@WithPrimitives(intValue = 1), @WithPrimitives(intValue = 2)])"                                    || null
+        "single byte"                                    | "@WithPrimitives(byteValue = 1)"                                                                                               || null
+        "single char"                                    | "@WithPrimitives(charValue = 'a')"                                                                                             || null
+        "single double"                                  | "@WithPrimitives(doubleValue = 1.0)"                                                                                           || null
+        "single short"                                   | "@WithPrimitives(shortValue = 1)"                                                                                              || null
     }
 
     String annoStringToRegexp(String anno) {
@@ -591,7 +634,6 @@ public interface Dummy {
         generatedSource.contains("public class TestClass extends Owner.Inner implements Owner.InnerInterface")
     }
 
-    @IgnoreIf({ GroovySystem.version.startsWith("2.") })
     def "bug: visibility is off"() {
         given:
         createClass("""
@@ -721,7 +763,8 @@ import java.lang.annotation.RetentionPolicy
         generated.getBlock("public void setField(String param0)") || generated.getBlock("public void setField(String value)")
     }
 
-    def "basic annotation conversion"() {
+    @Requires({ GroovySystem.version ==~ /^3\..*$/ })
+    def "basic annotation conversion G3"() {
         given:
         parseClass '''
 package bummy
@@ -799,6 +842,172 @@ import java.lang.annotation.Target
     names = {"a", "b"},
     targets = {ElementType.FIELD, ElementType.METHOD},
     annos = {@Target({ElementType.FIELD}), @Target({ElementType.METHOD})}
+)''')
+    }
+
+    @Requires({ GroovySystem.version ==~ /^4\..*$/ })
+    // groovy 4 compiler sorts annotation members alphabetically, so the order is different
+    def "basic annotation conversion G4"() {
+        given:
+        println "Groovy version: ${GroovySystem.version}"
+        parseClass '''
+package bummy
+
+import java.lang.annotation.ElementType
+import java.lang.annotation.Retention
+import java.lang.annotation.RetentionPolicy
+import java.lang.annotation.Target
+
+@Retention(RetentionPolicy.RUNTIME)
+@interface MyAnnotation {
+    String name()
+    Class<?> type()
+    RetentionPolicy retention()
+    ElementType[] targets()
+    String[] names()
+    Target anno()
+    Target[] annos()
+    int intValue()
+    long longValue()
+    float floatValue()
+    double doubleValue()
+    char charValue()
+    boolean booleanValue()
+    byte byteValue()
+    short shortValue()
+}
+'''
+        // since there is no way to specify a literal short/char/byte in groovy, we use MAX/MIN_VALUE
+        createClass("""
+            package dummy
+
+import java.lang.annotation.ElementType
+import java.lang.annotation.RetentionPolicy
+import java.lang.annotation.Target
+            
+            @bummy.MyAnnotation(
+                name = "Test",
+                type = String.class,
+                retention = RetentionPolicy.RUNTIME,
+                targets = [ElementType.FIELD, ElementType.METHOD],
+                names = ["a", "b"],
+                anno = @Target(ElementType.FIELD),
+                annos = [@Target(ElementType.FIELD), @Target(ElementType.METHOD)],
+                intValue = 1,
+                longValue = 2L,
+                floatValue = 3.0f,
+                doubleValue = 4.0d,
+                charValue = Character.MIN_VALUE,
+                booleanValue = true,
+                byteValue = Byte.MAX_VALUE,
+                shortValue = Short.MAX_VALUE
+            )
+            class TestClass {}
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        noExceptionThrown()
+        generatedSource.contains('''@MyAnnotation(
+    booleanValue = true,
+    byteValue = 127,
+    charValue = '\\u0000',
+    doubleValue = 4.0,
+    floatValue = 3.0f,
+    intValue = 1,
+    longValue = 2L,
+    name = "Test",
+    shortValue = 32767,
+    type = String.class,
+    retention = RetentionPolicy.RUNTIME,
+    anno = @Target({ElementType.FIELD}),
+    annos = {@Target({ElementType.FIELD}), @Target({ElementType.METHOD})},
+    names = {"a", "b"},
+    targets = {ElementType.FIELD, ElementType.METHOD}
+)''')
+    }
+
+    @Requires({ GroovySystem.version ==~ /^5\..*$/ })
+    def "basic annotation conversion G5"() {
+        given:
+        parseClass '''
+package bummy
+
+import java.lang.annotation.ElementType
+import java.lang.annotation.Retention
+import java.lang.annotation.RetentionPolicy
+import java.lang.annotation.Target
+
+@Retention(RetentionPolicy.RUNTIME)
+@interface MyAnnotation {
+    String name()
+    Class<?> type()
+    RetentionPolicy retention()
+    ElementType[] targets()
+    String[] names()
+    Target anno()
+    Target[] annos()
+    int intValue()
+    long longValue()
+    float floatValue()
+    double doubleValue()
+    char charValue()
+    boolean booleanValue()
+    byte byteValue()
+    short shortValue()
+}
+'''
+        // since there is no way to specify a literal short/char/byte in groovy, we use MAX/MIN_VALUE
+        createClass("""
+            package dummy
+
+import java.lang.annotation.ElementType
+import java.lang.annotation.RetentionPolicy
+import java.lang.annotation.Target
+            
+            @bummy.MyAnnotation(
+                name = "Test",
+                type = String.class,
+                retention = RetentionPolicy.RUNTIME,
+                targets = [ElementType.FIELD, ElementType.METHOD],
+                names = ["a", "b"],
+                anno = @Target(ElementType.FIELD),
+                annos = [@Target(ElementType.FIELD), @Target(ElementType.METHOD)],
+                intValue = 1,
+                longValue = 2L,
+                floatValue = 3.0f,
+                doubleValue = 4.0d,
+                charValue = Character.MIN_VALUE,
+                booleanValue = true,
+                byteValue = Byte.MAX_VALUE,
+                shortValue = Short.MAX_VALUE
+            )
+            class TestClass {}
+        """)
+
+        when:
+        generateSourceText()
+
+        then:
+        noExceptionThrown()
+        generatedSource.contains('''@MyAnnotation(
+    name = "Test",
+    type = String.class,
+    retention = RetentionPolicy.RUNTIME,
+    targets = {ElementType.FIELD, ElementType.METHOD},
+    names = {"a", "b"},
+    anno = @Target({ElementType.FIELD}),
+    annos = {@Target({ElementType.FIELD}), @Target({ElementType.METHOD})},
+    intValue = 1,
+    longValue = 2L,
+    floatValue = 3.0f,
+    doubleValue = 4.0,
+    charValue = '\\u0000',
+    booleanValue = true,
+    byteValue = 127,
+    shortValue = 32767
 )''')
     }
 

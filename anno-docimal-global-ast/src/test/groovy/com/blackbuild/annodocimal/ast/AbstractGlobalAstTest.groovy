@@ -44,9 +44,10 @@ abstract class AbstractGlobalAstTest extends Specification {
         outputDirectory.deleteDir()
         outputDirectory.mkdirs()
         compilerConfiguration.targetDirectory = outputDirectory
+        compilerConfiguration.parameters = true
+        compilerConfiguration.optimizationOptions.groovydoc = Boolean.TRUE
         loader = new GroovyClassLoader(oldLoader, compilerConfiguration)
         Thread.currentThread().contextClassLoader = loader
-        compilerConfiguration.optimizationOptions.groovydoc = Boolean.TRUE
 
     }
 

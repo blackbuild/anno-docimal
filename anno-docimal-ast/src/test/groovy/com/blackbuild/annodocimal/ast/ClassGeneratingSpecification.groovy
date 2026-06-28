@@ -54,6 +54,7 @@ abstract class ClassGeneratingSpecification extends Specification {
         outputDirectory.deleteDir()
         outputDirectory.mkdirs()
         compilerConfiguration.targetDirectory = outputDirectory
+        compilerConfiguration.parameters = true
         loader = new GroovyClassLoader(oldLoader, compilerConfiguration)
         Thread.currentThread().contextClassLoader = loader
     }
