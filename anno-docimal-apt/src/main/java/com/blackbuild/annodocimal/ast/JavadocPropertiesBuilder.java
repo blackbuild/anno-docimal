@@ -78,15 +78,12 @@ public class JavadocPropertiesBuilder {
     }
 
     private String getElementKey(Element element) {
-        switch (element.getKind()) {
-            case METHOD:
-            case CONSTRUCTOR:
-                return "method." + element.getSimpleName() + "(" + getParameterKey((ExecutableElement) element) + ")";
-            case FIELD:
-                return "field." + element.getSimpleName();
-            default:
-                return null;
-        }
+        return switch (element.getKind()) {
+            case METHOD, CONSTRUCTOR ->
+                    "method." + element.getSimpleName() + "(" + getParameterKey((ExecutableElement) element) + ")";
+            case FIELD -> "field." + element.getSimpleName();
+            default -> null;
+        };
     }
 
     private String getParameterKey(ExecutableElement element) {
@@ -97,10 +94,10 @@ public class JavadocPropertiesBuilder {
 
     private static String variableToString(VariableElement variableElement) {
         TypeMirror type = variableElement.asType();
-        if (type instanceof DeclaredType) {
-            return ((DeclaredType) type).asElement().toString();
-        } else if (type instanceof TypeVariable) {
-            return ((TypeVariable) type).getUpperBound().toString();
+        if (type instanceof DeclaredType declaredType) {
+            return declaredType.asElement().toString();
+        } else if (type instanceof TypeVariable typeVariable) {
+            return typeVariable.getUpperBound().toString();
         }
         return type.toString();
     }

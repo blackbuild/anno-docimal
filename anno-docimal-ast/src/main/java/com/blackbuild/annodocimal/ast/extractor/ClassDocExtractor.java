@@ -27,6 +27,7 @@ import com.blackbuild.annodocimal.annotations.AnnoDoc;
 import com.blackbuild.annodocimal.annotations.InlineJavadocs;
 import org.codehaus.groovy.ast.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,21 +51,20 @@ public class ClassDocExtractor {
 
     public static String extractDocumentation(AnnotatedNode element, String defaultValue) {
         String result;
-        if (element instanceof ClassNode) {
-            result = extractDocumentationFromClass((ClassNode) element);
-        } else if (element instanceof MethodNode) {
-            result = extractDocumentationFromExecutable((MethodNode) element);
-        } else if (element instanceof FieldNode) {
-            result = extractDocumentationFromField((FieldNode) element);
+        if (element instanceof ClassNode classNode) {
+            result = extractDocumentationFromClass(classNode);
+        } else if (element instanceof MethodNode methodNode) {
+            result = extractDocumentationFromExecutable(methodNode);
+        } else if (element instanceof FieldNode fieldNode) {
+            result = extractDocumentationFromField(fieldNode);
         } else {
             return defaultValue;
         }
 
         return result == null ? defaultValue : result;
-
     }
 
-    private static String extractDocumentationFromExecutable(MethodNode method) {
+    private static @Nullable String extractDocumentationFromExecutable(MethodNode method) {
         Map<String, String> classDoc = getClassDoc(method.getDeclaringClass());
         if (classDoc == null) return null;
         String argType = Arrays.stream(method.getParameters())
@@ -78,20 +78,20 @@ public class ClassDocExtractor {
         return type.isArray() ? type.toString() : type.getName();
     }
 
-    private static String extractDocumentationFromField(FieldNode field) {
+    private static @Nullable String extractDocumentationFromField(FieldNode field) {
         Map<String, String> classDoc = getClassDoc(field.getOwner());
         if (classDoc == null) return null;
         return classDoc.get("field." + field.getName());
     }
 
-    private static String extractDocumentationFromClass(ClassNode element) {
+    private static @Nullable String extractDocumentationFromClass(ClassNode element) {
         Map<String, String> classDoc = getClassDoc(element);
         if (classDoc == null) return null;
         return classDoc.get("classDoc");
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static Map<String, String> getClassDoc(ClassNode element) {
+    private static @Nullable Map<String, String> getClassDoc(ClassNode element) {
         if (element == null) return null;
         if (!element.isResolved()) return null;
         Class<?> type = element.getTypeClass();

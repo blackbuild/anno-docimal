@@ -39,14 +39,14 @@ public class JavaDocUtil {
     }
 
     public static String toLinkString(AnnotatedNode node) {
-        if (node instanceof ClassNode)
-            return toName((ClassNode) node);
-        if (node instanceof FieldNode)
-            return toName(node.getDeclaringClass()) + "#" + ((FieldNode) node).getName();
-        if (node instanceof ConstructorNode)
-            return toName(node.getDeclaringClass()) + "(" + toParamString(((ConstructorNode) node).getParameters()) + ")";
-        if (node instanceof MethodNode)
-            return toName(node.getDeclaringClass()) + "#" + ((MethodNode) node).getName() + "(" + toParamString(((MethodNode) node).getParameters()) + ")";
+        if (node instanceof ClassNode classNode)
+            return toName(classNode);
+        if (node instanceof FieldNode fieldNode)
+            return toName(node.getDeclaringClass()) + "#" + fieldNode.getName();
+        if (node instanceof ConstructorNode constructorNode)
+            return toName(node.getDeclaringClass()) + "(" + toParamString(constructorNode.getParameters()) + ")";
+        if (node instanceof MethodNode methodNode)
+            return toName(node.getDeclaringClass()) + "#" + methodNode.getName() + "(" + toParamString(methodNode.getParameters()) + ")";
         throw new IllegalArgumentException("Unsupported node type: " + node.getClass().getName());
     }
 

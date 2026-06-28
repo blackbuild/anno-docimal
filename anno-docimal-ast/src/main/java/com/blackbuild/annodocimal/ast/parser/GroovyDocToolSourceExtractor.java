@@ -64,7 +64,7 @@ public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
         List<SourceUnitHolder> files = compileUnit.getModules().stream()
                 .map(SourceUnitHolder::createSourceUnitHolder)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
 
         if (files.isEmpty())
             return EmptySourceExtractor.INSTANCE;
@@ -72,7 +72,7 @@ public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
         String[] sourceRoots = files.stream().map(f -> f.rootPath).collect(Collectors.toSet()).toArray(new String[0]);
         GroovyDocTool docTool = new GroovyDocTool(sourceRoots);
 
-        List<String> sourceFiles = files.stream().map(f -> f.relativePath).collect(Collectors.toList());
+        List<String> sourceFiles = files.stream().map(f -> f.relativePath).toList();
         docTool.add(sourceFiles);
 
         GroovyDocToolSourceExtractor result = new GroovyDocToolSourceExtractor(docTool.getRootDoc());
@@ -93,10 +93,10 @@ public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
         public static SourceUnitHolder createSourceUnitHolder(ModuleNode module) {
             SourceUnit sourceUnit = module.getContext();
             ReaderSource readerSource = sourceUnit.getSource();
-            if (!(readerSource instanceof FileReaderSource)) {
+            if (!(readerSource instanceof FileReaderSource fileReaderSource)) {
                 return null;
             }
-            File sourceFile = ((FileReaderSource) readerSource).getFile();
+            File sourceFile = fileReaderSource.getFile();
             String packageName = sourceUnit.getAST().getPackageName();
             File sourceRoot = sourceFile.getParentFile();
 
@@ -112,12 +112,12 @@ public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
     public String getJavaDoc(AnnotatedNode node) {
         if (rootDoc == null)
             return null;
-        if (node instanceof ClassNode)
-            return reformat(getJavaDocForClass((ClassNode) node));
-        else if (node instanceof MethodNode)
-            return reformat(getJavaDocForMethod((MethodNode) node));
-        else if (node instanceof FieldNode)
-            return reformat(getJavaDocForField((FieldNode) node));
+        if (node instanceof ClassNode classNode)
+            return reformat(getJavaDocForClass(classNode));
+        else if (node instanceof MethodNode methodNode)
+            return reformat(getJavaDocForMethod(methodNode));
+        else if (node instanceof FieldNode fieldNode)
+            return reformat(getJavaDocForField(fieldNode));
         else
             throw new IllegalArgumentException("Unsupported node type: " + node.getClass().getName());
     }
@@ -141,9 +141,9 @@ public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
         GroovyClassDoc classDoc = getClassDoc(node.getDeclaringClass());
         if (classDoc == null)
             return null;
-        if (node instanceof ConstructorNode) {
+        if (node instanceof ConstructorNode constructorNode) {
             return Arrays.stream(classDoc.constructors())
-                    .filter(constructorDoc -> matches(node, constructorDoc))
+                    .filter(constructorDoc -> matches(constructorNode, constructorDoc))
                     .findFirst()
                     .map(GroovyDoc::getRawCommentText)
                     .orElse(null);
@@ -193,7 +193,7 @@ public class GroovyDocToolSourceExtractor extends AbstractSourceExtractor {
         String typeName = docType.qualifiedTypeName();
         if (docType instanceof ArrayClassDocWrapper)
             return typeName + "[]";
-        if (gdParameter instanceof SimpleGroovyParameter && ((SimpleGroovyParameter) gdParameter).vararg())
+        if (gdParameter instanceof SimpleGroovyParameter simpleGroovyParameter && simpleGroovyParameter.vararg())
             return typeName + "[]";
         int indexOfGenerics = typeName.indexOf('<');
         if (indexOfGenerics > 0)

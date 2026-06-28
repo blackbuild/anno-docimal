@@ -69,16 +69,16 @@ public class MemberAnnotationVisitor {
         }
 
         static CodeBlock toCodeBlock(Object value) {
-            if (value instanceof Type && ((Type) value).getSort() == Type.OBJECT)
-                return CodeBlock.of("$T.class", toClassName((Type) value));
-            else if (value instanceof String)
-                return CodeBlock.of("$S", value);
-            else if (value instanceof Float)
-                return CodeBlock.of("$Lf", value);
-            else if (value instanceof Long)
-                return CodeBlock.of("$LL", value);
-            else if (value instanceof Character)
-                return CodeBlock.of("'$L'", characterLiteralWithoutSingleQuotes((char) value));
+            if (value instanceof Type type && type.getSort() == Type.OBJECT)
+                return CodeBlock.of("$T.class", toClassName(type));
+            else if (value instanceof String string)
+                return CodeBlock.of("$S", string);
+            else if (value instanceof Float f)
+                return CodeBlock.of("$Lf", f);
+            else if (value instanceof Long l)
+                return CodeBlock.of("$LL", l);
+            else if (value instanceof Character c)
+                return CodeBlock.of("'$L'", characterLiteralWithoutSingleQuotes(c));
             else if (value.getClass().isArray())
                 return streamArray(value)
                         .map(Regular::toCodeBlock)
@@ -102,26 +102,17 @@ public class MemberAnnotationVisitor {
 
         static String characterLiteralWithoutSingleQuotes(char c) {
             // see https://docs.oracle.com/javase/specs/jls/se7/html/jls-3.html#jls-3.10.6
-            switch (c) {
-                case '\b':
-                    return "\\b"; /* \u0008: backspace (BS) */
-                case '\t':
-                    return "\\t"; /* \u0009: horizontal tab (HT) */
-                case '\n':
-                    return "\\n"; /* \u000a: linefeed (LF) */
-                case '\f':
-                    return "\\f"; /* \u000c: form feed (FF) */
-                case '\r':
-                    return "\\r"; /* \u000d: carriage return (CR) */
-                case '\"':
-                    return "\"";  /* \u0022: double quote (") */
-                case '\'':
-                    return "\\'"; /* \u0027: single quote (') */
-                case '\\':
-                    return "\\\\";  /* \u005c: backslash (\) */
-                default:
-                    return isISOControl(c) ? String.format("\\u%04x", (int) c) : Character.toString(c);
-            }
+            return switch (c) {
+                case '\b' -> "\\b"; /* \u0008: backspace (BS) */
+                case '\t' -> "\\t"; /* \u0009: horizontal tab (HT) */
+                case '\n' -> "\\n"; /* \u000a: linefeed (LF) */
+                case '\f' -> "\\f"; /* \u000c: form feed (FF) */
+                case '\r' -> "\\r"; /* \u000d: carriage return (CR) */
+                case '\"' -> "\"";  /* \u0022: double quote (") */
+                case '\'' -> "\\'"; /* \u0027: single quote (') */
+                case '\\' -> "\\\\";  /* \u005c: backslash (\) */
+                default -> isISOControl(c) ? String.format("\\u%04x", (int) c) : Character.toString(c);
+            };
         }
 
         @Override
@@ -151,14 +142,14 @@ public class MemberAnnotationVisitor {
 
         @Override
         public void visitEnd() {
-            if (target instanceof MethodSpec.Builder)
-                ((MethodSpec.Builder) target).addAnnotation(builder.build());
-            else if (target instanceof FieldSpec.Builder)
-                ((FieldSpec.Builder) target).addAnnotation(builder.build());
-            else if (target instanceof TypeSpec.Builder)
-                ((TypeSpec.Builder) target).addAnnotation(builder.build());
-            else if (target instanceof List)
-                ((List) target).add(builder.build());
+            if (target instanceof MethodSpec.Builder methodBuilder)
+                methodBuilder.addAnnotation(builder.build());
+            else if (target instanceof FieldSpec.Builder fieldBuilder)
+                fieldBuilder.addAnnotation(builder.build());
+            else if (target instanceof TypeSpec.Builder typeBuilder)
+                typeBuilder.addAnnotation(builder.build());
+            else if (target instanceof List list)
+                list.add(builder.build());
         }
     }
 
@@ -219,12 +210,12 @@ public class MemberAnnotationVisitor {
         @Override
         public void visitEnd() {
             if (javadocText == null) return;
-            if (target instanceof MethodSpec.Builder) {
-                ((MethodSpec.Builder) target).addJavadoc(javadocText);
-            } else if (target instanceof FieldSpec.Builder) {
-                ((FieldSpec.Builder) target).addJavadoc(javadocText);
-            } else if (target instanceof TypeSpec.Builder) {
-                ((TypeSpec.Builder) target).addJavadoc(javadocText);
+            if (target instanceof MethodSpec.Builder methodBuilder) {
+                methodBuilder.addJavadoc(javadocText);
+            } else if (target instanceof FieldSpec.Builder fieldBuilder) {
+                fieldBuilder.addJavadoc(javadocText);
+            } else if (target instanceof TypeSpec.Builder typeBuilder) {
+                typeBuilder.addJavadoc(javadocText);
             }
         }
 

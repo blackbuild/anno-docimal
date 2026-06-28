@@ -82,8 +82,8 @@ public class AnnoDocimalAnnotationProcessor extends AbstractProcessor {
         }
 
         for (Element enclosed : type.getEnclosedElements()) {
-            if (enclosed instanceof TypeElement)
-                generateJavadocForClass((TypeElement) enclosed);
+            if (enclosed instanceof TypeElement typeElement)
+                generateJavadocForClass(typeElement);
         }
     }
 
@@ -110,8 +110,8 @@ public class AnnoDocimalAnnotationProcessor extends AbstractProcessor {
     }
 
     private static PackageElement getPackageElement(Element element) {
-        if (element instanceof PackageElement) {
-            return (PackageElement) element;
+        if (element instanceof PackageElement packageElement) {
+            return packageElement;
         }
         return getPackageElement(element.getEnclosingElement());
     }

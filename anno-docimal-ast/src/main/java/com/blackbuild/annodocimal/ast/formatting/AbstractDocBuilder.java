@@ -24,7 +24,6 @@
 package com.blackbuild.annodocimal.ast.formatting;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class AbstractDocBuilder implements DocBuilder {
@@ -85,7 +84,7 @@ public abstract class AbstractDocBuilder implements DocBuilder {
                 .map(String::strip)
                 .flatMap(AbstractDocBuilder::fixParagraph)
                 .filter(AbstractDocBuilder::isNotBlank)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private static Stream<String> fixParagraph(String block) {

@@ -29,7 +29,6 @@ import org.codehaus.groovy.ast.MethodNode;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -78,7 +77,7 @@ public class InheritanceUtil {
      * @return the full hierarchy of the class node
      */
     public static List<ClassNode> getClassHierarchy(ClassNode node) {
-        return getHierarchyStream(node).collect(Collectors.toList());
+        return getHierarchyStream(node).toList();
     }
 
     /**
