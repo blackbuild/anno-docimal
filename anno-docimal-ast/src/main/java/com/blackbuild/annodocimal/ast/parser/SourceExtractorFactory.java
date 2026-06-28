@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.ast.parser;
 
 import com.blackbuild.annodocimal.ast.parser.groovy3.Groovy3SourceExtractor;
 import org.codehaus.groovy.control.SourceUnit;
+import org.codehaus.groovy.control.messages.WarningMessage;
 
 @SuppressWarnings("java:S6548")
 public class SourceExtractorFactory {
@@ -37,13 +38,13 @@ public class SourceExtractorFactory {
 
     public SourceExtractor createSourceExtractor(SourceUnit sourceUnit) {
         if (!sourceUnit.getConfiguration().getParameters())
-            sourceUnit.getErrorCollector().addErrorAndContinue("'parameters' compiler option is not set. " +
+            sourceUnit.getErrorCollector().addWarning(WarningMessage.LIKELY_ERRORS, "'parameters' compiler option is not set. " +
                     "This is required for AnnoDocimal to work correctly. " +
-                    "Please add 'parameters = true' to your compiler options.", sourceUnit.getAST(), sourceUnit);
+                    "Please add 'parameters = true' to your compiler options.", sourceUnit.getCST(), sourceUnit);
 
         if (!sourceUnit.getConfiguration().getOptimizationOptions().containsKey("groovydoc")) {
-            sourceUnit.getErrorCollector().addErrorAndContinue("'groovydoc' optimization option is not set. " +
-                    "Please add 'groovydoc = true' to optimization options.", sourceUnit.getAST(), sourceUnit);
+            sourceUnit.getErrorCollector().addWarning(WarningMessage.LIKELY_ERRORS, "'groovydoc' optimization option is not set. " +
+                    "Please add 'groovydoc = true' to optimization options.", sourceUnit.getCST(), sourceUnit);
         }
 
         return new Groovy3SourceExtractor();
