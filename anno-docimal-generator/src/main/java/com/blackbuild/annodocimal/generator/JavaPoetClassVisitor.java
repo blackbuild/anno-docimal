@@ -141,6 +141,10 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             return;
         }
 
+        if (!outerName.equals(className.reflectionName().replace('.', '/'))) {
+            return;
+        }
+
         try {
             String simpleName = name.substring(name.lastIndexOf('/') + 1);
             JavaPoetClassVisitor innerReader = specConverter.readClass(simpleName);
