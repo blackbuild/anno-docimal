@@ -11,6 +11,9 @@
 
 - Make each commit one self-contained reasoning step rather than splitting mechanically by file or module.
 - Use a concise imperative subject that explains what the change achieves. Add a body when the reason is not evident.
+- Treat commit subjects and bodies as GitHub issue-linking input. Do not place a GitHub closing keyword before an issue
+  reference unless merging that commit is intended to close the issue automatically; negated wording can still trigger
+  GitHub's pattern matching. Use neutral issue references as described in `docs/agents/pull-requests.md`.
 - Keep a test with the production change that makes it pass. Do not commit a deliberately failing TDD step.
 - Run proportionate validation before each commit and keep required documentation consistent with the branch tip.
 
