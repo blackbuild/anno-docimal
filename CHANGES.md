@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-No user-visible product changes have been recorded for the next release yet.
+- Published Java-facing artifacts now declare stable automatic module names for JPMS consumers. The global-AST service
+  provider is packaged with its service descriptor, preserving classpath discovery while enabling module-path use. The
+  Gradle plugin remains build-tool-only and the annotation processor remains processor-path-oriented. See
+  [the module-path migration notes](docs/migration/0.x-to-1.0-module-path.md).
 
 ## Historical releases
 
