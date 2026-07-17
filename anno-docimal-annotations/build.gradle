@@ -4,6 +4,10 @@ plugins {
 
 description "Annotations for AnnoDocimal"
 
+tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
+    manifest.attributes('Automatic-Module-Name': 'com.blackbuild.annodocimal.annotations')
+}
+
 publishing {
     publications {
         mavenJava(MavenPublication) {

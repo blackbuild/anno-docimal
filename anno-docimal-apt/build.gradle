@@ -4,6 +4,10 @@ plugins {
 
 description "Annotation Processor for AnnoDocimal"
 
+tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
+    manifest.attributes('Automatic-Module-Name': 'com.blackbuild.annodocimal.apt')
+}
+
 dependencies {
     api project(':anno-docimal-annotations')
     compileOnly 'com.google.auto.service:auto-service-annotations:1.1.0'

@@ -21,37 +21,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.ast;
+package com.blackbuild.annodocimal.global.ast;
 
-import org.codehaus.groovy.GroovyBugError;
-import org.codehaus.groovy.ast.*;
+import com.blackbuild.annodocimal.ast.InlineJavadocsTransformation;
+import org.codehaus.groovy.ast.ASTNode;
 import org.codehaus.groovy.control.CompilePhase;
 import org.codehaus.groovy.control.SourceUnit;
-import org.codehaus.groovy.transform.AbstractASTTransformation;
+import org.codehaus.groovy.transform.ASTTransformation;
 import org.codehaus.groovy.transform.GroovyASTTransformation;
 
-import java.util.Arrays;
-
 /**
- * AST transformation that inlines Javadoc comments as annotations. This transformation
- * can operate either as local ast transformation but adding it to a given annotation
- * with <code>{@literal @}GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")</code>
- * or using the <code>{@literal @}InlineJavadocs</code> annotation,
- * or as global transformation by including the {@code anno-docimal-global-ast} artifact as a compile-time dependency.
+ * Global AST transformation provider that delegates documentation capture to the reusable local transformation.
+ *
+ * <p>This provider and its service declaration are packaged together so global transformation discovery works on both
+ * the class path and module path.</p>
  */
 @GroovyASTTransformation(phase = CompilePhase.SEMANTIC_ANALYSIS)
-public class InlineJavadocsTransformation extends AbstractASTTransformation {
+public class InlineJavadocsGlobalTransformation implements ASTTransformation {
+
+    private final InlineJavadocsTransformation delegate = new InlineJavadocsTransformation();
 
     @Override
     public void visit(ASTNode[] nodes, SourceUnit source) {
-        this.sourceUnit = source;
-        InlineJavadocsVisitor visitor = new InlineJavadocsVisitor(source);
-        if (nodes != null && nodes.length == 2 && nodes[0] instanceof AnnotationNode && nodes[1] instanceof AnnotatedNode) {
-            visitor.visitClass((ClassNode) nodes[1]);
-        } else if (nodes == null || nodes.length == 1 && nodes[0] instanceof ModuleNode) {
-            source.getAST().getClasses().forEach(visitor::visitClass);
-        } else {
-            throw new GroovyBugError("Internal error: expecting [AnnotationNode, AnnotatedNode] or [ModuleNode] but got: " + Arrays.asList(nodes));
-        }
+        delegate.visit(nodes, source);
     }
 }

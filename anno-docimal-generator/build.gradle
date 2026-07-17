@@ -5,6 +5,10 @@ plugins {
 
 description "compileOnly part of AnnoDocimal"
 
+tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
+    manifest.attributes('Automatic-Module-Name': 'com.blackbuild.annodocimal.generator')
+}
+
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     implementation "com.squareup:javapoet:1.13.0"

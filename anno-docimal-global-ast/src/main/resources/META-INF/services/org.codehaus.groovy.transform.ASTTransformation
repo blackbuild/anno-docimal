@@ -1,1 +1,1 @@
-com.blackbuild.annodocimal.ast.InlineJavadocsTransformation
+com.blackbuild.annodocimal.global.ast.InlineJavadocsGlobalTransformation
