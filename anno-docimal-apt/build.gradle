@@ -1,8 +1,14 @@
+import org.gradle.jvm.tasks.Jar
+
 plugins {
     id "annodocimal-multigroovy.conventions"
 }
 
 description "Annotation Processor for AnnoDocimal"
+
+tasks.withType(Jar).configureEach {
+    manifest.attributes('Automatic-Module-Name': 'com.blackbuild.annodocimal.apt')
+}
 
 dependencies {
     api project(':anno-docimal-annotations')

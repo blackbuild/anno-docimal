@@ -1,9 +1,15 @@
+import org.gradle.jvm.tasks.Jar
+
 plugins {
     id "annodocimal-multigroovy.conventions"
     id 'com.gradleup.shadow' version '8.3.4'
 }
 
-description "compileOnly part of AnnoDocimal"
+description "Source-projection generator for AnnoDocimal"
+
+tasks.withType(Jar).configureEach {
+    manifest.attributes('Automatic-Module-Name': 'com.blackbuild.annodocimal.generator')
+}
 
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")

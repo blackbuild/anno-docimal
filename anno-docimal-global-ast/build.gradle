@@ -1,8 +1,15 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.jvm.tasks.Jar
+
 plugins {
     id "annodocimal-multigroovy.conventions"
 }
 
-description "compileOnly part of AnnoDocimal"
+description "Global Groovy AST documentation capture for AnnoDocimal"
+
+tasks.withType(Jar).configureEach {
+    manifest.attributes('Automatic-Module-Name': 'com.blackbuild.annodocimal.global.ast')
+}
 
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
@@ -13,6 +20,24 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from(components.java)
+        }
+    }
+}
+
+def moduleArtifacts = [
+        annotations: project(':anno-docimal-annotations').tasks.named('jar').flatMap { it.archiveFile },
+        apt        : project(':anno-docimal-apt').tasks.named('jar').flatMap { it.archiveFile },
+        ast        : project(':anno-docimal-ast').tasks.named('jar').flatMap { it.archiveFile },
+        globalAst  : tasks.named('jar').flatMap { it.archiveFile },
+        generator  : project(':anno-docimal-generator').tasks.named('shadowJar').flatMap { it.archiveFile }
+]
+
+tasks.withType(Test).configureEach {
+    dependsOn(moduleArtifacts.values())
+    inputs.files(moduleArtifacts.values())
+    doFirst {
+        moduleArtifacts.each { name, archive ->
+            systemProperty("annodocimal.module.$name", archive.get().asFile.absolutePath)
         }
     }
 }

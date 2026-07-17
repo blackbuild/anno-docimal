@@ -1,9 +1,15 @@
+import org.gradle.jvm.tasks.Jar
+
 plugins {
     id "annodocimal-multigroovy.conventions"
     id 'java-test-fixtures'
 }
 
-description "compileOnly part of AnnoDocimal"
+description "Groovy AST documentation capture and helper APIs for AnnoDocimal"
+
+tasks.withType(Jar).configureEach {
+    manifest.attributes('Automatic-Module-Name': 'com.blackbuild.annodocimal.ast')
+}
 
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")

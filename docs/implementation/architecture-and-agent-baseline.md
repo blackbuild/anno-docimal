@@ -563,9 +563,10 @@ wiring currently belong to the consumer.
 - CI uses one Ubuntu/JDK 17 job and runs `build jacocoTestReport sonar`; the Gradle graph supplies compatibility lanes.
 - Six artifacts and two Gradle plugin markers are configured for publication through Maven Central/Plugin Portal tooling.
 - Most artifacts publish Gradle module metadata; the generator shadow publication does not.
-- Published Java-facing JARs have no explicit module descriptor or `Automatic-Module-Name`.
-- The global-AST JAR's service descriptor names a provider supplied by another artifact, preventing automatic module
-  derivation.
+- The five Java-facing module-path artifacts declare the stable automatic names confirmed for issue #36; the Gradle
+  plugin remains build-tool-only and outside JPMS, while the APT artifact remains processor-path-oriented.
+- The global-AST JAR packages its service descriptor with its provider adapter, which delegates to the reusable local
+  transformation in the AST artifact. Module-path and classpath discovery are exercised across Groovy 3, 4, and 5.
 
 ## Governance baseline established
 

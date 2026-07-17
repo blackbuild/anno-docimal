@@ -25,12 +25,31 @@ Anno-Docimal consists of the following modules:
 
 1. `anno-docimal-annotation` contains the `@AnnoDoc` annotation. Since we use retention `RUNTIME`, it must be present at runtime.
 2. `anno-docimal-ast` contains a groovy AST transformation that converts existing javadoc comments into `@AnnoDoc` annotations. It also contains helper code to simplify conversion and creation of JavaDoc annotations. This is necessary if the actual generator creates additional methods or inner classes. It only needs to be present at compile time, usually as a dependency of the generating library.
-3. `anno-docimal-global-ast` only consist of a global AST transformation descriptor pointing to `InlineJavadocsTransformation` and anno-docimal-ast as transitive dependency. It is meant to be included in the build process (compile-only).
+3. `anno-docimal-global-ast` contains the global AST transformation provider and its service descriptor, delegating to the reusable local transformation in `anno-docimal-ast`. It is meant to be included in the build process (compile-only).
 4. `anno-docimal-apt` contains an annotation processor that can be used to extract the javadoc from java source files. Since annotation processors cannot modify existing classes, it stores the javaodcs in a separate properties file, which is included in the jar file. These properties will also be consulted when trying to read or use the javadoc of a class or method object.
 5. `anno-docimal-generator` contains the main tool that reads the `@AnnoDoc` annotations and creates the stub files. It is meant to be included in the build process (and will eventually be packed as a gradle and/or maven plugin).
 6. `anno-docimal-gradle-plugin` consists of two gradle plugins that perform the following actions:
     - `com.blackbuild.annodocimal.base-plugin` creates a `createClassStubs` task that is configured to create doc stubs for all classes created from the main Groovy source set. It also remaps the existing `javadoc` task to use these stubs instead of the actual source files.
     - `com.blackbuild.annodocimal.plugin` is a convention plugin that applies the base plugin and configures all GroovyCompile tasks to include parameter names and javadoc comments in the AST. Both features are only available in Groovy 3.0 and later. The plugin activates parameter name inclusion in class files for all java compilations as well.
+
+## Java modules
+
+The Java-facing artifacts publish stable automatic module names. They can therefore be used on the module path without
+depending on a filename-derived name.
+
+| Artifact | Module name | Usage |
+|---|---|---|
+| `anno-docimal-annotations` | `com.blackbuild.annodocimal.annotations` | Runtime documentation carrier and capture marker |
+| `anno-docimal-apt` | `com.blackbuild.annodocimal.apt` | Annotation-processor path tooling; not an application-module dependency |
+| `anno-docimal-ast` | `com.blackbuild.annodocimal.ast` | Compile-time local Groovy AST transformation and helpers |
+| `anno-docimal-global-ast` | `com.blackbuild.annodocimal.global.ast` | Compile-time global Groovy AST provider |
+| `anno-docimal-generator` | `com.blackbuild.annodocimal.generator` | Source-projection tooling |
+| `anno-docimal-gradle-plugin` | — | Build-tool-only; intentionally outside JPMS |
+
+The AST artifacts remain compatible with one set of AnnoDocimal coordinates across Groovy 3, 4, and 5. This initial
+contract deliberately uses automatic modules rather than explicit descriptors, because the Groovy module name differs
+between the supported generations. See the [module-path migration notes](docs/migration/0.x-to-1.0-module-path.md) when
+upgrading an existing named consumer.
    
 # Usage
 
