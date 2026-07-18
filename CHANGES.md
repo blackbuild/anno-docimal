@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Stabilized the 1.0 transformation-authoring language around `Documentation` and `AstDocumentation`, including
+  first-class code blocks, deterministic normalization, one-pass named templates, canonical links, and exact
+  extraction/attachment. The accidental 0.x helper names are replaced; see the
+  [authoring migration guide](docs/migration/0.x-to-1.0-authoring-language.md).
+
 - Published Java-facing artifacts now declare stable automatic module names for JPMS consumers. The global-AST service
   provider is packaged with its service descriptor, preserving classpath discovery while enabling module-path use. The
   Gradle plugin remains build-tool-only and the annotation processor remains processor-path-oriented. See

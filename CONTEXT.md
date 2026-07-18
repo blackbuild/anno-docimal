@@ -63,9 +63,13 @@ the property model.
 _Avoid_: Getter documentation when the source declaration is a property
 
 **Documentation model**:
-The structured title, paragraphs, parameter descriptions, return description, exceptions, tags, and template values used
+The structured summary, ordered prose/code blocks, parameter descriptions, return description, exceptions, tags, and template values used
 to inspect or construct documentation.
 _Avoid_: Formatter API
+
+**Documentation summary**:
+The primary introductory description of a documentation model, before its ordered body blocks.
+_Avoid_: Documentation title
 
 **Source projection**:
 Java source reconstructed from compiled classes so standard source-oriented tools can observe generated APIs and their

@@ -109,7 +109,7 @@ class DummyTransformation extends AbstractASTTransformation {
                 ClassNode.EMPTY_ARRAY,
                 GeneralUtils.stmt { GeneralUtils.callThisX("println", GeneralUtils.constX("Hello World")) }
         )
-        AnnoDocUtil.addDocumentation(method, "Says hello world")
+        AstDocumentation.attachText(method, "Says hello world")
     }
 }
 ```
@@ -154,32 +154,13 @@ property files which can be used by the ast transformation.
 On scenario, where this might be useful is where a Groovy AST transformation is used to generate proxy methods to methods of
 an existing java class, while retaining the original javadoc (perhaps transformed).
 
-## Templating
+## Documentation authoring and templates
 
-AnnoDocimal supports templating for javadocs. This is especially useful when generating code with a lot of similar methods. The generated 
-documentation using a doc builder replaces placeholders with the actual values. Replacements are controlled by a map of
-template values as well as the list of parameters (in case of methods).
-
-Template values are added via explicit DocBuilder.template, templates or templatesFrom methods. The can also be added using 
-the special `@template` javadoc tag.
-
-Currently, we have three different replacements:
-
-### Simple value replacements
-
-Simple values come in the form of `{{key}}` or `{{key:default}}` and are replaced by the value of the key in the template values map.
-If the key is not present in the map, the default value or the key itself is used.
-
-### Conditional parameter replacements
-
-Conditional parameter replacements are used to replace a placeholder with a value depending on the presence of a parameter. 
-They come in the form of `{{param:key?if}}` or `{{param:key?if:else}}`. If the parameter is present, the if value is used, otherwise the else value or
-an empty string if no else value is present.
-
-### Conditional template replacements
-
-Basically the same as conditional parameter replacements, but the condition is based on the presence of a template value (which itself is ignored).
-They come in the form of `{{key?if}}` or `{{key?if:else}}`.
+Transformation authors use immutable `Documentation` values and `AstDocumentation` for exact extraction and attachment.
+The authoring language supports ordered prose and code blocks. A named placeholder is `{{key}}`; every value is an
+explicit `String`, required, inserted literally, and evaluated only once. `{{param:key?fragment}}` includes its fragment
+only if the generated method has the named parameter. See the [supported API](docs/api/1.0-supported-api.md) and
+[migration guide](docs/migration/0.x-to-1.0-authoring-language.md) for the full contract.
 
 ## Source Extractors
 
