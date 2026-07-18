@@ -269,7 +269,7 @@ public final class Documentation {
                 break;
             }
             result.append(input, position, opening);
-            int closing = input.indexOf("}}", opening + 2);
+            int closing = closingDelimiter(input, opening + 2);
             if (closing < 0) throw templateFailure(target, malformedKey(input.substring(opening + 2)), "missing closing delimiter");
             String expression = input.substring(opening + 2, closing);
             if (expression.startsWith("param:")) {
@@ -292,6 +292,21 @@ public final class Documentation {
 
     private static TemplateException templateFailure(String target, String key, String problem) {
         return new TemplateException("Template " + problem + " for key '" + key + "' while rendering " + target);
+    }
+
+    private static int closingDelimiter(String input, int start) {
+        int depth = 0;
+        for (int index = start; index < input.length() - 1; index++) {
+            if (input.startsWith("{{", index)) {
+                depth++;
+                index++;
+            } else if (input.startsWith("}}", index)) {
+                if (depth == 0) return index;
+                depth--;
+                index++;
+            }
+        }
+        return -1;
     }
 
     private static String malformedKey(String candidate) {

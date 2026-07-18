@@ -93,6 +93,7 @@ Code in your transformation library should use the methods provided by `AnnoDocU
 import org.codehaus.groovy.ast.*
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.transform.AbstractASTTransformation
+import com.blackbuild.annodocimal.ast.AstDocumentation
 import static org.codehaus.groovy.ast.tools.GeneralUtils.*
 
 class DummyTransformation extends AbstractASTTransformation {
@@ -114,7 +115,7 @@ class DummyTransformation extends AbstractASTTransformation {
 }
 ```
 
-This creates a new method node and adds the `@AnnoDoc` annotation to it. This
+This creates a new method node and attaches an `@AnnoDoc` carrier to it. This
 should be done for all generated public elements.
 
 ## Have the consumers of your transformation use the gradle plugin

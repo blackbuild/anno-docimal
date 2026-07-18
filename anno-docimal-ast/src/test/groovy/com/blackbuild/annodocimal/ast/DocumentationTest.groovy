@@ -62,6 +62,14 @@ class DocumentationTest extends Specification {
                 .render() == 'Use <code>{{literal}}</code>.'
     }
 
+    def "conditional parameter fragments are inserted literally"() {
+        expect:
+        Documentation.builder()
+                .summary('Use {{param:value?{{literal}}}}.')
+                .build()
+                .render(['value']) == 'Use {{literal}}.'
+    }
+
     def "reports missing template input with the target and key"() {
         when:
         Documentation.builder().summary('Missing {{value}}.').build().render()
