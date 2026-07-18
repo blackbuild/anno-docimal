@@ -54,6 +54,8 @@ class SupportedApiBaselineTest extends Specification {
     private static List<String> baselineSignatures() {
         SupportedApiBaselineTest.getResourceAsStream('/com/blackbuild/annodocimal/ast/1.0-authoring-api-baseline.txt')
                 .readLines()
+                .dropWhile { it != '# baseline' }
+                .drop(1)
                 .findAll { !it.isBlank() && !it.startsWith('#') }
                 .sort()
     }
