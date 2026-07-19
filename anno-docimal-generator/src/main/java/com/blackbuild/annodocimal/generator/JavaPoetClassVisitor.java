@@ -42,6 +42,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private final ProjectionPolicy policy;
     private final Set<String> includedClasses;
     private final boolean groovyClass;
+    private final Set<String> groovyRuntimeMethods;
+    private final Set<String> groovyRuntimeFields;
     private TypeSpec.Builder typeBuilder;
     private TypeSpec type;
     private String packageName;
@@ -49,12 +51,14 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private TypeSpec.Kind kind;
 
     JavaPoetClassVisitor(SpecConverter specConverter, ProjectionPolicy policy, Set<String> includedClasses,
-                         boolean groovyClass) {
+                         boolean groovyClass, Set<String> groovyRuntimeMethods, Set<String> groovyRuntimeFields) {
         super(CompilerConfiguration.ASM_API_VERSION);
         this.specConverter = specConverter;
         this.policy = policy;
         this.includedClasses = includedClasses;
         this.groovyClass = groovyClass;
+        this.groovyRuntimeMethods = groovyRuntimeMethods;
+        this.groovyRuntimeFields = groovyRuntimeFields;
     }
 
     @Override
@@ -168,7 +172,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-        if (!ProjectionSelection.includesMethod(policy, access, name, typeAccess(), groovyClass)) return null;
+        if (!ProjectionSelection.includesMethod(policy, access, name, typeAccess(),
+                groovyRuntimeMethods.contains(memberKey(name, desc)))) return null;
 
         final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(name).addModifiers(TypeConversion.decodeModifiers(access));
 
@@ -365,7 +370,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-        if (!ProjectionSelection.includesField(policy, access, name, typeAccess(), groovyClass)) return null;
+        if (!ProjectionSelection.includesField(policy, access, name, typeAccess(),
+                groovyRuntimeFields.contains(memberKey(name, desc)))) return null;
 
         final TypeName[] fieldType = {null}; // Array to allow write access from inner class
 
@@ -426,6 +432,10 @@ class JavaPoetClassVisitor extends ClassVisitor {
         if (typeBuilder.modifiers.contains(Modifier.PRIVATE)) access |= Opcodes.ACC_PRIVATE;
         if (kind == TypeSpec.Kind.ENUM) access |= Opcodes.ACC_ENUM;
         return access;
+    }
+
+    private static String memberKey(String name, String descriptor) {
+        return name + descriptor;
     }
 
     private static CodeBlock fieldInitializer(Type fieldType, Object constantValue) {

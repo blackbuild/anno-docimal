@@ -30,7 +30,11 @@ class SourceProjectorGroovyTest extends ClassGeneratingTest {
         createClass('''
             package dummy
             class GroovyFixture<T> {
+                public static final int MIN_VALUE = 7
                 T value
+                void next() {}
+                Object getProperty(String name) { null }
+                void $api() {}
             }
         ''')
         def classFile = new File(outputDirectory, clazz.name.replace('.', '/') + '.class').toPath()
@@ -44,10 +48,24 @@ class SourceProjectorGroovyTest extends ClassGeneratingTest {
         documented == '''package dummy;
 
 import groovy.transform.Generated;
+import java.lang.Object;
+import java.lang.String;
 
 public class GroovyFixture<T> {
+  public static final int MIN_VALUE = 7;
+
   @Generated
   public GroovyFixture() {
+  }
+
+  public void next() {
+  }
+
+  public Object getProperty(String name) {
+    return null;
+  }
+
+  public void $api() {
   }
 
   @Generated
@@ -69,10 +87,24 @@ import groovy.lang.MetaClass;
 import groovy.transform.Generated;
 import groovy.transform.Internal;
 import java.beans.Transient;
+import java.lang.Object;
+import java.lang.String;
 
 public class GroovyFixture<T> implements GroovyObject {
+  public static final int MIN_VALUE = 7;
+
   @Generated
   public GroovyFixture() {
+  }
+
+  public void next() {
+  }
+
+  public Object getProperty(String name) {
+    return null;
+  }
+
+  public void $api() {
   }
 
   @Generated

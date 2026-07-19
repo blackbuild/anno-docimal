@@ -36,4 +36,10 @@ class TypeConversionTest extends Specification {
         result.toString() == "java.util.Map.Entry"
     }
 
+    def "typename preserves the complete nested owner chain"() {
+        expect:
+        TypeConversion.toTypeName(Type.getObjectType('dummy/Outer$Middle$Inner')).toString() ==
+                'dummy.Outer.Middle.Inner'
+    }
+
 }

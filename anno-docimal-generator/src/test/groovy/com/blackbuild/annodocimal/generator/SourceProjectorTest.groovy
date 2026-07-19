@@ -340,6 +340,52 @@ public class AnnotationClosureFixture {
 '''
     }
 
+    def "recursive nested signatures retain their complete source owner chain"() {
+        given:
+        compile('''
+            package dummy;
+            public class DeepNestedFixture {
+                public Middle.Inner nested() { return null; }
+
+                public static class Middle {
+                    public static class Inner {}
+                }
+            }
+        ''')
+
+        when:
+        String source = new SourceProjector(ProjectionPolicy.documentation()).projectToText(file.toPath())
+
+        then:
+        source == '''package dummy;
+
+public class DeepNestedFixture {
+  public DeepNestedFixture() {
+  }
+
+  public Middle.Inner nested() {
+    return null;
+  }
+
+  public static class Middle {
+    public Middle() {
+    }
+
+    public static class Inner {
+      public Inner() {
+      }
+    }
+  }
+}
+'''
+
+        when:
+        compile(source)
+
+        then:
+        compilation.status() == Compilation.Status.SUCCESS
+    }
+
     def "direct projection roots must be top-level declarations"() {
         given:
         compile('''

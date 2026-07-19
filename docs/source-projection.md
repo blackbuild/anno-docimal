@@ -40,6 +40,9 @@ Use `ProjectionPolicy.builder()` or `policy.toBuilder()` to replace the included
 named nested, synthetic, and Groovy-runtime inclusion. Builders are mutable and not thread-safe; every `build()` call
 returns an independent immutable value. Signature closure and valid Java output are not optional policy switches.
 
+Groovy runtime classification uses compiler metadata and the owning declaration's role. A declaration name alone never
+turns a user-authored Groovy member into runtime scaffolding.
+
 Source projection preserves declaration kind and nesting, visibility and modifiers, generic and inheritance signatures,
 selected constructors/methods/fields, parameter metadata, annotations, exceptions, and embedded documentation. It does
 not promise original bodies or initializers: deterministic default statements and values are synthesized where Java

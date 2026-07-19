@@ -55,6 +55,10 @@ import java.util.Set;
 final class SpecConverter {
 
     private static final String GROOVY_TRAIT_DESCRIPTOR = "Lgroovy/transform/Trait;";
+    private static final String GROOVY_GENERATED_DESCRIPTOR = "Lgroovy/transform/Generated;";
+    private static final String GROOVY_INTERNAL_DESCRIPTOR = "Lgroovy/transform/Internal;";
+    private static final Set<String> GROOVY_OBJECT_METHODS = Set.of(
+            "getMetaClass", "setMetaClass", "invokeMethod", "getProperty", "setProperty");
 
     private final Path inputPath;
     private final ProjectionPolicy policy;
@@ -98,7 +102,8 @@ final class SpecConverter {
 
     JavaPoetClassVisitor readClass(String internalName) {
         ClassData classData = Objects.requireNonNull(classes.get(internalName), internalName);
-        JavaPoetClassVisitor visitor = new JavaPoetClassVisitor(this, policy, includedClasses, classData.groovyClass);
+        JavaPoetClassVisitor visitor = new JavaPoetClassVisitor(this, policy, includedClasses, classData.groovyClass,
+                classData.groovyRuntimeMethods, classData.groovyRuntimeFields);
         new ClassReader(classData.bytecode).accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
         return visitor;
     }
@@ -189,8 +194,9 @@ final class SpecConverter {
         scanAnnotations(node.invisibleTypeAnnotations, result);
 
         for (FieldNode field : node.fields) {
+            ClassData classData = classes.get(node.name);
             if (!ProjectionSelection.includesField(policy, field.access, field.name, node.access,
-                    classes.get(node.name).groovyClass)) continue;
+                    classData.groovyRuntimeFields.contains(memberKey(field.name, field.desc)))) continue;
             scanType(Type.getType(field.desc), result);
             scanSignature(field.signature, result);
             scanAnnotations(field.visibleAnnotations, result);
@@ -199,8 +205,9 @@ final class SpecConverter {
             scanAnnotations(field.invisibleTypeAnnotations, result);
         }
         for (MethodNode method : node.methods) {
+            ClassData classData = classes.get(node.name);
             if (!ProjectionSelection.includesMethod(policy, method.access, method.name, node.access,
-                    classes.get(node.name).groovyClass)) continue;
+                    classData.groovyRuntimeMethods.contains(memberKey(method.name, method.desc)))) continue;
             scanType(Type.getMethodType(method.desc), result);
             scanSignature(method.signature, result);
             if (method.exceptions != null) method.exceptions.forEach(name -> addInternalName(name, result));
@@ -217,11 +224,12 @@ final class SpecConverter {
 
     private void validateSelectedMethods() {
         for (String className : includedClasses) {
-            ClassNode node = classes.get(className).node;
+            ClassData classData = classes.get(className);
+            ClassNode node = classData.node;
             Map<String, MethodNode> signatures = new LinkedHashMap<>();
             for (MethodNode method : node.methods) {
                 if (!ProjectionSelection.includesMethod(policy, method.access, method.name, node.access,
-                        classes.get(node.name).groovyClass)) continue;
+                        classData.groovyRuntimeMethods.contains(memberKey(method.name, method.desc)))) continue;
                 Type[] arguments = Type.getArgumentTypes(method.desc);
                 String key = method.name + Arrays.toString(Arrays.stream(arguments).map(Type::getDescriptor).toArray());
                 MethodNode previous = signatures.putIfAbsent(key, method);
@@ -251,12 +259,52 @@ final class SpecConverter {
         return containsAnnotation(node.visibleAnnotations, descriptor) || containsAnnotation(node.invisibleAnnotations, descriptor);
     }
 
+    private static boolean hasAnnotation(MethodNode node, String descriptor) {
+        return containsAnnotation(node.visibleAnnotations, descriptor) || containsAnnotation(node.invisibleAnnotations, descriptor);
+    }
+
     private static boolean isGroovyClass(ClassNode node) {
         return node.sourceFile != null && node.sourceFile.endsWith(".groovy");
     }
 
     private static boolean containsAnnotation(List<AnnotationNode> annotations, String descriptor) {
         return annotations != null && annotations.stream().anyMatch(annotation -> descriptor.equals(annotation.desc));
+    }
+
+    private static Set<String> findGroovyRuntimeMethods(ClassNode node, boolean groovyClass) {
+        if (!groovyClass) return Set.of();
+        Set<String> result = new LinkedHashSet<>();
+        for (MethodNode method : node.methods) {
+            boolean syntheticHelper = (method.access & Opcodes.ACC_SYNTHETIC) != 0 && method.name.startsWith("$");
+            boolean runtimeAccessor = GROOVY_OBJECT_METHODS.contains(method.name)
+                    && hasAnnotation(method, GROOVY_INTERNAL_DESCRIPTOR);
+            boolean enumHelper = (node.access & Opcodes.ACC_ENUM) != 0
+                    && ("next".equals(method.name) || "previous".equals(method.name))
+                    && hasAnnotation(method, GROOVY_GENERATED_DESCRIPTOR);
+            if (syntheticHelper || runtimeAccessor || enumHelper) {
+                result.add(memberKey(method.name, method.desc));
+            }
+        }
+        return Set.copyOf(result);
+    }
+
+    private static Set<String> findGroovyRuntimeFields(ClassNode node, boolean groovyClass) {
+        if (!groovyClass) return Set.of();
+        Set<String> result = new LinkedHashSet<>();
+        for (FieldNode field : node.fields) {
+            boolean syntheticMetadata = (field.access & Opcodes.ACC_SYNTHETIC) != 0
+                    && (field.name.startsWith("$") || field.name.startsWith("__$") || "metaClass".equals(field.name));
+            boolean enumBoundary = (node.access & Opcodes.ACC_ENUM) != 0
+                    && ("MIN_VALUE".equals(field.name) || "MAX_VALUE".equals(field.name));
+            if (syntheticMetadata || enumBoundary) {
+                result.add(memberKey(field.name, field.desc));
+            }
+        }
+        return Set.copyOf(result);
+    }
+
+    private static String memberKey(String name, String descriptor) {
+        return name + descriptor;
     }
 
     private static void scanSignature(String signature, Set<String> result) {
@@ -357,6 +405,8 @@ final class SpecConverter {
         private final String innerName;
         private final boolean groovyRuntimeArtifact;
         private final boolean groovyClass;
+        private final Set<String> groovyRuntimeMethods;
+        private final Set<String> groovyRuntimeFields;
 
         private ClassData(ClassNode node, byte[] bytecode, int declarationAccess, String outerName, String innerName,
                           boolean groovyRuntimeArtifact, boolean groovyClass) {
@@ -367,6 +417,8 @@ final class SpecConverter {
             this.innerName = innerName;
             this.groovyRuntimeArtifact = groovyRuntimeArtifact;
             this.groovyClass = groovyClass;
+            groovyRuntimeMethods = findGroovyRuntimeMethods(node, groovyClass);
+            groovyRuntimeFields = findGroovyRuntimeFields(node, groovyClass);
         }
     }
 }

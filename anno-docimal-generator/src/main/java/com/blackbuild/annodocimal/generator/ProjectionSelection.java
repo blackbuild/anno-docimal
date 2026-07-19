@@ -30,17 +30,19 @@ final class ProjectionSelection {
     private ProjectionSelection() {
     }
 
-    static boolean includesMethod(ProjectionPolicy policy, int access, String name, int ownerAccess, boolean groovyClass) {
+    static boolean includesMethod(ProjectionPolicy policy, int access, String name, int ownerAccess,
+                                  boolean groovyRuntimeArtifact) {
         if ("<clinit>".equals(name)) return false;
         if (isImplicitEnumMethod(ownerAccess, name)) return false;
         return includesDeclaration(policy, access)
-                && (policy.isGroovyRuntimeArtifactsIncluded() || !groovyClass || !isGroovyMethod(name));
+                && (policy.isGroovyRuntimeArtifactsIncluded() || !groovyRuntimeArtifact);
     }
 
-    static boolean includesField(ProjectionPolicy policy, int access, String name, int ownerAccess, boolean groovyClass) {
+    static boolean includesField(ProjectionPolicy policy, int access, String name, int ownerAccess,
+                                 boolean groovyRuntimeArtifact) {
         if ((access & Opcodes.ACC_ENUM) != 0) return true;
         return includesDeclaration(policy, access)
-                && (policy.isGroovyRuntimeArtifactsIncluded() || !groovyClass || !isGroovyField(name));
+                && (policy.isGroovyRuntimeArtifactsIncluded() || !groovyRuntimeArtifact);
     }
 
     static boolean includesNestedDeclaration(ProjectionPolicy policy, int access, boolean groovyRuntimeArtifact) {
@@ -64,19 +66,4 @@ final class ProjectionSelection {
         return (ownerAccess & Opcodes.ACC_ENUM) != 0 && ("values".equals(name) || "valueOf".equals(name));
     }
 
-    private static boolean isGroovyMethod(String name) {
-        return name.startsWith("$")
-                || "getMetaClass".equals(name)
-                || "setMetaClass".equals(name)
-                || "invokeMethod".equals(name)
-                || "getProperty".equals(name)
-                || "setProperty".equals(name)
-                || "previous".equals(name)
-                || "next".equals(name);
-    }
-
-    private static boolean isGroovyField(String name) {
-        return name.startsWith("$") || name.startsWith("__$") || "metaClass".equals(name)
-                || "MIN_VALUE".equals(name) || "MAX_VALUE".equals(name);
-    }
 }
