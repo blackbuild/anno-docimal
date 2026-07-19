@@ -1,9 +1,11 @@
 # Architecture and agent baseline
 
-Date: 2026-07-16
+Date: 2026-07-16; API-grilling refinement: 2026-07-19
 
 This plan records repository-native evidence and confirmed decisions. It is not an API or build implementation plan.
 After the architecture grilling, Stephan separately authorized the GitHub curation recorded in the issue-curation plan.
+The later issue #37/#51 decisions in ADRs 0053-0058 and `docs/api/1.0-supported-api.md` supersede provisional API names and
+plugin-ID details in this baseline where they differ.
 
 ## Confirmed decisions
 
@@ -32,12 +34,11 @@ Recorded in ADR 0002.
 ### API compatibility boundary
 
 Source and binary compatibility are governed by an explicit supported-API allowlist for each contract family. A type is
-not supported merely because it is public or included in a published JAR. Existing public types remain provisional until
-classified, and internalizing them requires an appropriately versioned change.
+not supported merely because it is public or included in a published JAR. Issue #37 classified the original 113 public
+types and the seven authoring types subsequently added by issue #51, then defined the intended 1.0 allowlists in
+`docs/api/1.0-supported-api.md`. No public type remains provisional; ADR 0058 lists pre-baseline member corrections.
 
-This decision changes policy only; no current package, visibility, artifact, or dependency is changed in this session.
-
-Recorded in ADR 0003.
+Recorded in ADRs 0003, 0026, and 0053-0058.
 
 ### Documentation protocol ownership
 
@@ -55,44 +56,30 @@ Recorded in ADR 0004.
 
 ### Transformation-author API
 
-Transformation authors receive a first-class supported API for these capabilities:
+Transformation authors receive the supported `AstDocumentation` facade for exact extraction, semantic attachment,
+normalized-text attachment, and declaration references, plus immutable `Documentation` and its transient builder.
+Source-position parsing, Groovy-version adaptation, visitors, metadata caching, and transformation machinery are not
+part of that contract merely because current implementation types are public.
 
-- extract documentation from compiler model elements;
-- inspect documentation as a structured model;
-- build, rewrite, and template documentation;
-- attach documentation to generated declarations.
-
-Source-position parsing, Groovy-version adaptation, visitors, metadata caching, and transformation machinery are not part
-of that contract merely because current implementation types are public. The concrete type allowlist remains to be
-classified.
-
-Recorded in ADR 0005.
+Recorded in ADRs 0005 and 0053.
 
 ### Curated transformation-author surface
 
-The eventual supported transformation-author API will be a curated facade and documentation value model. Current helpers
-are evidence for required capabilities, but remain provisional until a future design:
+The supported transformation-author API is the curated facade and semantic value model in ADRs 0053, 0057, and 0058.
+Current extractors, builders, parsers, template handlers, visitors, caches, and utility classes are implementation-only
+or replaced without shims. Issue #30's structured carrier schema remains separate. AnnoDocimal #51 and KlumAST #489
+completed the final authoring-language decision; issue #38 applies the remaining pre-baseline Java-shape corrections.
 
-- maps each helper capability to the curated contract;
-- identifies types or methods worth retaining directly;
-- defines compatibility shims or migration for existing consumers;
-- coordinates the value model with issue #30's possible structured annotation protocol.
-
-This baseline does not design or implement that facade and does not remove current helpers.
-
-Recorded in ADR 0006.
+Recorded in ADRs 0006, 0049, and 0053-0058.
 
 ### Source-projection API boundary
 
-The generator contract is a narrow, implementation-neutral service that projects a compiled class to Java text or an
-output location. Its supported behavior is expressed as source-projection fidelity, not exposure of ASM, JavaPoet, visitor,
-signature-parser, type-conversion, or shaded implementation types.
+The generator contract is the final, thread-safe `SourceProjector`, immutable `ProjectionPolicy` and builder,
+`DeclarationVisibility`, and `SourceProjectionException`. It projects one caller-selected top-level class to text or a
+managed file without exposing ASM, JavaPoet, visitors, signature parsers, type conversion, or shaded types.
+`AnnoDocGenerator` is replaced without a shim.
 
-The current `AnnoDocGenerator` entry points are evidence for the service but are not redesigned in this baseline. Issue
-#25 or another major implementation-technology switch must be possible without leaking the replacement library into the
-supported API.
-
-Recorded in ADR 0007.
+Recorded in ADRs 0007 and 0054.
 
 ### Source-projection fidelity
 
@@ -108,45 +95,35 @@ Recorded in ADR 0008.
 
 ### Projection inclusion policy
 
-The new projection service receives an explicit declaration-inclusion policy covering visibility, nested types, synthetic
-members, and Groovy-generated artifacts. It also retains declarations required to represent selected signatures.
+`ProjectionPolicy.documentation()` includes public/protected declarations and named member types, excludes synthetic and
+Groovy-runtime scaffolding, and always applies signature closure. The builder exposes only implementation-neutral
+visibility, nested, synthetic, and Groovy-runtime controls. Top-level class-file selection remains a consuming-build or
+Gradle-task concern; annotation-presence filtering is a future additive feature.
 
-Top-level class-file selection is a consuming-build or Gradle-task concern. Existing `AnnoDocGenerator` entry points keep
-their legacy behavior until a separately designed and versioned migration. This baseline does not choose policy API types
-or built-in presets.
-
-Recorded in ADR 0009.
+Recorded in ADRs 0009 and 0054.
 
 ### Reusable Gradle task contract
 
-The class-to-source Gradle task type is a supported API that can be registered independently of the default AnnoDocimal
-Javadoc lifecycle. Issue #35's intended contract is confirmed:
+`SourceProjectionTask` is the supported reusable task type. Its API is limited to the five Gradle property getters for
+classpath-sensitive class directories, include/exclude patterns, nested projection policy, and output directory. It owns
+all-or-nothing synchronized output, deterministic duplicate detection, stale cleanup, cacheability, and configuration-
+cache-safe execution. `CreateClassStubs` is replaced without a shim. IDE model wiring remains consumer-owned.
 
-- arbitrary class inputs and output directory;
-- declared top-level class-file filtering;
-- documentation-sensitive input tracking rather than ABI-only sensitivity;
-- deterministic output with stale-file cleanup;
-- correct up-to-date and build-cache behavior;
-- configuration-cache-safe execution.
-
-The base plugin's `createClassStubs` to `javadoc` setup remains a convenience instance. IDE model wiring remains owned by
-the consumer. Implementation and executable acceptance stay in issue #35 and are not performed in this baseline.
-
-Recorded in ADR 0010.
+Recorded in ADRs 0010 and 0055; issue #35 owns implementation and TestKit acceptance.
 
 ### Layered Gradle plugins
 
-Both published plugin IDs remain supported as an intentional base/opinionated pair:
+The supported plugin IDs form a neutral/opinionated pair:
 
-- `com.blackbuild.annodocimal.base-plugin` owns the conventional `createClassStubs` task and Javadoc connection;
-- `com.blackbuild.annodocimal.plugin` applies the base layer and configures documentation-capture and parameter-metadata
-  compiler prerequisites;
-- independently registered projection tasks require neither convention lifecycle.
+- `com.blackbuild.annodocimal.base-plugin` applies no language plugin, reacts lazily to the Java model, and otherwise
+  leaves manual `SourceProjectionTask` registration available; and
+- `com.blackbuild.annodocimal.groovy-plugin` applies Gradle's Groovy plugin and the base layer, then configures required
+  Groovy/Java compiler metadata.
 
-This preserves issue #28's split and follows Gradle's recommended plugin-composition approach. Both plugin layers must
-configure lazily and remain configuration-cache safe.
+The ambiguous `com.blackbuild.annodocimal.plugin` ID is replaced without a shim. A future Java convention and an external
+shared Groovy/Spock convention remain additive options. Both delivered layers must remain configuration-cache safe.
 
-Recorded in ADR 0011.
+Recorded in ADRs 0011 and 0055.
 
 ### Module-path policy
 
@@ -331,11 +308,11 @@ Each published artifact receives a mechanical compatibility baseline for its exp
 not accidentally freeze every public implementation type, and accepted incompatibilities require release-facing
 rationale.
 
-A dedicated API grilling session is a mandatory 1.0 release-plan step. It must classify every published public type,
-finalize the per-artifact allowlist, and establish the first mechanical baseline. This baseline session schedules that
-gate rather than prematurely performing the final classification.
+Issue #37 completed the public-type classification, finalized every allowlist, and specified how the human allowlist
+feeds per-artifact machine-readable source/binary signature snapshots. Issue #51 resolved the authoring-language slot;
+issue #38 applies ADR 0058's corrections before implementation locks the first full baseline.
 
-Recorded in ADR 0026.
+Recorded in ADR 0026 and `docs/api/1.0-supported-api.md`.
 
 ### Structured protocol release target
 
@@ -474,11 +451,11 @@ Recorded in ADR 0043 and the 1.0 release plan.
 
 ### Explicit projection-policy release gate
 
-An explicit inclusion policy blocks 1.0. The supported projection API must define visibility, nested declarations,
-synthetic and Groovy-generated artifacts, signature closure, and legacy `AnnoDocGenerator` migration. Top-level input
-selection remains in the build/task layer. GitHub issue #39 owns the work.
+The inclusion policy in ADR 0054 defines visibility, nested declarations, synthetic and Groovy runtime artifacts,
+mandatory signature closure, semantic top-level roots, and removal of `AnnoDocGenerator` without a shim. Top-level
+collection selection remains in the build/task layer. GitHub issue #39 owns implementation.
 
-Recorded in ADR 0044 and the 1.0 release plan.
+Recorded in ADRs 0044 and 0054 and the 1.0 release plan.
 
 ### Projection-contract-suite release gate
 
@@ -498,19 +475,20 @@ Recorded in ADR 0046 and the 1.0 release plan.
 
 ### Curated transformation-author API release gate
 
-Delivery of the curated transformation-author facade and documentation value model blocks 1.0. The mandatory API
-grilling designs it, maps known consumers, classifies current helpers, and defines shims or migration without designing
-issue #30's structured carrier schema. This needs a new implementation issue after that grilling and authorized curation.
+Delivery of `AstDocumentation`, immutable `Documentation`, and its builder blocks 1.0. Issue #37 designed the facade,
+mapped consumers, classified current helpers, and selected clean migration without issue #30's carrier schema. Issue #51
+and KlumAST #489 completed the language. Issue #38 owns the remaining implementation and ADR 0058 corrections and is
+decision-ready.
 
-Recorded in ADR 0047 and the 1.0 release plan.
+Recorded in ADRs 0047 and 0053-0058 and the 1.0 release plan.
 
 ### Narrow source-projection API release gate
 
-Delivery of the narrow implementation-neutral projection service blocks 1.0. It supports source text and managed output
-locations, consumes the explicit policy, and excludes ASM/JavaPoet/parser/visitor implementation types. Whether the
-pre-1.0 `AnnoDocGenerator` API receives shims remains a separate migration decision.
+Delivery of the narrow implementation-neutral projection service blocks 1.0. ADR 0054 defines source text and managed
+file output, policy construction, inclusion and failure behavior, and the supported type allowlist. ASM, JavaPoet,
+parsers, visitors, and shaded types remain internal; `AnnoDocGenerator` receives no shim.
 
-Recorded in ADR 0048 and the 1.0 release plan.
+Recorded in ADRs 0048 and 0054 and the 1.0 release plan.
 
 ### Provisional-API migration rule
 
@@ -527,8 +505,9 @@ issues retain their own acceptance criteria, and the mandatory API grilling is a
 
 Recorded in ADR 0050 and the issue-curation plan.
 
-The tracker and hard-gate issues use a dedicated GitHub `1.0` milestone for queryable progress. Post-1.0 and 2.0 work
-remains outside it. Recorded in ADR 0051.
+The tracker and originally curated hard-gate issues use a dedicated GitHub `1.0` milestone for queryable progress.
+AnnoDocimal #51 was an additional authorized prerequisite and is complete; tracker #47 now records that completion.
+Post-1.0 and 2.0 work remains outside the milestone. Recorded in ADRs 0051 and 0056.
 
 The completed historical `initial-release` milestone is closed rather than renamed or reused. Recorded in ADR 0052.
 
@@ -583,10 +562,8 @@ wiring currently belong to the consumer.
 
 ## Architectural pressure points requiring decisions
 
-1. The concrete supported-API allowlist for the annotations, AST-helper, generator, APT, and Gradle integration contract
-   families. This requires a dedicated grilling session before 1.0.
-2. Concrete projection-policy types, presets, and legacy migration.
-3. Long-term shared documentation publication and branding mechanics.
+1. The measured minimum supported Gradle version for issue #35's TestKit matrix.
+2. Long-term shared documentation publication and branding mechanics.
 
 Deferred protocol evolution: issue #30 may introduce structured documentation annotations and targets a future 2.0
 release. Keep it separate from the 1.0 baseline and do not infer its design from the existing issue stub.
@@ -601,5 +578,7 @@ decision and coordinated migration, not a repository-local build simplification.
 ## Applied issue map
 
 The authorized curation pass created tracker #47 and gate issues #37–#41 and #43–#46. Existing 1.0 gates #9, #19,
-#32, #33, #35, and #36 were curated into milestone `1.0`; #18, #22, and #25 were closed with confirmed rationale.
-Detailed scope, dependency order, and non-gates live in `docs/implementation/1.0-issue-curation-plan.md`.
+#32, #33, #35, and #36 were curated into milestone `1.0`; #36 was later completed through merged PR #50. Issues #18,
+#22, and #25 were closed with confirmed rationale. The issue #37 session separately created AnnoDocimal #51 and KlumAST
+#489; both are complete, and tracker #47 was updated outside API-1 to reflect #51. Detailed scope, dependency order, and
+non-gates live in `docs/implementation/1.0-issue-curation-plan.md`.
