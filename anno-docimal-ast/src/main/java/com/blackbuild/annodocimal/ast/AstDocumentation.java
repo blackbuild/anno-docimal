@@ -29,7 +29,6 @@ import com.blackbuild.annodocimal.ast.extractor.ClassDocExtractor;
 import com.blackbuild.annodocimal.ast.formatting.AnnoDocUtil;
 import com.blackbuild.annodocimal.ast.formatting.DocText;
 import org.codehaus.groovy.ast.AnnotatedNode;
-import org.codehaus.groovy.ast.AnnotationNode;
 import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.ConstructorNode;
 import org.codehaus.groovy.ast.FieldNode;

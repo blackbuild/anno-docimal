@@ -117,6 +117,69 @@ class DocumentationTest extends Specification {
 @template kind reference'''
     }
 
+    def "parses normalized prose blocks and standard tags"() {
+        when:
+        def documentation = Documentation.parse('''A summary.\r
+\r
+<p>First paragraph\r
+continues here.</p>\r
+<pre>  return source\r
+</pre>\r
+A final paragraph\r
+continues too.\r
+\r
+@param source the source value\r
+  continued detail\r
+@return the generated result\r
+@exception IllegalStateException when source is invalid\r
+@since 1.0''')
+
+        then:
+        documentation.summary == 'A summary.'
+        documentation.blocks*.text == ['First paragraph\ncontinues here.', 'return source', 'A final paragraph\ncontinues too.']
+        documentation.blocks*.code == [false, true, false]
+        documentation.parameters == [source: 'the source value continued detail']
+        documentation.returnDescription == 'the generated result'
+        documentation.exceptions == [IllegalStateException: 'when source is invalid']
+        documentation.tags*.name == ['since']
+        documentation.render() == '''A summary.
+
+<p>First paragraph
+continues here.</p>
+
+<pre>return source</pre>
+
+<p>A final paragraph
+continues too.</p>
+
+@param source the source value continued detail
+@return the generated result
+@throws IllegalStateException when source is invalid
+@since 1.0'''
+    }
+
+    def "parses single-line blocks and empty input deterministically"() {
+        expect:
+        Documentation.parse(null).empty
+        Documentation.parse(' \n ').empty
+        Documentation.parse('<p>A paragraph</p>\n<pre>code()</pre>').render() == '''<p>A paragraph</p>
+
+<pre>code()</pre>'''
+    }
+
+    def "omits only absent conditional parameter fragments and rejects stray delimiters"() {
+        expect:
+        Documentation.builder().summary('A{{param:value? value}}B').build().render([]) == 'AB'
+
+        when:
+        Documentation.builder().summary('A }} B').build().render()
+
+        then:
+        def failure = thrown(Documentation.TemplateException)
+        failure.message.contains('documentation')
+        failure.message.contains('<unknown>')
+    }
+
     def "normalizes a rendered document without changing its meaning"() {
         given:
         def original = Documentation.builder()

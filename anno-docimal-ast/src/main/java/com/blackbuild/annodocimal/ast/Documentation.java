@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -41,8 +40,6 @@ import java.util.regex.Pattern;
 public final class Documentation {
 
     private static final Documentation EMPTY = new Documentation(null, List.of(), Map.of(), null, Map.of(), List.of(), Map.of());
-    private static final Pattern TAG = Pattern.compile("@(\\S+)(?:\\s+(.*))?");
-    private static final Pattern NAMED_TAG = Pattern.compile("(\\S+)(?:\\s+(.*))?");
     private static final Pattern TEMPLATE_KEY = Pattern.compile("[A-Za-z][A-Za-z0-9_.-]*");
 
     private final String summary;
@@ -148,7 +145,7 @@ public final class Documentation {
             content.append(line);
             index++;
         }
-        String value = code ? content.toString().strip() : content.toString().strip();
+        String value = content.toString().strip();
         if (code) builder.codeBlock(value);
         else builder.paragraph(value);
         return index;
@@ -158,13 +155,14 @@ public final class Documentation {
         String currentName = null;
         StringBuilder currentValue = null;
         for (; index < lines.size(); index++) {
-            Matcher matcher = TAG.matcher(lines.get(index));
-            if (matcher.matches()) {
+            String line = lines.get(index);
+            if (line.startsWith("@") && line.length() > 1 && !Character.isWhitespace(line.charAt(1))) {
                 addTag(builder, currentName, currentValue);
-                currentName = matcher.group(1);
-                currentValue = new StringBuilder(matcher.group(2) == null ? "" : matcher.group(2));
-            } else if (currentValue != null && !lines.get(index).isBlank()) {
-                currentValue.append(' ').append(lines.get(index).strip());
+                TagParts tag = splitTag(line.substring(1));
+                currentName = tag.name();
+                currentValue = new StringBuilder(tag.value());
+            } else if (currentValue != null && !line.isBlank()) {
+                currentValue.append(' ').append(line.strip());
             }
         }
         addTag(builder, currentName, currentValue);
@@ -173,11 +171,24 @@ public final class Documentation {
     private static void addTag(Builder builder, String name, StringBuilder value) {
         if (name == null) return;
         String description = value == null ? "" : value.toString();
-        Matcher namedTag = NAMED_TAG.matcher(description);
-        if (name.equals("param") && namedTag.matches()) builder.param(namedTag.group(1), nullToEmpty(namedTag.group(2)));
+        TagParts namedTag = splitTag(description);
+        if (name.equals("param") && !namedTag.name().isEmpty()) builder.param(namedTag.name(), namedTag.value());
         else if (name.equals("return")) builder.returns(description);
-        else if ((name.equals("throws") || name.equals("exception")) && namedTag.matches()) builder.throwsException(namedTag.group(1), nullToEmpty(namedTag.group(2)));
+        else if ((name.equals("throws") || name.equals("exception")) && !namedTag.name().isEmpty()) builder.throwsException(namedTag.name(), namedTag.value());
         else builder.tag(name, description);
+    }
+
+    private static TagParts splitTag(String text) {
+        String value = text.strip();
+        int separator = firstWhitespace(value);
+        return separator < 0 ? new TagParts(value, "") : new TagParts(value.substring(0, separator), value.substring(separator).strip());
+    }
+
+    private static int firstWhitespace(String value) {
+        for (int index = 0; index < value.length(); index++) {
+            if (Character.isWhitespace(value.charAt(index))) return index;
+        }
+        return -1;
     }
 
     public String getSummary() {
@@ -296,13 +307,16 @@ public final class Documentation {
 
     private static int closingDelimiter(String input, int start) {
         int depth = 0;
-        for (int index = start; index < input.length() - 1; index++) {
+        int index = start;
+        while (index < input.length() - 1) {
             if (input.startsWith("{{", index)) {
                 depth++;
-                index++;
+                index += 2;
             } else if (input.startsWith("}}", index)) {
                 if (depth == 0) return index;
                 depth--;
+                index += 2;
+            } else {
                 index++;
             }
         }
@@ -321,6 +335,9 @@ public final class Documentation {
 
     private static String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private record TagParts(String name, String value) {
     }
 
     private static Map<String, String> immutableMap(Map<String, String> values) {
