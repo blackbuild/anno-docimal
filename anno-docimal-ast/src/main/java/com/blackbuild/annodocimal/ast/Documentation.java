@@ -40,6 +40,13 @@ import java.util.regex.Pattern;
 public final class Documentation {
 
     private static final Documentation EMPTY = new Documentation(null, List.of(), Map.of(), null, Map.of(), List.of(), Map.of());
+    private static final String DOCUMENTATION = "documentation";
+    private static final String UNKNOWN_KEY = "<unknown>";
+    private static final String PARAGRAPH_OPEN = "<p>";
+    private static final String PARAGRAPH_CLOSE = "</p>";
+    private static final String CODE_BLOCK_OPEN = "<pre>";
+    private static final String CODE_BLOCK_CLOSE = "</pre>";
+    private static final String PARAMETER_FRAGMENT = "param:";
     private static final Pattern TEMPLATE_KEY = Pattern.compile("[A-Za-z][A-Za-z0-9_.-]*");
 
     private final String summary;
@@ -87,36 +94,53 @@ public final class Documentation {
     }
 
     private static int parseBody(List<String> lines, Builder builder) {
+        int index = parseSummary(lines, builder);
+        while (index < lines.size() && !lines.get(index).startsWith("@")) {
+            index = parseBodyItem(lines, index, builder);
+        }
+        return index;
+    }
+
+    private static int parseSummary(List<String> lines, Builder builder) {
         StringBuilder summary = new StringBuilder();
         int index = 0;
         while (index < lines.size()) {
             String line = lines.get(index);
-            if (line.startsWith("@") || line.equals("<p>") || line.startsWith("<p>") || line.equals("<pre>") || line.startsWith("<pre>")) break;
+            if (line.startsWith("@") || startsDelimitedBlock(line, PARAGRAPH_OPEN) || startsDelimitedBlock(line, CODE_BLOCK_OPEN)) break;
             if (!line.isBlank()) {
-                if (summary.length() > 0) summary.append('\n');
+                if (!summary.isEmpty()) summary.append('\n');
                 summary.append(line.strip());
             }
             index++;
         }
-        if (summary.length() > 0) builder.summary(summary.toString());
+        if (!summary.isEmpty()) builder.summary(summary.toString());
+        return index;
+    }
 
-        while (index < lines.size() && !lines.get(index).startsWith("@")) {
-            if (lines.get(index).isBlank()) {
-                index++;
-            } else if (lines.get(index).equals("<p>") || lines.get(index).startsWith("<p>")) {
-                index = parseDelimitedBlock(lines, index, "<p>", "</p>", false, builder);
-            } else if (lines.get(index).equals("<pre>") || lines.get(index).startsWith("<pre>")) {
-                index = parseDelimitedBlock(lines, index, "<pre>", "</pre>", true, builder);
-            } else {
-                StringBuilder paragraph = new StringBuilder();
-                while (index < lines.size() && !lines.get(index).isBlank() && !lines.get(index).startsWith("@")) {
-                    if (paragraph.length() > 0) paragraph.append('\n');
-                    paragraph.append(lines.get(index).strip());
-                    index++;
-                }
-                builder.paragraph(paragraph.toString());
-            }
+    private static int parseBodyItem(List<String> lines, int index, Builder builder) {
+        String line = lines.get(index);
+        if (line.isBlank()) return index + 1;
+        if (startsDelimitedBlock(line, PARAGRAPH_OPEN)) {
+            return parseDelimitedBlock(lines, index, PARAGRAPH_OPEN, PARAGRAPH_CLOSE, false, builder);
         }
+        if (startsDelimitedBlock(line, CODE_BLOCK_OPEN)) {
+            return parseDelimitedBlock(lines, index, CODE_BLOCK_OPEN, CODE_BLOCK_CLOSE, true, builder);
+        }
+        return parseParagraph(lines, index, builder);
+    }
+
+    private static boolean startsDelimitedBlock(String line, String opening) {
+        return line.equals(opening) || line.startsWith(opening);
+    }
+
+    private static int parseParagraph(List<String> lines, int index, Builder builder) {
+        StringBuilder paragraph = new StringBuilder();
+        while (index < lines.size() && !lines.get(index).isBlank() && !lines.get(index).startsWith("@")) {
+            if (!paragraph.isEmpty()) paragraph.append('\n');
+            paragraph.append(lines.get(index).strip());
+            index++;
+        }
+        builder.paragraph(paragraph.toString());
         return index;
     }
 
@@ -136,12 +160,12 @@ public final class Documentation {
             String line = lines.get(index);
             int closingIndex = line.indexOf(closing);
             if (closingIndex >= 0) {
-                if (content.length() > 0) content.append('\n');
+                if (!content.isEmpty()) content.append('\n');
                 content.append(line, 0, closingIndex);
                 index++;
                 break;
             }
-            if (content.length() > 0) content.append('\n');
+            if (!content.isEmpty()) content.append('\n');
             content.append(line);
             index++;
         }
@@ -228,42 +252,55 @@ public final class Documentation {
     }
 
     public String render() {
-        return renderForParameters(null, "documentation");
+        return renderForParameters(null, DOCUMENTATION);
     }
 
     public String render(Collection<String> finalParameters) {
-        return renderForParameters(finalParameters, "documentation");
+        return renderForParameters(finalParameters, DOCUMENTATION);
     }
 
     String renderForParameters(Collection<String> finalParameters, String target) {
+        StringBuilder rendered = renderSections();
+        appendTags(rendered, finalParameters);
+        Collection<String> parametersForTemplates = finalParameters == null ? parameters.keySet() : finalParameters;
+        return substitute(rendered.toString(), templateValues, parametersForTemplates, target);
+    }
+
+    private StringBuilder renderSections() {
         StringBuilder rendered = new StringBuilder();
         appendSection(rendered, summary);
         for (Block block : blocks) appendSection(rendered, block.render());
+        return rendered;
+    }
 
+    private void appendTags(StringBuilder rendered, Collection<String> finalParameters) {
         boolean hasTags = !parameters.isEmpty() || returnDescription != null || !exceptions.isEmpty() || !tags.isEmpty();
-        if (hasTags && rendered.length() > 0) rendered.append('\n');
-        if (finalParameters == null) {
-            for (Map.Entry<String, String> parameter : parameters.entrySet()) appendTag(rendered, "param " + parameter.getKey(), parameter.getValue());
-        } else {
-            for (String parameter : finalParameters) {
-                String description = parameters.get(parameter);
-                if (description != null) appendTag(rendered, "param " + parameter, description);
-            }
-        }
+        if (hasTags && !rendered.isEmpty()) rendered.append('\n');
+        appendParameters(rendered, finalParameters);
         if (returnDescription != null) appendTag(rendered, "return", returnDescription);
         for (Map.Entry<String, String> exception : exceptions.entrySet()) appendTag(rendered, "throws " + exception.getKey(), exception.getValue());
         for (Tag tag : tags) appendTag(rendered, tag.getName(), tag.getValue());
-        return substitute(rendered.toString(), templateValues, finalParameters == null ? parameters.keySet() : finalParameters, target);
+    }
+
+    private void appendParameters(StringBuilder rendered, Collection<String> finalParameters) {
+        if (finalParameters == null) {
+            parameters.forEach((name, description) -> appendTag(rendered, "param " + name, description));
+            return;
+        }
+        for (String parameter : finalParameters) {
+            String description = parameters.get(parameter);
+            if (description != null) appendTag(rendered, "param " + parameter, description);
+        }
     }
 
     private static void appendSection(StringBuilder rendered, String value) {
         if (value == null || value.isBlank()) return;
-        if (rendered.length() > 0) rendered.append("\n\n");
+        if (!rendered.isEmpty()) rendered.append("\n\n");
         rendered.append(value);
     }
 
     private static void appendTag(StringBuilder rendered, String name, String value) {
-        if (rendered.length() > 0) rendered.append('\n');
+        if (!rendered.isEmpty()) rendered.append('\n');
         rendered.append('@').append(name);
         if (!value.isEmpty()) rendered.append(' ').append(value);
     }
@@ -272,9 +309,7 @@ public final class Documentation {
         StringBuilder result = new StringBuilder();
         int position = 0;
         while (position < input.length()) {
-            int opening = input.indexOf("{{", position);
-            int unexpectedClosing = input.indexOf("}}", position);
-            if (unexpectedClosing >= 0 && (opening < 0 || unexpectedClosing < opening)) throw templateFailure(target, "<unknown>", "unexpected closing delimiter");
+            int opening = nextOpeningDelimiter(input, position, target);
             if (opening < 0) {
                 result.append(input, position, input.length());
                 break;
@@ -282,23 +317,48 @@ public final class Documentation {
             result.append(input, position, opening);
             int closing = closingDelimiter(input, opening + 2);
             if (closing < 0) throw templateFailure(target, malformedKey(input.substring(opening + 2)), "missing closing delimiter");
-            String expression = input.substring(opening + 2, closing);
-            if (expression.startsWith("param:")) {
-                int question = expression.indexOf('?');
-                String key = question < 0 ? malformedKey(expression.substring("param:".length())) : expression.substring("param:".length(), question);
-                if (question < 0 || key.isBlank() || question == expression.length() - 1 || !TEMPLATE_KEY.matcher(key).matches()) {
-                    throw templateFailure(target, key, "malformed parameter fragment");
-                }
-                if (parameters.contains(key)) result.append(expression.substring(question + 1));
-            } else {
-                if (!TEMPLATE_KEY.matcher(expression).matches()) throw templateFailure(target, malformedKey(expression), "malformed placeholder");
-                String value = values.get(expression);
-                if (value == null) throw templateFailure(target, expression, "missing required value");
-                result.append(value);
-            }
+            appendSubstitution(result, input.substring(opening + 2, closing), values, parameters, target);
             position = closing + 2;
         }
         return result.toString();
+    }
+
+    private static int nextOpeningDelimiter(String input, int position, String target) {
+        int opening = input.indexOf("{{", position);
+        int unexpectedClosing = input.indexOf("}}", position);
+        if (unexpectedClosing >= 0 && (opening < 0 || unexpectedClosing < opening)) {
+            throw templateFailure(target, UNKNOWN_KEY, "unexpected closing delimiter");
+        }
+        return opening;
+    }
+
+    private static void appendSubstitution(StringBuilder result, String expression, Map<String, String> values, Collection<String> parameters, String target) {
+        if (expression.startsWith(PARAMETER_FRAGMENT)) {
+            appendParameterFragment(result, expression, parameters, target);
+        } else {
+            appendRequiredValue(result, expression, values, target);
+        }
+    }
+
+    private static void appendParameterFragment(StringBuilder result, String expression, Collection<String> parameters, String target) {
+        int question = expression.indexOf('?');
+        String key = parameterFragmentKey(expression, question);
+        if (question < 0 || key.isBlank() || question == expression.length() - 1 || !TEMPLATE_KEY.matcher(key).matches()) {
+            throw templateFailure(target, key, "malformed parameter fragment");
+        }
+        if (parameters.contains(key)) result.append(expression.substring(question + 1));
+    }
+
+    private static String parameterFragmentKey(String expression, int question) {
+        int prefixLength = PARAMETER_FRAGMENT.length();
+        return question < 0 ? malformedKey(expression.substring(prefixLength)) : expression.substring(prefixLength, question);
+    }
+
+    private static void appendRequiredValue(StringBuilder result, String expression, Map<String, String> values, String target) {
+        if (!TEMPLATE_KEY.matcher(expression).matches()) throw templateFailure(target, malformedKey(expression), "malformed placeholder");
+        String value = values.get(expression);
+        if (value == null) throw templateFailure(target, expression, "missing required value");
+        result.append(value);
     }
 
     private static TemplateException templateFailure(String target, String key, String problem) {
@@ -326,7 +386,8 @@ public final class Documentation {
     private static String malformedKey(String candidate) {
         String value = candidate.strip();
         int delimiter = value.indexOf('?');
-        return delimiter >= 0 ? value.substring(0, delimiter) : value.isEmpty() ? "<unknown>" : value;
+        if (delimiter >= 0) return value.substring(0, delimiter);
+        return value.isEmpty() ? UNKNOWN_KEY : value;
     }
 
     private static String blankToNull(String value) {
@@ -377,7 +438,7 @@ public final class Documentation {
         }
 
         private String render() {
-            return code ? "<pre>" + text + "</pre>" : "<p>" + text + "</p>";
+            return code ? CODE_BLOCK_OPEN + text + CODE_BLOCK_CLOSE : PARAGRAPH_OPEN + text + PARAGRAPH_CLOSE;
         }
 
         @Override
@@ -575,7 +636,7 @@ public final class Documentation {
 
         private Builder templateValue(String key, Object value) {
             String name = requireTemplateKey(key);
-            if (!(value instanceof String)) throw templateFailure("documentation", name, value == null ? "null value" : "non-string value");
+            if (!(value instanceof String)) throw templateFailure(DOCUMENTATION, name, value == null ? "null value" : "non-string value");
             templateValues.put(name, (String) value);
             return this;
         }
@@ -628,7 +689,7 @@ public final class Documentation {
     }
 
     private static String requireTemplateKey(String key) {
-        if (key == null || !TEMPLATE_KEY.matcher(key).matches()) throw templateFailure("documentation", key == null ? "<unknown>" : key, "malformed key");
+        if (key == null || !TEMPLATE_KEY.matcher(key).matches()) throw templateFailure(DOCUMENTATION, key == null ? UNKNOWN_KEY : key, "malformed key");
         return key;
     }
 }
