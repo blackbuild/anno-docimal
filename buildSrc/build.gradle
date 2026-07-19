@@ -5,3 +5,12 @@ plugins {
 repositories {
     gradlePluginPortal() // so that external plugins can be resolved in dependencies section
 }
+
+dependencies {
+    implementation 'gradle.plugin.com.hierynomus.gradle.plugins:license-gradle-plugin:0.16.1'
+    testImplementation 'org.spockframework:spock-core:2.4-groovy-3.0'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
