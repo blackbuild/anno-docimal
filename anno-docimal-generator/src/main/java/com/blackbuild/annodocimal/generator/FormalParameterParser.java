@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.generator;
 
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.objectweb.asm.signature.SignatureVisitor;
@@ -31,13 +32,21 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 
 abstract class FormalParameterParser extends SignatureVisitor {
     private List<TypeName> parameterBounds = new ArrayList<>();
     private final Map<String, List<TypeName>> typeParameters = new LinkedHashMap<>();
+    private final Function<String, ClassName> classNameResolver;
 
     protected FormalParameterParser() {
+        this(TypeConversion::fromInternalNameToClassName);
+    }
+
+    protected FormalParameterParser(Function<String, ClassName> classNameResolver) {
         super(CompilerConfiguration.ASM_API_VERSION);
+        this.classNameResolver = Objects.requireNonNull(classNameResolver, "classNameResolver");
     }
 
     @Override
@@ -48,7 +57,7 @@ abstract class FormalParameterParser extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitClassBound() {
-        return new TypeSignatureParser() {
+        return new TypeSignatureParser(classNameResolver) {
             @Override
             void finished(TypeName result) {
                 parameterBounds.add(result);

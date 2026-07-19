@@ -53,7 +53,7 @@ abstract class JavaClassGeneratingTest extends Specification {
 
 
     File compile(@Language("java") String code) {
-        String className = (code =~ ~/(?:class|interface|enum)\s+(\w+)/)[0][1]
+        String className = (code =~ ~/(?:class|interface|enum)\s+([\w$]+)/)[0][1]
         String packageName = (code =~ ~/package\s+(\w+)/)[0][1]
         compilation = compiler.compile(JavaFileObjects.forSourceString("$packageName.$className", code))
 
@@ -65,7 +65,7 @@ abstract class JavaClassGeneratingTest extends Specification {
                     os << is
                 }
             }
-            if (!fileObject.name.contains('$')) {
+            if (targetFile.name == "${className}.class") {
                 file = targetFile
             }
         }

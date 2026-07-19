@@ -23,7 +23,10 @@
  */
 package com.blackbuild.annodocimal.generator;
 
+import com.squareup.javapoet.ArrayTypeName;
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.TypeName;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -106,6 +109,32 @@ final class SpecConverter {
                 classData.groovyRuntimeMethods, classData.groovyRuntimeFields);
         new ClassReader(classData.bytecode).accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
         return visitor;
+    }
+
+    ClassName toClassName(String internalName) {
+        ClassData classData = classes.get(internalName);
+        if (classData == null) return TypeConversion.fromInternalNameToClassName(internalName);
+
+        Deque<String> nestedNames = new ArrayDeque<>();
+        while (classData.outerName != null && classes.containsKey(classData.outerName)) {
+            nestedNames.addFirst(classData.innerName);
+            classData = classes.get(classData.outerName);
+        }
+
+        String topLevelName = simpleBinaryName(classData.node.name);
+        int packageSeparator = classData.node.name.lastIndexOf('/');
+        String packageName = packageSeparator < 0
+                ? ""
+                : classData.node.name.substring(0, packageSeparator).replace('/', '.');
+        return ClassName.get(packageName, topLevelName, nestedNames.toArray(new String[0]));
+    }
+
+    TypeName toTypeName(Type type) {
+        return switch (type.getSort()) {
+            case Type.OBJECT -> toClassName(type.getInternalName());
+            case Type.ARRAY -> ArrayTypeName.of(toTypeName(type.getElementType()));
+            default -> TypeConversion.toTypeName(type);
+        };
     }
 
     private ClassData readRoot(Path classFile) throws IOException {
@@ -196,7 +225,7 @@ final class SpecConverter {
         for (FieldNode field : node.fields) {
             ClassData classData = classes.get(node.name);
             if (!ProjectionSelection.includesField(policy, field.access, field.name, node.access,
-                    classData.groovyRuntimeFields.contains(memberKey(field.name, field.desc)))) continue;
+                    classData.groovyRuntimeFields.contains(ProjectionSelection.memberKey(field.name, field.desc)))) continue;
             scanType(Type.getType(field.desc), result);
             scanSignature(field.signature, result);
             scanAnnotations(field.visibleAnnotations, result);
@@ -207,7 +236,7 @@ final class SpecConverter {
         for (MethodNode method : node.methods) {
             ClassData classData = classes.get(node.name);
             if (!ProjectionSelection.includesMethod(policy, method.access, method.name, node.access,
-                    classData.groovyRuntimeMethods.contains(memberKey(method.name, method.desc)))) continue;
+                    classData.groovyRuntimeMethods.contains(ProjectionSelection.memberKey(method.name, method.desc)))) continue;
             scanType(Type.getMethodType(method.desc), result);
             scanSignature(method.signature, result);
             if (method.exceptions != null) method.exceptions.forEach(name -> addInternalName(name, result));
@@ -229,7 +258,7 @@ final class SpecConverter {
             Map<String, MethodNode> signatures = new LinkedHashMap<>();
             for (MethodNode method : node.methods) {
                 if (!ProjectionSelection.includesMethod(policy, method.access, method.name, node.access,
-                        classData.groovyRuntimeMethods.contains(memberKey(method.name, method.desc)))) continue;
+                        classData.groovyRuntimeMethods.contains(ProjectionSelection.memberKey(method.name, method.desc)))) continue;
                 Type[] arguments = Type.getArgumentTypes(method.desc);
                 String key = method.name + Arrays.toString(Arrays.stream(arguments).map(Type::getDescriptor).toArray());
                 MethodNode previous = signatures.putIfAbsent(key, method);
@@ -282,7 +311,7 @@ final class SpecConverter {
                     && ("next".equals(method.name) || "previous".equals(method.name))
                     && hasAnnotation(method, GROOVY_GENERATED_DESCRIPTOR);
             if (syntheticHelper || runtimeAccessor || enumHelper) {
-                result.add(memberKey(method.name, method.desc));
+                result.add(ProjectionSelection.memberKey(method.name, method.desc));
             }
         }
         return Set.copyOf(result);
@@ -297,14 +326,10 @@ final class SpecConverter {
             boolean enumBoundary = (node.access & Opcodes.ACC_ENUM) != 0
                     && ("MIN_VALUE".equals(field.name) || "MAX_VALUE".equals(field.name));
             if (syntheticMetadata || enumBoundary) {
-                result.add(memberKey(field.name, field.desc));
+                result.add(ProjectionSelection.memberKey(field.name, field.desc));
             }
         }
         return Set.copyOf(result);
-    }
-
-    private static String memberKey(String name, String descriptor) {
-        return name + descriptor;
     }
 
     private static void scanSignature(String signature, Set<String> result) {

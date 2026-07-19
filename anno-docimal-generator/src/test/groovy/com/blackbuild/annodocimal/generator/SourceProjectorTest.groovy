@@ -386,6 +386,43 @@ public class DeepNestedFixture {
         compilation.status() == Compilation.Status.SUCCESS
     }
 
+    def "semantic top-level names retain legal dollar characters"() {
+        given:
+        compile('''
+            package dummy;
+            public class Dollar$Top {
+                public Dollar$Top self() { return this; }
+            }
+        ''')
+        def destination = new File(outputDirectory, 'dollar-output').toPath()
+
+        when:
+        SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation())
+        String source = projector.projectToText(file.toPath())
+        def written = projector.projectToDirectory(file.toPath(), destination)
+
+        then:
+        source == '''package dummy;
+
+public class Dollar$Top {
+  public Dollar$Top() {
+  }
+
+  public Dollar$Top self() {
+    return null;
+  }
+}
+'''
+        written == destination.resolve('dummy/Dollar$Top.java')
+        Files.readString(written) == source
+
+        when:
+        compile(source)
+
+        then:
+        compilation.status() == Compilation.Status.SUCCESS
+    }
+
     def "direct projection roots must be top-level declarations"() {
         given:
         compile('''

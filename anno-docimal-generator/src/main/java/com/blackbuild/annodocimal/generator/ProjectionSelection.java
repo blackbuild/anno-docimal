@@ -50,6 +50,10 @@ final class ProjectionSelection {
                 && (policy.isGroovyRuntimeArtifactsIncluded() || !groovyRuntimeArtifact);
     }
 
+    static String memberKey(String name, String descriptor) {
+        return name + descriptor;
+    }
+
     static DeclarationVisibility visibility(int access) {
         if ((access & Opcodes.ACC_PUBLIC) != 0) return DeclarationVisibility.PUBLIC;
         if ((access & Opcodes.ACC_PROTECTED) != 0) return DeclarationVisibility.PROTECTED;

@@ -66,15 +66,15 @@ class JavaPoetClassVisitor extends ClassVisitor {
         prepareTypeBuilder(access, name);
         if (signature != null) {
             ClassSignatureParser.parseClassSignature(signature, typeBuilder, kind,
-                    policy.isGroovyRuntimeArtifactsIncluded() || !groovyClass);
+                    policy.isGroovyRuntimeArtifactsIncluded() || !groovyClass, specConverter::toClassName);
         } else {
             if (kind == TypeSpec.Kind.CLASS)
-                typeBuilder.superclass(TypeConversion.fromInternalNameToClassName(superName));
+                typeBuilder.superclass(specConverter.toClassName(superName));
             for (String interf : interfaceNames) {
                 if (groovyClass && !policy.isGroovyRuntimeArtifactsIncluded()
                         && interf.equals("groovy/lang/GroovyObject")) continue;
                 if (kind == TypeSpec.Kind.ANNOTATION && interf.equals("java/lang/annotation/Annotation")) continue;
-                typeBuilder.addSuperinterface(TypeConversion.fromInternalNameToClassName(interf));
+                typeBuilder.addSuperinterface(specConverter.toClassName(interf));
             }
         }
         int packageSeparator = name.lastIndexOf('/');
@@ -82,7 +82,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     }
 
     private void prepareTypeBuilder(int access, String name) {
-        className = TypeConversion.fromInternalNameToClassName(name);
+        className = specConverter.toClassName(name);
         kind = toJavaPoetKind(access);
         if (kind == TypeSpec.Kind.ENUM)
             access &= ~Opcodes.ACC_FINAL;
@@ -173,7 +173,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     @Override
     public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
         if (!ProjectionSelection.includesMethod(policy, access, name, typeAccess(),
-                groovyRuntimeMethods.contains(memberKey(name, desc)))) return null;
+                groovyRuntimeMethods.contains(ProjectionSelection.memberKey(name, desc)))) return null;
 
         final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(name).addModifiers(TypeConversion.decodeModifiers(access));
 
@@ -190,10 +190,10 @@ class JavaPoetClassVisitor extends ClassVisitor {
         Map<Integer, List<AnnotationSpec>> parameterAnnotations = new HashMap<>();
 
         if (signature != null) {
-            FormalParameterParser v = new FormalParameterParser() {
+            FormalParameterParser v = new FormalParameterParser(specConverter::toClassName) {
                 @Override
                 public SignatureVisitor visitParameterType() {
-                    return new TypeSignatureParser() {
+                    return new TypeSignatureParser(specConverter::toClassName) {
                         @Override
                         void finished(TypeName result) {
                             parameterTypes.add(result);
@@ -203,7 +203,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
                 @Override
                 public SignatureVisitor visitReturnType() {
-                    return new TypeSignatureParser() {
+                    return new TypeSignatureParser(specConverter::toClassName) {
                         @Override
                         void finished(TypeName result) {
                             methodBuilder.returns(result);
@@ -213,7 +213,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
                 @Override
                 public SignatureVisitor visitExceptionType() {
-                    return new TypeSignatureParser() {
+                    return new TypeSignatureParser(specConverter::toClassName) {
                         @Override
                         void finished(TypeName result) {
                             methodBuilder.addException(result);
@@ -230,15 +230,15 @@ class JavaPoetClassVisitor extends ClassVisitor {
                     .forEach(methodBuilder::addTypeVariable);
         } else {
             if (!name.equals("<init>")) {
-                methodBuilder.returns(TypeConversion.toTypeName(methodType.getReturnType()));
+                methodBuilder.returns(specConverter.toTypeName(methodType.getReturnType()));
             }
             int firstSourceParameter = hasImplicitOuterParameter ? 1 : 0;
             for (int index = firstSourceParameter; index < argumentTypes.length; index++) {
-                parameterTypes.add(TypeConversion.toTypeName(argumentTypes[index]));
+                parameterTypes.add(specConverter.toTypeName(argumentTypes[index]));
             }
             if (exceptions != null)
                 for (String exception : exceptions) {
-                    methodBuilder.addException(TypeConversion.fromInternalNameToClassName(exception));
+                    methodBuilder.addException(specConverter.toClassName(exception));
                 }
         }
 
@@ -355,7 +355,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
                 || className.enclosingClassName() == null || argumentTypes.length == 0) {
             return false;
         }
-        return TypeConversion.toTypeName(argumentTypes[0]).equals(className.enclosingClassName());
+        return specConverter.toTypeName(argumentTypes[0]).equals(className.enclosingClassName());
     }
 
     @Override
@@ -371,12 +371,12 @@ class JavaPoetClassVisitor extends ClassVisitor {
     @Override
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
         if (!ProjectionSelection.includesField(policy, access, name, typeAccess(),
-                groovyRuntimeFields.contains(memberKey(name, desc)))) return null;
+                groovyRuntimeFields.contains(ProjectionSelection.memberKey(name, desc)))) return null;
 
         final TypeName[] fieldType = {null}; // Array to allow write access from inner class
 
         if (signature != null) {
-            TypeSignatureParser signatureParser = new TypeSignatureParser() {
+            TypeSignatureParser signatureParser = new TypeSignatureParser(specConverter::toClassName) {
                 @Override
                 void finished(TypeName result) {
                     fieldType[0] = result;
@@ -384,7 +384,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
             };
             new SignatureReader(signature).accept(signatureParser);
         } else {
-            fieldType[0] = TypeConversion.toTypeName(Type.getType(desc));
+            fieldType[0] = specConverter.toTypeName(Type.getType(desc));
         }
 
         if ((access & Opcodes.ACC_ENUM) != 0) {
@@ -432,10 +432,6 @@ class JavaPoetClassVisitor extends ClassVisitor {
         if (typeBuilder.modifiers.contains(Modifier.PRIVATE)) access |= Opcodes.ACC_PRIVATE;
         if (kind == TypeSpec.Kind.ENUM) access |= Opcodes.ACC_ENUM;
         return access;
-    }
-
-    private static String memberKey(String name, String descriptor) {
-        return name + descriptor;
     }
 
     private static CodeBlock fieldInitializer(Type fieldType, Object constantValue) {
