@@ -1,10 +1,10 @@
 # Architecture and agent baseline
 
-Date: 2026-07-16; API-grilling refinement: 2026-07-18
+Date: 2026-07-16; API-grilling refinement: 2026-07-19
 
 This plan records repository-native evidence and confirmed decisions. It is not an API or build implementation plan.
 After the architecture grilling, Stephan separately authorized the GitHub curation recorded in the issue-curation plan.
-The later issue #37 decisions in ADRs 0053-0056 and `docs/api/1.0-supported-api.md` supersede provisional API names and
+The later issue #37/#51 decisions in ADRs 0053-0058 and `docs/api/1.0-supported-api.md` supersede provisional API names and
 plugin-ID details in this baseline where they differ.
 
 ## Confirmed decisions
@@ -34,11 +34,11 @@ Recorded in ADR 0002.
 ### API compatibility boundary
 
 Source and binary compatibility are governed by an explicit supported-API allowlist for each contract family. A type is
-not supported merely because it is public or included in a published JAR. Issue #37 classified all 113 current public
-types and defined the intended 1.0 allowlists in `docs/api/1.0-supported-api.md`; only the not-yet-final authoring members
-of `Documentation.Builder` remain provisional under issue #51.
+not supported merely because it is public or included in a published JAR. Issue #37 classified the original 113 public
+types and the seven authoring types subsequently added by issue #51, then defined the intended 1.0 allowlists in
+`docs/api/1.0-supported-api.md`. No public type remains provisional; ADR 0058 lists pre-baseline member corrections.
 
-Recorded in ADRs 0003, 0026, and 0053-0056.
+Recorded in ADRs 0003, 0026, and 0053-0058.
 
 ### Documentation protocol ownership
 
@@ -65,12 +65,12 @@ Recorded in ADRs 0005 and 0053.
 
 ### Curated transformation-author surface
 
-The supported transformation-author API is the curated facade and semantic value model in ADR 0053. Current extractors,
-builders, parsers, template handlers, visitors, caches, and utility classes are implementation-only or replaced without
-shims. Issue #30's structured carrier schema remains separate. AnnoDocimal #51 and KlumAST #489 must settle the final
-authoring/template members before 1.0.
+The supported transformation-author API is the curated facade and semantic value model in ADRs 0053, 0057, and 0058.
+Current extractors, builders, parsers, template handlers, visitors, caches, and utility classes are implementation-only
+or replaced without shims. Issue #30's structured carrier schema remains separate. AnnoDocimal #51 and KlumAST #489
+completed the final authoring-language decision; issue #38 applies the remaining pre-baseline Java-shape corrections.
 
-Recorded in ADRs 0006, 0049, 0053, and 0056.
+Recorded in ADRs 0006, 0049, and 0053-0058.
 
 ### Source-projection API boundary
 
@@ -308,9 +308,9 @@ Each published artifact receives a mechanical compatibility baseline for its exp
 not accidentally freeze every public implementation type, and accepted incompatibilities require release-facing
 rationale.
 
-Issue #37 completed the public-type classification, finalized every independent allowlist, and specified how the human
-allowlist feeds per-artifact machine-readable source/binary signature snapshots. Issue #51 must resolve the one provisional
-authoring-language slot before implementation locks the first baseline.
+Issue #37 completed the public-type classification, finalized every allowlist, and specified how the human allowlist
+feeds per-artifact machine-readable source/binary signature snapshots. Issue #51 resolved the authoring-language slot;
+issue #38 applies ADR 0058's corrections before implementation locks the first full baseline.
 
 Recorded in ADR 0026 and `docs/api/1.0-supported-api.md`.
 
@@ -476,10 +476,11 @@ Recorded in ADR 0046 and the 1.0 release plan.
 ### Curated transformation-author API release gate
 
 Delivery of `AstDocumentation`, immutable `Documentation`, and its builder blocks 1.0. Issue #37 designed the facade,
-mapped consumers, classified current helpers, and selected clean migration without issue #30's carrier schema. Issue #38
-owns implementation; issue #51 and KlumAST #489 must settle its final authoring-language members.
+mapped consumers, classified current helpers, and selected clean migration without issue #30's carrier schema. Issue #51
+and KlumAST #489 completed the language. Issue #38 owns the remaining implementation and ADR 0058 corrections and is
+decision-ready.
 
-Recorded in ADRs 0047, 0053, and 0056 and the 1.0 release plan.
+Recorded in ADRs 0047 and 0053-0058 and the 1.0 release plan.
 
 ### Narrow source-projection API release gate
 
@@ -505,8 +506,8 @@ issues retain their own acceptance criteria, and the mandatory API grilling is a
 Recorded in ADR 0050 and the issue-curation plan.
 
 The tracker and originally curated hard-gate issues use a dedicated GitHub `1.0` milestone for queryable progress.
-AnnoDocimal #51 is an additional authorized 1.0 prerequisite but its tracker/milestone/label curation remains unchanged
-until separately authorized. Post-1.0 and 2.0 work remains outside the milestone. Recorded in ADRs 0051 and 0056.
+AnnoDocimal #51 was an additional authorized prerequisite and is complete; tracker #47 now records that completion.
+Post-1.0 and 2.0 work remains outside the milestone. Recorded in ADRs 0051 and 0056.
 
 The completed historical `initial-release` milestone is closed rather than renamed or reused. Recorded in ADR 0052.
 
@@ -561,10 +562,8 @@ wiring currently belong to the consumer.
 
 ## Architectural pressure points requiring decisions
 
-1. The authoring/template language in AnnoDocimal #51 and KlumAST #489, including code blocks, possible paragraph kinds,
-   substitution/failure semantics, and the final builder-member allowlist.
-2. The measured minimum supported Gradle version for issue #35's TestKit matrix.
-3. Long-term shared documentation publication and branding mechanics.
+1. The measured minimum supported Gradle version for issue #35's TestKit matrix.
+2. Long-term shared documentation publication and branding mechanics.
 
 Deferred protocol evolution: issue #30 may introduce structured documentation annotations and targets a future 2.0
 release. Keep it separate from the 1.0 baseline and do not infer its design from the existing issue stub.
@@ -580,6 +579,6 @@ decision and coordinated migration, not a repository-local build simplification.
 
 The authorized curation pass created tracker #47 and gate issues #37–#41 and #43–#46. Existing 1.0 gates #9, #19,
 #32, #33, #35, and #36 were curated into milestone `1.0`; #36 was later completed through merged PR #50. Issues #18,
-#22, and #25 were closed with confirmed rationale. The issue #37 session separately created unlabelled AnnoDocimal #51
-and KlumAST #489 without changing the tracker or other existing issues. Detailed scope, dependency order, and non-gates
-live in `docs/implementation/1.0-issue-curation-plan.md`.
+#22, and #25 were closed with confirmed rationale. The issue #37 session separately created AnnoDocimal #51 and KlumAST
+#489; both are complete, and tracker #47 was updated outside API-1 to reflect #51. Detailed scope, dependency order, and
+non-gates live in `docs/implementation/1.0-issue-curation-plan.md`.
