@@ -196,8 +196,8 @@ public final class Documentation {
     }
 
     private static void parseTags(List<String> lines, int index, Builder builder) {
-        @Nullable String currentName = null;
-        @Nullable StringBuilder currentValue = null;
+        String currentName = null;
+        StringBuilder currentValue = null;
         for (; index < lines.size(); index++) {
             String line = lines.get(index);
             if (line.startsWith("@") && line.length() > 1 && !Character.isWhitespace(line.charAt(1))) {
