@@ -228,7 +228,8 @@ public class ControlledFixture {
         given:
         compile('''
             package dummy;
-            public class BridgeFixture implements java.util.function.Supplier<String> {
+            import java.util.function.Supplier;
+            public class BridgeFixture implements Supplier<String> {
                 public String get() { return "value"; }
             }
         ''')
@@ -301,9 +302,11 @@ public class JavaNamesFixture {
         given:
         compile('''
             package dummy;
+            import java.lang.annotation.Retention;
+            import java.lang.annotation.RetentionPolicy;
             @AnnotationClosureFixture.Marker(AnnotationClosureFixture.Hidden.class)
             public class AnnotationClosureFixture {
-                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+                @Retention(RetentionPolicy.RUNTIME)
                 @interface Marker {
                     Class<?> value();
                 }
@@ -371,6 +374,8 @@ public class AnnotationClosureFixture {
 
         then:
         written == destination.resolve('DefaultPackageFixture.java')
-        !Files.readString(written).contains('package ')
+        Files.readString(written) == '''public class DefaultPackageFixture {
+}
+'''
     }
 }
