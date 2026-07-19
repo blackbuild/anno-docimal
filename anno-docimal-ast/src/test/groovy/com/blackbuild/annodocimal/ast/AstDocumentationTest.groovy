@@ -25,6 +25,8 @@ package com.blackbuild.annodocimal.ast
 
 import org.codehaus.groovy.ast.ClassHelper
 import org.codehaus.groovy.ast.ClassNode
+import org.codehaus.groovy.ast.ConstructorNode
+import org.codehaus.groovy.ast.FieldNode
 import org.codehaus.groovy.ast.MethodNode
 import org.codehaus.groovy.ast.Parameter
 import org.codehaus.groovy.ast.expr.ConstantExpression
@@ -80,6 +82,49 @@ class AstDocumentationTest extends Specification {
         def failure = thrown(Documentation.TemplateException)
         failure.message.contains('example.Owner#copy(java.lang.String)')
         failure.message.contains('kind')
+    }
+
+    def "renders canonical references for classes fields and constructors"() {
+        given:
+        def owner = new ClassNode('example.Owner', 1, ClassHelper.OBJECT_TYPE)
+        def field = new FieldNode('value', 1, ClassHelper.STRING_TYPE, owner, null)
+        owner.addField(field)
+        def constructor = new ConstructorNode(1, [new Parameter(ClassHelper.make(String[].class), 'values')] as Parameter[], ClassNode.EMPTY_ARRAY, null)
+        owner.addConstructor(constructor)
+        def nested = new ClassNode('example.Owner$Nested', 1, ClassHelper.OBJECT_TYPE)
+
+        expect:
+        AstDocumentation.referenceTo(owner).target == 'example.Owner'
+        AstDocumentation.referenceTo(field).target == 'example.Owner#value'
+        AstDocumentation.referenceTo(constructor).target == 'example.Owner(java.lang.String[])'
+        AstDocumentation.referenceTo(nested).target == 'example.Owner.Nested'
+    }
+
+    def "rejects invalid AST reference targets and clears empty attachments"() {
+        given:
+        def method = method('copy', 'source')
+        AstDocumentation.attachText(method, 'Existing documentation.')
+
+        when:
+        AstDocumentation.attach(method, null)
+
+        then:
+        AstDocumentation.extractExact(method).empty
+        method.annotations.every { it.classNode.name != 'com.blackbuild.annodocimal.annotations.AnnoDoc' }
+
+        when:
+        AstDocumentation.attachText(method, 'Existing documentation.')
+        AstDocumentation.attach(method, Documentation.empty())
+
+        then:
+        AstDocumentation.extractExact(method).empty
+
+        when:
+        AstDocumentation.referenceTo(new ClassNode('', 1, ClassHelper.OBJECT_TYPE))
+
+        then:
+        def failure = thrown(IllegalArgumentException)
+        failure.message.contains('class name')
     }
 
     private static MethodNode method(String name, String parameterName) {

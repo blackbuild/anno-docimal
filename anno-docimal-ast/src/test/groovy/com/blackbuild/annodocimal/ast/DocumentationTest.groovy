@@ -180,6 +180,69 @@ continues too.</p>
         failure.message.contains('<unknown>')
     }
 
+    def "replaces a document and renders link and tag conveniences"() {
+        given:
+        def replacement = Documentation.builder()
+                .summary('Replacement {{kind}}.')
+                .codeBlock('return value')
+                .param('value', 'the value to return')
+                .returns('the returned value')
+                .throwsException('IllegalStateException', 'when unavailable')
+                .deprecated('use copy() instead')
+                .see(Documentation.Link.text('example.Type', 'the target type'))
+                .templateValues([kind: 'documentation'])
+                .build()
+
+        when:
+        def documentation = Documentation.builder()
+                .summary('Discarded summary.')
+                .param('discarded', 'discarded parameter')
+                .replace(replacement)
+                .build()
+                .toBuilder()
+                .appendParagraph('More detail.')
+                .build()
+
+        then:
+        documentation.render() == '''Replacement documentation.
+
+<pre>return value</pre>
+
+<p>More detail.</p>
+
+@param value the value to return
+@return the returned value
+@throws IllegalStateException when unavailable
+@deprecated use copy() instead
+@see example.Type the target type'''
+    }
+
+    def "rejects malformed conditional fragments and template keys with context"() {
+        when:
+        Documentation.builder().summary(template).build().render(['value'])
+
+        then:
+        def failure = thrown(Documentation.TemplateException)
+        failure.message.contains('documentation')
+        failure.message.contains(key)
+
+        where:
+        template                   | key
+        '{{param:value}}'          | 'value'
+        '{{param:?included}}'      | ''
+        '{{param:value?}}'         | 'value'
+    }
+
+    def "rejects malformed template keys before rendering"() {
+        when:
+        Documentation.builder().template('not a key', 'value')
+
+        then:
+        def failure = thrown(Documentation.TemplateException)
+        failure.message.contains('documentation')
+        failure.message.contains('not a key')
+    }
+
     def "normalizes a rendered document without changing its meaning"() {
         given:
         def original = Documentation.builder()
