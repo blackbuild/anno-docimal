@@ -42,10 +42,6 @@ final class MemberAnnotationVisitor {
 
     private MemberAnnotationVisitor() {}
 
-    static AnnotationVisitor create(Type type, Object target) {
-        return create(type, target, TypeConversion::fromInternalNameToClassName);
-    }
-
     static AnnotationVisitor create(Type type, Object target, Function<String, ClassName> classNameResolver) {
 
         if (type.getClassName().equals(JavaPoetClassVisitor.ANNO_DOC_CLASS))
@@ -59,10 +55,6 @@ final class MemberAnnotationVisitor {
         protected final AnnotationSpec.Builder builder;
         private final Object target;
         private final Function<String, ClassName> classNameResolver;
-
-        Regular(Type type, Object target) {
-            this(type, target, TypeConversion::fromInternalNameToClassName);
-        }
 
         Regular(Type type, Object target, Function<String, ClassName> classNameResolver) {
             super(CompilerConfiguration.ASM_API_VERSION);
