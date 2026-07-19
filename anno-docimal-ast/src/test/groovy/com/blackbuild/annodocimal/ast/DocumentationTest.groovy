@@ -25,7 +25,121 @@ package com.blackbuild.annodocimal.ast
 
 import spock.lang.Specification
 
+import java.util.Optional
+
 class DocumentationTest extends Specification {
+
+    def "exposes optional scalar values and clears them explicitly"() {
+        given:
+        def documentation = Documentation.builder()
+                .summary('A summary.')
+                .returns('a result')
+                .build()
+
+        expect:
+        documentation.summary == Optional.of('A summary.')
+        documentation.returnDescription == Optional.of('a result')
+
+        when:
+        def cleared = documentation.toBuilder()
+                .clearSummary()
+                .clearReturn()
+                .build()
+
+        then:
+        cleared.summary == Optional.empty()
+        cleared.returnDescription == Optional.empty()
+    }
+
+    def "all immutable documentation values have structural value semantics"() {
+        given:
+        def first = Documentation.builder()
+                .summary('{{missing}}')
+                .paragraph('Details.')
+                .tag('since', '1.0')
+                .build()
+        def second = first.toBuilder().build()
+        def link = Documentation.Link.text('example.Owner#copy()', 'copy')
+        def sameLink = Documentation.Link.text('example.Owner#copy()', 'copy')
+
+        expect:
+        first == second
+        first.hashCode() == second.hashCode()
+        first.blocks.first().toString().contains('Details.')
+        first.tags.first().toString().contains('since')
+        first.toString().contains('{{missing}}')
+        link == sameLink
+        link.hashCode() == sameLink.hashCode()
+        link.label == Optional.of('copy')
+        link.toString().contains('example.Owner#copy()')
+    }
+
+    def "rejects null input for #operationName"() {
+        when:
+        operation.call()
+
+        then:
+        thrown(NullPointerException)
+
+        where:
+        operationName           | operation
+        'parse'                 | { Documentation.parse(null) }
+        'summary'               | { Documentation.builder().summary(null) }
+        'paragraph'             | { Documentation.builder().paragraph(null) }
+        'code block'            | { Documentation.builder().codeBlock(null) }
+        'block replacement'     | { Documentation.builder().replaceBlocks(null) }
+        'parameter name'        | { Documentation.builder().param(null, '') }
+        'parameter description' | { Documentation.builder().param('value', null) }
+        'parameter replacement' | { Documentation.builder().replaceParameters(null) }
+        'return description'    | { Documentation.builder().returns(null) }
+        'exception name'        | { Documentation.builder().throwsException(null, '') }
+        'exception description' | { Documentation.builder().throwsException('Exception', null) }
+        'exception replacement' | { Documentation.builder().replaceExceptions(null) }
+        'tag name'              | { Documentation.builder().tag(null, '') }
+        'tag value'             | { Documentation.builder().tag('since', null) }
+        'deprecation value'     | { Documentation.builder().deprecated(null) }
+        'link'                  | { Documentation.builder().see(null) }
+        'textual link'          | { Documentation.builder().seeText(null) }
+        'tag replacement'       | { Documentation.builder().replaceTags(null) }
+        'append'                | { Documentation.builder().append(null) }
+        'replace'               | { Documentation.builder().replace(null) }
+        'parameter filter'      | { Documentation.builder().filterParameters(null) }
+        'render parameter list' | { Documentation.empty().render(null) }
+        'link target'           | { Documentation.Link.text(null) }
+        'link label'            | { Documentation.Link.text('example.Owner', null) }
+    }
+
+    def "keeps blank descriptions distinct from explicit clearing"() {
+        given:
+        def documentation = Documentation.builder()
+                .summary(' ')
+                .paragraph('Details.')
+                .param('value', '')
+                .returns('')
+                .throwsException('Exception', '')
+                .tag('since', '')
+                .build()
+
+        expect:
+        documentation.summary == Optional.of('')
+        documentation.parameters == [value: '']
+        documentation.returnDescription == Optional.of('')
+        documentation.exceptions == [Exception: '']
+        documentation.tags*.value == ['']
+
+        when:
+        def cleared = documentation.toBuilder()
+                .clearSummary()
+                .replaceBlocks([])
+                .replaceParameters([:])
+                .clearReturn()
+                .replaceExceptions([:])
+                .replaceTags([])
+                .build()
+
+        then:
+        cleared.empty
+    }
 
     def "authors ordered prose and code blocks with named values"() {
         when:
@@ -103,6 +217,22 @@ class DocumentationTest extends Specification {
         input << [null, 42]
     }
 
+    def "declares string template values while validating dynamic calls contextually"() {
+        given:
+        def method = Documentation.Builder.getDeclaredMethod('templateValues', Map)
+
+        expect:
+        method.genericParameterTypes.first().typeName == 'java.util.Map<java.lang.String, java.lang.String>'
+
+        when:
+        Documentation.builder().templateValues(([kind: 42]) as Map<String, String>)
+
+        then:
+        def failure = thrown(Documentation.TemplateException)
+        failure.message.contains('documentation')
+        failure.message.contains('kind')
+    }
+
     def "keeps template tags generic until an explicit template operation supplies values"() {
         when:
         def parsed = Documentation.parse('''A summary.
@@ -135,11 +265,11 @@ continues too.\r
 @since 1.0''')
 
         then:
-        documentation.summary == 'A summary.'
+        documentation.summary == Optional.of('A summary.')
         documentation.blocks*.text == ['First paragraph\ncontinues here.', 'return source', 'A final paragraph\ncontinues too.']
         documentation.blocks*.code == [false, true, false]
         documentation.parameters == [source: 'the source value continued detail']
-        documentation.returnDescription == 'the generated result'
+        documentation.returnDescription == Optional.of('the generated result')
         documentation.exceptions == [IllegalStateException: 'when source is invalid']
         documentation.tags*.name == ['since']
         documentation.render() == '''A summary.
@@ -160,7 +290,6 @@ continues too.</p>
 
     def "parses single-line blocks and empty input deterministically"() {
         expect:
-        Documentation.parse(null).empty
         Documentation.parse(' \n ').empty
         Documentation.parse('<p>A paragraph</p>\n<pre>code()</pre>').render() == '''<p>A paragraph</p>
 
@@ -200,7 +329,7 @@ continues too.</p>
                 .replace(replacement)
                 .build()
                 .toBuilder()
-                .appendParagraph('More detail.')
+                .paragraph('More detail.')
                 .build()
 
         then:
@@ -283,8 +412,8 @@ line two</pre>
         when:
         def generated = Documentation.builder()
                 .append(captured)
-                .appendParagraph('The generated method adds caching.')
-                .replaceReturn('the generated copy')
+                .paragraph('The generated method adds caching.')
+                .returns('the generated copy')
                 .filterParameters(['source'])
                 .build()
 

@@ -74,14 +74,51 @@ class AstDocumentationTest extends Specification {
         Documentation.Link.text('not a resolvable javadoc target', 'read more').inline() == '{@link not a resolvable javadoc target read more}'
     }
 
-    def "reports the AST target when attachment cannot render a required template"() {
+    def "supports the KlumAST generated builder rewrite scenario"() {
+        given:
+        def source = method('copy', 'source', 'obsolete')
+        AstDocumentation.attachText(source, '''Copies model documentation.
+
+@param source the source model
+@param obsolete not present on the generated declaration''')
+        def target = method('copyBuilder', 'source')
+
         when:
-        AstDocumentation.attach(method('copy', 'source'), Documentation.builder().summary('Copies {{kind}}.').build())
+        def captured = AstDocumentation.extractExact(source).orElseThrow()
+        def generated = captured.toBuilder()
+                .summary('Copies {{kind}} documentation.')
+                .template('kind', 'builder')
+                .paragraph('The generated builder preserves model semantics.')
+                .codeBlock('owner.copyBuilder(source)')
+                .see(AstDocumentation.referenceTo(source))
+                .build()
+        AstDocumentation.attach(target, generated)
+
+        then:
+        captured.parameters.keySet() == ['source', 'obsolete'] as Set
+        AstDocumentation.extractExact(target).orElseThrow().render(['source']) == '''Copies builder documentation.
+
+<p>The generated builder preserves model semantics.</p>
+
+<pre>owner.copyBuilder(source)</pre>
+
+@param source the source model
+@see example.Owner#copy(java.lang.String,java.lang.String)'''
+    }
+
+    def "reports the AST target when attachment cannot render a required template"() {
+        given:
+        def method = method('copy', 'source')
+        AstDocumentation.attachText(method, 'Existing documentation.')
+
+        when:
+        AstDocumentation.attach(method, Documentation.builder().summary('Copies {{kind}}.').build())
 
         then:
         def failure = thrown(Documentation.TemplateException)
         failure.message.contains('example.Owner#copy(java.lang.String)')
         failure.message.contains('kind')
+        AstDocumentation.extractExact(method).orElseThrow().render() == 'Existing documentation.'
     }
 
     def "renders canonical references for classes fields and constructors"() {
@@ -100,13 +137,30 @@ class AstDocumentationTest extends Specification {
         AstDocumentation.referenceTo(nested).target == 'example.Owner.Nested'
     }
 
+    def "rejects null input for #operationName"() {
+        when:
+        operation.call()
+
+        then:
+        thrown(NullPointerException)
+
+        where:
+        operationName        | operation
+        'exact extraction'   | { AstDocumentation.extractExact(null) }
+        'attachment target'  | { AstDocumentation.attach(null, Documentation.empty()) }
+        'documentation'      | { AstDocumentation.attach(method('copy', 'source'), null) }
+        'text target'        | { AstDocumentation.attachText(null, '') }
+        'documentation text' | { AstDocumentation.attachText(method('copy', 'source'), null) }
+        'reference target'   | { AstDocumentation.referenceTo(null) }
+    }
+
     def "rejects invalid AST reference targets and clears empty attachments"() {
         given:
         def method = method('copy', 'source')
         AstDocumentation.attachText(method, 'Existing documentation.')
 
         when:
-        AstDocumentation.attach(method, null)
+        AstDocumentation.attach(method, Documentation.empty())
 
         then:
         AstDocumentation.extractExact(method).empty
@@ -114,7 +168,7 @@ class AstDocumentationTest extends Specification {
 
         when:
         AstDocumentation.attachText(method, 'Existing documentation.')
-        AstDocumentation.attach(method, Documentation.empty())
+        AstDocumentation.attachText(method, '  ')
 
         then:
         AstDocumentation.extractExact(method).empty
@@ -127,10 +181,10 @@ class AstDocumentationTest extends Specification {
         failure.message.contains('class name')
     }
 
-    private static MethodNode method(String name, String parameterName) {
+    private static MethodNode method(String name, String... parameterNames) {
         def owner = new ClassNode('example.Owner', 1, ClassHelper.OBJECT_TYPE)
         def method = new MethodNode(name, 1, ClassHelper.STRING_TYPE,
-                [new Parameter(ClassHelper.STRING_TYPE, parameterName)] as Parameter[], ClassNode.EMPTY_ARRAY, null)
+                parameterNames.collect { new Parameter(ClassHelper.STRING_TYPE, it) } as Parameter[], ClassNode.EMPTY_ARRAY, null)
         owner.addMethod(method)
         method
     }

@@ -39,6 +39,7 @@ import org.codehaus.groovy.ast.expr.ConstantExpression;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -56,43 +57,53 @@ public final class AstDocumentation {
      *
      * @param node the declaration to inspect
      * @return exact documentation when present
+     * @throws NullPointerException when {@code node} is {@code null}
      */
     public static Optional<Documentation> extractExact(AnnotatedNode node) {
+        Objects.requireNonNull(node, "node");
         String text = annotationText(node);
         if (text == null) text = ClassDocExtractor.extractDocumentation(node);
         return text == null || text.isBlank() ? Optional.empty() : Optional.of(Documentation.parse(text));
     }
 
     /**
-     * Replaces AnnoDocimal's carrier on a declaration without changing third-party annotations.
+     * Replaces AnnoDocimal's carrier on a declaration without changing third-party annotations. Attachment filters and
+     * orders parameter descriptions for the target's final signature and applies template values strictly before
+     * mutating the target. Empty documentation removes the AnnoDocimal carrier.
      *
      * @param node the declaration to update
      * @param documentation the semantic documentation to attach
+     * @throws NullPointerException when either argument is {@code null}
+     * @throws Documentation.TemplateException when template application fails
      */
     public static void attach(AnnotatedNode node, Documentation documentation) {
+        Objects.requireNonNull(node, "node");
+        Objects.requireNonNull(documentation, "documentation");
         String target = targetDescription(node);
-        removeAnnoDoc(node);
-        if (documentation == null || documentation.isEmpty()) {
-            clearCachedDocumentation(node);
+        if (documentation.isEmpty()) {
+            removeDocumentation(node);
             return;
         }
         String rendered = documentation.renderForParameters(parameterNames(node), target);
         if (rendered.isBlank()) {
-            clearCachedDocumentation(node);
+            removeDocumentation(node);
             return;
         }
+        removeAnnoDoc(node);
         node.addAnnotation(AnnoDocUtil.createDocumentationAnnotation(rendered));
         clearCachedDocumentation(node);
     }
 
     /**
-     * Parses normalized textual content and attaches it as AnnoDocimal documentation.
+     * Parses normalized textual content and attaches it as AnnoDocimal documentation. Blank text removes the
+     * AnnoDocimal carrier.
      *
      * @param node the declaration to update
      * @param text normalized documentation content
+     * @throws NullPointerException when either argument is {@code null}
      */
     public static void attachText(AnnotatedNode node, String text) {
-        attach(node, Documentation.parse(text));
+        attach(Objects.requireNonNull(node, "node"), Documentation.parse(Objects.requireNonNull(text, "text")));
     }
 
     /**
@@ -100,8 +111,11 @@ public final class AstDocumentation {
      *
      * @param node an AST declaration supported by Javadoc references
      * @return the first-class reference
+     * @throws NullPointerException when {@code node} is {@code null}
+     * @throws IllegalArgumentException when the declaration cannot form a canonical reference
      */
     public static Documentation.Link referenceTo(AnnotatedNode node) {
+        Objects.requireNonNull(node, "node");
         if (node instanceof ClassNode classNode) return Documentation.Link.text(className(classNode));
         if (node instanceof FieldNode fieldNode) return Documentation.Link.text(className(requireDeclaringClass(fieldNode)) + "#" + fieldNode.getName());
         if (node instanceof ConstructorNode constructorNode) {
@@ -129,6 +143,11 @@ public final class AstDocumentation {
 
     private static void removeAnnoDoc(AnnotatedNode node) {
         node.getAnnotations().removeIf(annotation -> annotation.getClassNode().getName().equals(AnnoDoc.class.getName()));
+    }
+
+    private static void removeDocumentation(AnnotatedNode node) {
+        removeAnnoDoc(node);
+        clearCachedDocumentation(node);
     }
 
     private static void clearCachedDocumentation(AnnotatedNode node) {

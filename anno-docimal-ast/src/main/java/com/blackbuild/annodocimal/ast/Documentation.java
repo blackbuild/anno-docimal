@@ -31,11 +31,14 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  * An immutable, normalized documentation model for transformation authors.
+ * Instances preserve authored block and generic-tag order and expose immutable collections. Use
+ * {@link #toBuilder()} to rewrite a value and {@link #render()} to produce normalized carrier content.
  */
 public final class Documentation {
 
@@ -59,7 +62,7 @@ public final class Documentation {
 
     private Documentation(String summary, List<Block> blocks, Map<String, String> parameters, String returnDescription,
                           Map<String, String> exceptions, List<Tag> tags, Map<String, String> templateValues) {
-        this.summary = blankToNull(summary);
+        this.summary = summary;
         this.blocks = List.copyOf(blocks);
         this.parameters = immutableMap(parameters);
         this.returnDescription = returnDescription;
@@ -68,10 +71,20 @@ public final class Documentation {
         this.templateValues = immutableMap(templateValues);
     }
 
+    /**
+     * Returns the shared empty documentation value.
+     *
+     * @return empty documentation
+     */
     public static Documentation empty() {
         return EMPTY;
     }
 
+    /**
+     * Creates an empty mutable builder.
+     *
+     * @return a new builder
+     */
     public static Builder builder() {
         return new Builder();
     }
@@ -79,11 +92,13 @@ public final class Documentation {
     /**
      * Parses normalized documentation content. Parsing consumes no template metadata implicitly.
      *
-     * @param text normalized documentation content
+     * @param text normalized documentation content; blank text produces {@link #empty()}
      * @return its normalized semantic model
+     * @throws NullPointerException when {@code text} is {@code null}
      */
     public static Documentation parse(String text) {
-        if (text == null || text.isBlank()) return empty();
+        Objects.requireNonNull(text, "text");
+        if (text.isBlank()) return empty();
 
         String normalized = text.replace("\r\n", "\n").replace('\r', '\n').strip();
         Builder builder = builder();
@@ -215,48 +230,108 @@ public final class Documentation {
         return -1;
     }
 
-    public String getSummary() {
-        return summary;
+    /**
+     * Returns the optional documentation summary.
+     *
+     * @return the summary, or an empty optional when absent
+     */
+    public Optional<String> getSummary() {
+        return Optional.ofNullable(summary);
     }
 
+    /**
+     * Returns authored prose and code blocks in order.
+     *
+     * @return an immutable block list
+     */
     public List<Block> getBlocks() {
         return blocks;
     }
 
+    /**
+     * Returns parameter descriptions in authored insertion order.
+     *
+     * @return an immutable parameter map
+     */
     public Map<String, String> getParameters() {
         return parameters;
     }
 
-    public String getReturnDescription() {
-        return returnDescription;
+    /**
+     * Returns the optional return description.
+     *
+     * @return the return description, or an empty optional when absent
+     */
+    public Optional<String> getReturnDescription() {
+        return Optional.ofNullable(returnDescription);
     }
 
+    /**
+     * Returns exception descriptions in authored insertion order.
+     *
+     * @return an immutable exception map
+     */
     public Map<String, String> getExceptions() {
         return exceptions;
     }
 
+    /**
+     * Returns repeatable generic tags in authored order.
+     *
+     * @return an immutable tag list
+     */
     public List<Tag> getTags() {
         return tags;
     }
 
+    /**
+     * Returns named values used only by explicit template rendering.
+     *
+     * @return an immutable template-value map
+     */
     public Map<String, String> getTemplateValues() {
         return templateValues;
     }
 
+    /**
+     * Tests whether the value has no semantic content category.
+     *
+     * @return {@code true} when all content categories are absent
+     */
     public boolean isEmpty() {
         return summary == null && blocks.isEmpty() && parameters.isEmpty() && returnDescription == null && exceptions.isEmpty() && tags.isEmpty();
     }
 
+    /**
+     * Creates a mutable builder initialized from this value.
+     *
+     * @return an independent builder
+     */
     public Builder toBuilder() {
         return new Builder(this);
     }
 
+    /**
+     * Renders normalized documentation without filtering or reordering parameter tags.
+     *
+     * @return normalized documentation content
+     * @throws TemplateException when explicit template input is malformed or incomplete
+     */
     public String render() {
         return renderForParameters(null, DOCUMENTATION);
     }
 
+    /**
+     * Renders normalized documentation for a final declaration signature. Parameter descriptions are filtered and
+     * ordered according to {@code finalParameters}; conditional parameter fragments use the same names.
+     *
+     * @param finalParameters final parameter names in signature order
+     * @return normalized documentation content
+     * @throws NullPointerException when the collection or one of its elements is {@code null}
+     * @throws TemplateException when explicit template input is malformed or incomplete
+     */
     public String render(Collection<String> finalParameters) {
-        return renderForParameters(finalParameters, DOCUMENTATION);
+        return renderForParameters(requireParameterNames(finalParameters), DOCUMENTATION);
     }
 
     String renderForParameters(Collection<String> finalParameters, String target) {
@@ -394,10 +469,6 @@ public final class Documentation {
         return value == null || value.isBlank() ? null : value.strip();
     }
 
-    private static String nullToEmpty(String value) {
-        return value == null ? "" : value;
-    }
-
     private record TagParts(String name, String value) {
     }
 
@@ -419,6 +490,19 @@ public final class Documentation {
         return Objects.hash(summary, blocks, parameters, returnDescription, exceptions, tags, templateValues);
     }
 
+    @Override
+    public String toString() {
+        return "Documentation{" +
+                "summary=" + summary +
+                ", blocks=" + blocks +
+                ", parameters=" + parameters +
+                ", returnDescription=" + returnDescription +
+                ", exceptions=" + exceptions +
+                ", tags=" + tags +
+                ", templateValues=" + templateValues +
+                '}';
+    }
+
     /** A first-class authored prose or code block. */
     public static final class Block {
         private final String text;
@@ -429,10 +513,20 @@ public final class Documentation {
             this.code = code;
         }
 
+        /**
+         * Returns normalized block text.
+         *
+         * @return block text without rendering delimiters
+         */
         public String getText() {
             return text;
         }
 
+        /**
+         * Tests whether this is a code block rather than prose.
+         *
+         * @return {@code true} for code
+         */
         public boolean isCode() {
             return code;
         }
@@ -450,6 +544,11 @@ public final class Documentation {
         public int hashCode() {
             return Objects.hash(text, code);
         }
+
+        @Override
+        public String toString() {
+            return "Block{" + "text='" + text + '\'' + ", code=" + code + '}';
+        }
     }
 
     /** A generic, ordered named documentation tag. */
@@ -459,13 +558,23 @@ public final class Documentation {
 
         private Tag(String name, String value) {
             this.name = requireName(name, "tag");
-            this.value = nullToEmpty(value);
+            this.value = Objects.requireNonNull(value, "value");
         }
 
+        /**
+         * Returns the tag name without the leading {@code @}.
+         *
+         * @return tag name
+         */
         public String getName() {
             return name;
         }
 
+        /**
+         * Returns the tag value, which may be blank.
+         *
+         * @return tag value
+         */
         public String getValue() {
             return value;
         }
@@ -479,6 +588,11 @@ public final class Documentation {
         public int hashCode() {
             return Objects.hash(name, value);
         }
+
+        @Override
+        public String toString() {
+            return "Tag{" + "name='" + name + '\'' + ", value='" + value + '\'' + '}';
+        }
     }
 
     /** A first-class documentation reference that can render inline or as a {@code @see} tag. */
@@ -491,28 +605,75 @@ public final class Documentation {
             this.label = blankToNull(label);
         }
 
+        /**
+         * Creates an author-owned textual reference without a label.
+         *
+         * @param target textual Javadoc target
+         * @return the reference
+         * @throws NullPointerException when {@code target} is {@code null}
+         * @throws IllegalArgumentException when {@code target} is blank
+         */
         public static Link text(String target) {
             return new Link(target, null);
         }
 
+        /**
+         * Creates an author-owned textual reference with a label.
+         *
+         * @param target textual Javadoc target
+         * @param label display label; blank text is treated as absent
+         * @return the reference
+         * @throws NullPointerException when either argument is {@code null}
+         * @throws IllegalArgumentException when {@code target} is blank
+         */
         public static Link text(String target, String label) {
-            return new Link(target, label);
+            return new Link(target, Objects.requireNonNull(label, "label"));
         }
 
+        /**
+         * Returns the author-owned textual target.
+         *
+         * @return textual target
+         */
         public String getTarget() {
             return target;
         }
 
-        public String getLabel() {
-            return label;
+        /**
+         * Returns the optional display label.
+         *
+         * @return label, or an empty optional when absent
+         */
+        public Optional<String> getLabel() {
+            return Optional.ofNullable(label);
         }
 
+        /**
+         * Renders this reference as an inline Javadoc link.
+         *
+         * @return canonical inline-link text
+         */
         public String inline() {
             return "{@link " + target + (label == null ? "" : " " + label) + "}";
         }
 
         private String seeValue() {
             return target + (label == null ? "" : " " + label);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Link that && target.equals(that.target) && Objects.equals(label, that.label);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(target, label);
+        }
+
+        @Override
+        public String toString() {
+            return "Link{" + "target='" + target + '\'' + ", label='" + label + '\'' + '}';
         }
     }
 
@@ -523,7 +684,9 @@ public final class Documentation {
         }
     }
 
-    /** A mutable builder whose {@link #build()} results are independent immutable snapshots. */
+    /**
+     * A mutable, non-thread-safe builder whose {@link #build()} results are independent immutable snapshots.
+     */
     public static final class Builder {
         private String summary;
         private final List<Block> blocks = new ArrayList<>();
@@ -546,101 +709,226 @@ public final class Documentation {
             templateValues.putAll(documentation.templateValues);
         }
 
+        /**
+         * Sets the summary. Blank text is a valid explicit value.
+         *
+         * @param value summary text
+         * @return this builder
+         */
         public Builder summary(String value) {
-            summary = blankToNull(value);
+            summary = Objects.requireNonNull(value, "value").strip();
             return this;
         }
 
+        /**
+         * Removes the summary.
+         *
+         * @return this builder
+         */
+        public Builder clearSummary() {
+            summary = null;
+            return this;
+        }
+
+        /**
+         * Appends a prose block.
+         *
+         * @param value non-blank prose
+         * @return this builder
+         */
         public Builder paragraph(String value) {
             blocks.add(new Block(value, false));
             return this;
         }
 
-        public Builder appendParagraph(String value) {
-            return paragraph(value);
-        }
-
+        /**
+         * Appends a code block.
+         *
+         * @param value non-blank code
+         * @return this builder
+         */
         public Builder codeBlock(String value) {
             blocks.add(new Block(value, true));
             return this;
         }
 
+        /**
+         * Replaces all authored blocks, preserving the supplied order.
+         *
+         * @param values replacement blocks; an empty collection clears the category
+         * @return this builder
+         */
         public Builder replaceBlocks(Collection<Block> values) {
             blocks.clear();
-            blocks.addAll(values);
+            Objects.requireNonNull(values, "values").forEach(value -> blocks.add(Objects.requireNonNull(value, "block")));
             return this;
         }
 
+        /**
+         * Adds or replaces a parameter description without changing an existing parameter's position.
+         *
+         * @param name parameter name
+         * @param description description, which may be blank
+         * @return this builder
+         */
         public Builder param(String name, String description) {
-            parameters.put(requireName(name, "parameter"), nullToEmpty(description));
+            parameters.put(requireName(name, "parameter"), Objects.requireNonNull(description, "description"));
             return this;
         }
 
+        /**
+         * Replaces all parameter descriptions in map iteration order.
+         *
+         * @param values replacement descriptions; an empty map clears the category
+         * @return this builder
+         */
         public Builder replaceParameters(Map<String, String> values) {
             parameters.clear();
-            values.forEach(this::param);
+            Objects.requireNonNull(values, "values").forEach(this::param);
             return this;
         }
 
+        /**
+         * Sets the return description. Blank text is a valid explicit value.
+         *
+         * @param description return description
+         * @return this builder
+         */
         public Builder returns(String description) {
-            returnDescription = nullToEmpty(description);
+            returnDescription = Objects.requireNonNull(description, "description");
             return this;
         }
 
-        public Builder replaceReturn(String description) {
-            return returns(description);
+        /**
+         * Removes the return description.
+         *
+         * @return this builder
+         */
+        public Builder clearReturn() {
+            returnDescription = null;
+            return this;
         }
 
+        /**
+         * Adds or replaces an exception description without changing an existing exception's position.
+         *
+         * @param exception exception type name
+         * @param description description, which may be blank
+         * @return this builder
+         */
         public Builder throwsException(String exception, String description) {
-            exceptions.put(requireName(exception, "exception"), nullToEmpty(description));
+            exceptions.put(requireName(exception, "exception"), Objects.requireNonNull(description, "description"));
             return this;
         }
 
+        /**
+         * Replaces all exception descriptions in map iteration order.
+         *
+         * @param values replacement descriptions; an empty map clears the category
+         * @return this builder
+         */
         public Builder replaceExceptions(Map<String, String> values) {
             exceptions.clear();
-            values.forEach(this::throwsException);
+            Objects.requireNonNull(values, "values").forEach(this::throwsException);
             return this;
         }
 
+        /**
+         * Appends a repeatable generic tag.
+         *
+         * @param name tag name without {@code @}
+         * @param value tag value, which may be blank
+         * @return this builder
+         */
         public Builder tag(String name, String value) {
             tags.add(new Tag(name, value));
             return this;
         }
 
+        /**
+         * Appends a {@code deprecated} tag.
+         *
+         * @param value deprecation description, which may be blank
+         * @return this builder
+         */
         public Builder deprecated(String value) {
             return tag("deprecated", value);
         }
 
+        /**
+         * Appends a {@code see} tag from a first-class reference.
+         *
+         * @param link reference to append
+         * @return this builder
+         */
         public Builder see(Link link) {
             return tag("see", Objects.requireNonNull(link, "link").seeValue());
         }
 
+        /**
+         * Appends a {@code see} tag from an author-owned textual target.
+         *
+         * @param target textual target
+         * @return this builder
+         */
         public Builder seeText(String target) {
             return see(Link.text(target));
         }
 
+        /**
+         * Replaces all generic tags, preserving the supplied order.
+         *
+         * @param values replacement tags; an empty collection clears the category
+         * @return this builder
+         */
         public Builder replaceTags(Collection<Tag> values) {
             tags.clear();
-            tags.addAll(values);
+            Objects.requireNonNull(values, "values").forEach(value -> tags.add(Objects.requireNonNull(value, "tag")));
             return this;
         }
 
+        /**
+         * Adds or replaces one named template value.
+         *
+         * @param key placeholder key
+         * @param value literal single-pass replacement
+         * @return this builder
+         * @throws TemplateException when the key is malformed or the value is {@code null}
+         */
         public Builder template(String key, String value) {
             return templateValue(key, value);
         }
 
-        public Builder templateValues(Map<String, ?> values) {
-            values.forEach(this::templateValue);
+        /**
+         * Adds or replaces named template values. Raw or dynamic calls are validated at runtime so invalid values retain
+         * target and key context.
+         *
+         * @param values placeholder values
+         * @return this builder
+         * @throws NullPointerException when {@code values} is {@code null}
+         * @throws TemplateException when a key is malformed or a value is null or not a string
+         */
+        public Builder templateValues(Map<String, String> values) {
+            Objects.requireNonNull(values, "values");
+            for (Map.Entry<?, ?> entry : values.entrySet()) {
+                templateValue(entry.getKey(), entry.getValue());
+            }
             return this;
         }
 
-        private Builder templateValue(String key, Object value) {
-            String name = requireTemplateKey(key);
+        private Builder templateValue(Object key, Object value) {
+            String name = requireTemplateKeyValue(key);
             if (!(value instanceof String)) throw templateFailure(DOCUMENTATION, name, value == null ? "null value" : "non-string value");
             templateValues.put(name, (String) value);
             return this;
         }
 
+        /**
+         * Appends fallback documentation. Existing singular and named content wins; blocks and repeatable tags append.
+         *
+         * @param documentation fallback documentation
+         * @return this builder
+         */
         public Builder append(Documentation documentation) {
             Objects.requireNonNull(documentation, "documentation");
             if (summary == null) summary = documentation.summary;
@@ -653,6 +941,12 @@ public final class Documentation {
             return this;
         }
 
+        /**
+         * Replaces the complete builder state with an immutable value.
+         *
+         * @param documentation replacement documentation
+         * @return this builder
+         */
         public Builder replace(Documentation documentation) {
             Objects.requireNonNull(documentation, "documentation");
             summary = documentation.summary;
@@ -666,12 +960,23 @@ public final class Documentation {
             return this;
         }
 
+        /**
+         * Removes parameter descriptions that are not present in a final declaration signature.
+         *
+         * @param finalParameters retained parameter names
+         * @return this builder
+         */
         public Builder filterParameters(Collection<String> finalParameters) {
-            Set<String> names = new LinkedHashSet<>(finalParameters);
+            Set<String> names = new LinkedHashSet<>(requireParameterNames(finalParameters));
             parameters.keySet().removeIf(name -> !names.contains(name));
             return this;
         }
 
+        /**
+         * Creates an immutable snapshot independent of subsequent builder changes.
+         *
+         * @return immutable documentation
+         */
         public Documentation build() {
             return summary == null && blocks.isEmpty() && parameters.isEmpty() && returnDescription == null && exceptions.isEmpty() && tags.isEmpty()
                     ? empty() : new Documentation(summary, blocks, parameters, returnDescription, exceptions, tags, templateValues);
@@ -679,17 +984,32 @@ public final class Documentation {
     }
 
     private static String requireContent(String value, String kind) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(kind + " must not be blank");
+        Objects.requireNonNull(value, kind);
+        if (value.isBlank()) throw new IllegalArgumentException(kind + " must not be blank");
         return value.strip();
     }
 
     private static String requireName(String value, String kind) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(kind + " name must not be blank");
+        Objects.requireNonNull(value, kind + " name");
+        if (value.isBlank()) throw new IllegalArgumentException(kind + " name must not be blank");
         return value.strip();
+    }
+
+    private static Collection<String> requireParameterNames(Collection<String> values) {
+        Objects.requireNonNull(values, "values");
+        values.forEach(value -> Objects.requireNonNull(value, "parameter name"));
+        return values;
     }
 
     private static String requireTemplateKey(String key) {
         if (key == null || !TEMPLATE_KEY.matcher(key).matches()) throw templateFailure(DOCUMENTATION, key == null ? UNKNOWN_KEY : key, "malformed key");
         return key;
+    }
+
+    private static String requireTemplateKeyValue(Object key) {
+        if (!(key instanceof String)) {
+            throw templateFailure(DOCUMENTATION, key == null ? UNKNOWN_KEY : String.valueOf(key), "malformed key");
+        }
+        return requireTemplateKey((String) key);
     }
 }

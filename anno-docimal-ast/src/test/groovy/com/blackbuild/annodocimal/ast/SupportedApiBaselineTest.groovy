@@ -44,6 +44,11 @@ class SupportedApiBaselineTest extends Specification {
         actualSignatures() == baselineSignatures()
     }
 
+    def "the supported builder excludes pre-baseline aliases"() {
+        expect:
+        Documentation.Builder.declaredMethods*.name.intersect(['appendParagraph', 'replaceReturn']).empty
+    }
+
     private static List<String> actualSignatures() {
         SUPPORTED_TYPES.collectMany { type ->
             ["type ${type.name}"] + type.declaredMethods.findAll { Modifier.isPublic(it.modifiers) }
