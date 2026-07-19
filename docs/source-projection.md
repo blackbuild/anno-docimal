@@ -61,6 +61,11 @@ The supported generator API contains only `SourceProjector`, `ProjectionPolicy`,
 `DeclarationVisibility`, and `SourceProjectionException`. ASM, JavaPoet, signature parsers, visitors, converters,
 annotation readers, and shaded types are implementation details and are excluded from the compatibility baseline.
 
+Those supported types are JSpecify `@NullMarked`. Paths, policies, and selected visibility values are non-null; absent
+declaration identifiers remain non-null `Optional` results. Runtime null rejection remains in place for dynamic Groovy
+and other callers whose tooling does not interpret JSpecify metadata. The published JSpecify dependency stays external
+to the generator shadow JAR so module-path consumers do not receive a duplicate annotation package.
+
 The provisional 0.x `AnnoDocGenerator` helper is removed without a compatibility shim. See the
 [0.x-to-1.0 supported-API migration](migration/0.x-to-1.0-supported-api.md) for the direct replacement. The reusable
 Gradle task contract, including collection filtering and stale-output cleanup, remains owned by issue #35.

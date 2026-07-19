@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Defined the supported 1.0 Java API as non-null by default with JSpecify. Supported annotation, transformation-author,
+  and source-projection types are `@NullMarked`, genuine raw-null inputs are explicit, and `Optional`, runtime null
+  rejection, and template semantics are unchanged. See the [supported API](docs/api/1.0-supported-api.md) and
+  [0.x-to-1.0 migration](docs/migration/0.x-to-1.0-supported-api.md).
+
 - Added the supported `SourceProjector` and explicit `ProjectionPolicy` contract for deterministic
   documentation-oriented Java text and managed output files. The policy now defines visibility, named nesting,
   synthetic and Groovy-runtime artifacts, and mandatory signature closure. The provisional `AnnoDocGenerator` API is

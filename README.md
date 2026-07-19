@@ -162,7 +162,9 @@ Transformation authors use immutable `Documentation` values and `AstDocumentatio
 The authoring language supports ordered prose and code blocks. A named placeholder is `{{key}}`; every value is an
 explicit `String`, required, inserted literally, and evaluated only once. `{{param:key?fragment}}` includes its fragment
 only if the generated method has the named parameter. Scalar accessors return `Optional`; builders use explicit clear
-operations and reject `null`. Exact extraction never searches supertypes or overridden declarations. See the
+operations and reject `null`. Supported types are JSpecify `@NullMarked`; this compiler-visible metadata supplements the
+same runtime validation and does not replace `Optional` absence. Exact extraction never searches supertypes or overridden
+declarations. See the
 [supported API](docs/api/1.0-supported-api.md) and
 [migration guide](docs/migration/0.x-to-1.0-authoring-language.md) for the full contract.
 
@@ -173,6 +175,9 @@ Use `SourceProjector` to reconstruct one caller-selected top-level class file as
 `.java` path. `ProjectionPolicy.documentation()` selects public/protected declarations and named nested types, excludes
 synthetic and Groovy runtime scaffolding, retains visible language-level generated APIs, and always applies signature
 closure. Class-file scanning and stale-output cleanup belong to the caller or Gradle task.
+
+The supported projector and policy types are also JSpecify `@NullMarked`; absent exception diagnostics remain
+`Optional`, and runtime null rejection remains unchanged for dynamic callers.
 
 See the [source-projection contract and inclusion policy](docs/source-projection.md) and the
 [0.x-to-1.0 migration](docs/migration/0.x-to-1.0-supported-api.md). The provisional `AnnoDocGenerator` helper is removed;

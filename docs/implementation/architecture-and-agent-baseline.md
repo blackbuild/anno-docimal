@@ -490,6 +490,16 @@ parsers, visitors, and shaded types remain internal; `AnnoDocGenerator` receives
 
 Recorded in ADRs 0048 and 0054 and the 1.0 release plan.
 
+### Supported API nullability
+
+AnnoDocimal 1.0 uses JSpecify `@NullMarked` at supported type boundaries. Type scope avoids annotating implementation-only
+classes that share AST, generator, and plugin packages with supported types. Raw nullable values are explicit, while
+absence remains represented by `Optional` and runtime null rejection remains authoritative for dynamic callers.
+Published artifacts expose JSpecify without embedding it in the generator shadow JAR, avoiding a module-path split
+package. Test-only JetBrains `@Language` annotations remain unrelated language-injection metadata.
+
+Recorded in ADR 0059.
+
 ### Provisional-API migration rule
 
 AnnoDocimal 1.0 prefers the best supported API over mandatory shims for undefined 0.x helper surfaces. KlumAST, the only
