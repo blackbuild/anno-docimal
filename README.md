@@ -86,7 +86,8 @@ dependencies {
 
 ## Let your transformation add `@AnnoDoc` annotations to generated code
 
-Code in your transformation library should use the methods provided by `AnnoDocUtil` to add the `@AnnoDoc` annotation to the generated code.
+Code in your transformation library should use the supported `AstDocumentation` facade to attach documentation to
+generated declarations.
 
 `my-transformation-ast: MyTransformation.groovy`:
 ```groovy
@@ -160,7 +161,9 @@ an existing java class, while retaining the original javadoc (perhaps transforme
 Transformation authors use immutable `Documentation` values and `AstDocumentation` for exact extraction and attachment.
 The authoring language supports ordered prose and code blocks. A named placeholder is `{{key}}`; every value is an
 explicit `String`, required, inserted literally, and evaluated only once. `{{param:key?fragment}}` includes its fragment
-only if the generated method has the named parameter. See the [supported API](docs/api/1.0-supported-api.md) and
+only if the generated method has the named parameter. Scalar accessors return `Optional`; builders use explicit clear
+operations and reject `null`. Exact extraction never searches supertypes or overridden declarations. See the
+[supported API](docs/api/1.0-supported-api.md) and
 [migration guide](docs/migration/0.x-to-1.0-authoring-language.md) for the full contract.
 
 ## Source Extractors
