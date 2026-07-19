@@ -32,7 +32,7 @@ import org.objectweb.asm.Type;
 import javax.lang.model.element.Modifier;
 import java.util.EnumSet;
 
-public class TypeConversion {
+final class TypeConversion {
 
     private TypeConversion() {}
 
@@ -42,17 +42,11 @@ public class TypeConversion {
     }
 
     static ClassName fromInternalNameToClassName(String name) {
-        String packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
-        String className = name.substring(name.lastIndexOf('/') + 1);
+        int packageSeparator = name.lastIndexOf('/');
+        String packageName = packageSeparator < 0 ? "" : name.substring(0, packageSeparator).replace('/', '.');
+        String className = name.substring(packageSeparator + 1);
 
-        if (!className.contains("$")) {
-            return ClassName.get(packageName, className);
-        }
-
-        String outerClassName = className.substring(0, className.lastIndexOf('$'));
-        String nestedClassName = className.substring(className.lastIndexOf('$') + 1);
-
-        return ClassName.get(packageName, outerClassName, nestedClassName.split("\\$"));
+        return ClassName.get(packageName, className);
     }
 
     static Modifier[] decodeModifiers(int flags) {

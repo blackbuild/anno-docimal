@@ -29,17 +29,25 @@ import org.objectweb.asm.signature.SignatureVisitor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
 
 abstract class TypeSignatureParser extends SignatureVisitor {
 
     protected TypeSignatureParser() {
+        this(TypeConversion::fromInternalNameToClassName);
+    }
+
+    protected TypeSignatureParser(Function<String, ClassName> classNameResolver) {
         super(CompilerConfiguration.ASM_API_VERSION);
+        this.classNameResolver = Objects.requireNonNull(classNameResolver, "classNameResolver");
     }
 
     abstract void finished(TypeName result);
 
     private String baseName;
     private final List<TypeName> arguments = new ArrayList<>();
+    private final Function<String, ClassName> classNameResolver;
 
     @Override
     public void visitTypeVariable(final String name) {
@@ -54,7 +62,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
     @Override
     public SignatureVisitor visitArrayType() {
         final TypeSignatureParser outer = this;
-        return new TypeSignatureParser() {
+        return new TypeSignatureParser(classNameResolver) {
             @Override
             void finished(TypeName result) {
                 outer.finished(ArrayTypeName.of(result));
@@ -74,7 +82,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitTypeArgument(final char wildcard) {
-        return new TypeSignatureParser() {
+        return new TypeSignatureParser(classNameResolver) {
             @Override
             void finished(TypeName result) {
                 if (wildcard == INSTANCEOF) {
@@ -98,7 +106,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public void visitEnd() {
-        ClassName baseType = TypeConversion.fromInternalNameToClassName(baseName);
+        ClassName baseType = classNameResolver.apply(baseName);
         if (arguments.isEmpty()) {
             finished(baseType);
         } else {

@@ -24,6 +24,7 @@ public class Test {
    * @return The input in lower case
    */
   public String methodWithParam(String input) {
+    return null;
   }
 
   /**

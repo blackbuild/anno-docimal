@@ -1,0 +1,33 @@
+# Supported anno-docimal-generator 1.0 projection API.
+# Keep this allowlist scoped: public implementation and shaded types are intentionally absent.
+constructor com.blackbuild.annodocimal.generator.SourceProjector(com.blackbuild.annodocimal.generator.ProjectionPolicy)
+field com.blackbuild.annodocimal.generator.DeclarationVisibility#PACKAGE_PRIVATE:com.blackbuild.annodocimal.generator.DeclarationVisibility
+field com.blackbuild.annodocimal.generator.DeclarationVisibility#PRIVATE:com.blackbuild.annodocimal.generator.DeclarationVisibility
+field com.blackbuild.annodocimal.generator.DeclarationVisibility#PROTECTED:com.blackbuild.annodocimal.generator.DeclarationVisibility
+field com.blackbuild.annodocimal.generator.DeclarationVisibility#PUBLIC:com.blackbuild.annodocimal.generator.DeclarationVisibility
+method com.blackbuild.annodocimal.generator.DeclarationVisibility#valueOf(java.lang.String):com.blackbuild.annodocimal.generator.DeclarationVisibility
+method com.blackbuild.annodocimal.generator.DeclarationVisibility#values():com.blackbuild.annodocimal.generator.DeclarationVisibility[]
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#builder():com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#documentation():com.blackbuild.annodocimal.generator.ProjectionPolicy
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#equals(java.lang.Object):boolean
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#getIncludedVisibilities():java.util.Set<com.blackbuild.annodocimal.generator.DeclarationVisibility>
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#hashCode():int
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#isGroovyRuntimeArtifactsIncluded():boolean
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#isNestedDeclarationsIncluded():boolean
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#isSyntheticDeclarationsIncluded():boolean
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#toBuilder():com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder
+method com.blackbuild.annodocimal.generator.ProjectionPolicy#toString():java.lang.String
+method com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder#build():com.blackbuild.annodocimal.generator.ProjectionPolicy
+method com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder#includeGroovyRuntimeArtifacts(boolean):com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder
+method com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder#includeNestedDeclarations(boolean):com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder
+method com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder#includeSyntheticDeclarations(boolean):com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder
+method com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder#includedVisibilities(java.util.Collection<com.blackbuild.annodocimal.generator.DeclarationVisibility>):com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder
+method com.blackbuild.annodocimal.generator.SourceProjectionException#getDeclarationIdentifier():java.util.Optional<java.lang.String>
+method com.blackbuild.annodocimal.generator.SourceProjectionException#getInputPath():java.nio.file.Path
+method com.blackbuild.annodocimal.generator.SourceProjector#projectToDirectory(java.nio.file.Path,java.nio.file.Path):java.nio.file.Path
+method com.blackbuild.annodocimal.generator.SourceProjector#projectToText(java.nio.file.Path):java.lang.String
+type public final com.blackbuild.annodocimal.generator.DeclarationVisibility
+type public final com.blackbuild.annodocimal.generator.ProjectionPolicy
+type public final com.blackbuild.annodocimal.generator.SourceProjectionException
+type public final com.blackbuild.annodocimal.generator.SourceProjector
+type public static final com.blackbuild.annodocimal.generator.ProjectionPolicy$Builder

@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.generator;
 
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeVariableName;
@@ -32,19 +33,21 @@ import org.objectweb.asm.signature.SignatureVisitor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 class ClassSignatureParser {
      private ClassSignatureParser() {
           /* This utility class should not be instantiated */
      }
 
-    static void parseClassSignature(String signature, TypeSpec.Builder builder, TypeSpec.Kind kind) {
+    static void parseClassSignature(String signature, TypeSpec.Builder builder, TypeSpec.Kind kind,
+                                    boolean includeGroovyObject, Function<String, ClassName> classNameResolver) {
         final List<TypeName> interfaces = new ArrayList<>();
-        FormalParameterParser v = new FormalParameterParser() {
+        FormalParameterParser v = new FormalParameterParser(classNameResolver) {
 
             @Override
             public SignatureVisitor visitSuperclass() {
-                return new TypeSignatureParser() {
+                return new TypeSignatureParser(classNameResolver) {
                     @Override
                     void finished(TypeName result) {
                         if (kind == TypeSpec.Kind.CLASS)
@@ -55,10 +58,10 @@ class ClassSignatureParser {
 
             @Override
             public SignatureVisitor visitInterface() {
-                return new TypeSignatureParser() {
+                return new TypeSignatureParser(classNameResolver) {
                     @Override
                     void finished(TypeName result) {
-                        if (result.toString().equals("groovy.lang.GroovyObject")) return;
+                        if (!includeGroovyObject && result.toString().equals("groovy.lang.GroovyObject")) return;
                         if (kind == TypeSpec.Kind.ANNOTATION && result.toString().equals("java.lang.annotation.Annotation")) return;
                         interfaces.add(result);
                     }

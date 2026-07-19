@@ -23,21 +23,16 @@
  */
 package com.blackbuild.annodocimal.generator;
 
-import java.io.File;
-import java.io.IOException;
-
-public class AnnoDocGenerator {
-
-    private AnnoDocGenerator() {
-        // static only
-    }
-
-    public static void generate(File classFile, Appendable output) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(output);
-    }
-
-    public static void generate(File classFile, File targetFolder) throws IOException {
-        SpecConverter.toJavaFile(classFile).writeTo(targetFolder);
-    }
-
+/**
+ * Java declaration visibility levels that a {@link ProjectionPolicy} can select.
+ */
+public enum DeclarationVisibility {
+    /** Public declarations. */
+    PUBLIC,
+    /** Protected declarations. */
+    PROTECTED,
+    /** Declarations with no explicit Java visibility modifier. */
+    PACKAGE_PRIVATE,
+    /** Private declarations. */
+    PRIVATE
 }

@@ -23,7 +23,8 @@
  */
 package com.blackbuild.annodocimal.plugin;
 
-import com.blackbuild.annodocimal.generator.AnnoDocGenerator;
+import com.blackbuild.annodocimal.generator.ProjectionPolicy;
+import com.blackbuild.annodocimal.generator.SourceProjector;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
@@ -40,6 +41,8 @@ import java.io.IOException;
 
 @CacheableTask
 public abstract class CreateClassStubs extends DefaultTask {
+
+    private static final SourceProjector PROJECTOR = new SourceProjector(ProjectionPolicy.documentation());
 
     private final ConfigurableFileCollection classesDirs = getProject().getObjects().fileCollection();
 
@@ -66,7 +69,7 @@ public abstract class CreateClassStubs extends DefaultTask {
     private void handleClassFile(FileVisitDetails fileVisitDetails) {
         if (fileVisitDetails.isDirectory()) return;
         try {
-            AnnoDocGenerator.generate(fileVisitDetails.getFile(), getOutputDirectory().get().getAsFile());
+            PROJECTOR.projectToDirectory(fileVisitDetails.getFile().toPath(), getOutputDirectory().get().getAsFile().toPath());
         } catch (IOException e) {
             throw new GradleException("Could not write stub for " + toClassName(fileVisitDetails), e);
         }
