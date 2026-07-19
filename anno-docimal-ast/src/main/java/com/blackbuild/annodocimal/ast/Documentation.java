@@ -294,7 +294,7 @@ public final class Documentation {
     }
 
     /**
-     * Tests whether the value has no renderable semantic content.
+     * Tests whether the value has no semantic content category.
      *
      * @return {@code true} when all content categories are absent
      */
@@ -684,7 +684,9 @@ public final class Documentation {
         }
     }
 
-    /** A mutable builder whose {@link #build()} results are independent immutable snapshots. */
+    /**
+     * A mutable, non-thread-safe builder whose {@link #build()} results are independent immutable snapshots.
+     */
     public static final class Builder {
         private String summary;
         private final List<Block> blocks = new ArrayList<>();

@@ -81,14 +81,12 @@ public final class AstDocumentation {
         Objects.requireNonNull(documentation, "documentation");
         String target = targetDescription(node);
         if (documentation.isEmpty()) {
-            removeAnnoDoc(node);
-            clearCachedDocumentation(node);
+            removeDocumentation(node);
             return;
         }
         String rendered = documentation.renderForParameters(parameterNames(node), target);
         if (rendered.isBlank()) {
-            removeAnnoDoc(node);
-            clearCachedDocumentation(node);
+            removeDocumentation(node);
             return;
         }
         removeAnnoDoc(node);
@@ -145,6 +143,11 @@ public final class AstDocumentation {
 
     private static void removeAnnoDoc(AnnotatedNode node) {
         node.getAnnotations().removeIf(annotation -> annotation.getClassNode().getName().equals(AnnoDoc.class.getName()));
+    }
+
+    private static void removeDocumentation(AnnotatedNode node) {
+        removeAnnoDoc(node);
+        clearCachedDocumentation(node);
     }
 
     private static void clearCachedDocumentation(AnnotatedNode node) {

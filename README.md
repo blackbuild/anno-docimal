@@ -195,5 +195,5 @@ Roadmap:
 - [x] Implement ast transformation
 - [x] support for inner classes
 - [ ] support for diverse javadoc formats (like asciidoc or markdown)
-- [ ] helper methods to simplify the creation of `@AnnoDoc` annotations
+- [x] supported authoring facade for extracting, rewriting, and attaching `@AnnoDoc` documentation
 - [x] simple templating for javadocs (for klum)

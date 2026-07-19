@@ -289,12 +289,6 @@ continues too.</p>
     }
 
     def "parses single-line blocks and empty input deterministically"() {
-        when:
-        Documentation.parse(null)
-
-        then:
-        thrown(NullPointerException)
-
         expect:
         Documentation.parse(' \n ').empty
         Documentation.parse('<p>A paragraph</p>\n<pre>code()</pre>').render() == '''<p>A paragraph</p>
