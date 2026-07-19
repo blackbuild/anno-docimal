@@ -21,17 +21,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.annotations;
+package com.blackbuild.annodocimal.ast;
 
 import org.jspecify.annotations.NullMarked;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
+final class SupportedNullabilityJavaConsumer {
 
-@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.CONSTRUCTOR})
-@Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
-@NullMarked
-public @interface AnnoDoc {
-    String value();
+    private SupportedNullabilityJavaConsumer() {
+    }
+
+    static Documentation rewrite(String text) {
+        return Documentation.parse(text).toBuilder().build();
+    }
+
+    static boolean isEffectivelyNullMarked(Class<?> type) {
+        Class<?> current = type;
+        while (current != null) {
+            if (current.isAnnotationPresent(NullMarked.class)) return true;
+            current = current.getEnclosingClass();
+        }
+        return false;
+    }
 }

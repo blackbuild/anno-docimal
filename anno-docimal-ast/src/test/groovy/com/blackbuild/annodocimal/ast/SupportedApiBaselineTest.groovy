@@ -23,9 +23,14 @@
  */
 package com.blackbuild.annodocimal.ast
 
+import com.blackbuild.annodocimal.annotations.AnnoDoc
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+import com.blackbuild.annodocimal.ast.extractor.ASTExtractor
+import org.jspecify.annotations.Nullable
 import spock.lang.Specification
 
 import java.lang.reflect.Modifier
+import java.util.Optional
 
 class SupportedApiBaselineTest extends Specification {
 
@@ -49,11 +54,50 @@ class SupportedApiBaselineTest extends Specification {
         Documentation.Builder.declaredMethods*.name.intersect(['appendParagraph', 'replaceReturn']).empty
     }
 
+    def "Java and Groovy consumers observe the supported API as null-marked"() {
+        expect:
+        [AnnoDoc, InlineJavadocs, *SUPPORTED_TYPES].every(SupportedNullabilityJavaConsumer::isEffectivelyNullMarked)
+
+        and:
+        SupportedNullabilityJavaConsumer.rewrite('A summary.').summary == Optional.of('A summary.')
+        SupportedNullabilityJavaConsumer.rewrite('').summary == Optional.empty()
+    }
+
+    def "equals accepts the genuinely nullable comparison value"() {
+        expect:
+        [Documentation, Documentation.Block, Documentation.Tag, Documentation.Link].every { type ->
+            type.getDeclaredMethod('equals', Object).annotatedParameterTypes[0]
+                    .isAnnotationPresent(Nullable)
+        }
+    }
+
+    def "implementation-only AST types remain outside the null-marked boundary"() {
+        expect:
+        !SupportedNullabilityJavaConsumer.isEffectivelyNullMarked(ASTExtractor)
+        !SupportedNullabilityJavaConsumer.isEffectivelyNullMarked(InlineJavadocsTransformation)
+    }
+
     private static List<String> actualSignatures() {
-        SUPPORTED_TYPES.collectMany { type ->
-            ["type ${type.name}"] + type.declaredMethods.findAll { Modifier.isPublic(it.modifiers) }
-                    .collect { method -> "method ${type.name}#${method.name}(${method.parameterTypes*.name.join(',')}):${method.returnType.name}" }
-        }.sort()
+        def authoringSignatures = SUPPORTED_TYPES.collectMany { type ->
+            ["type ${type.name}"] +
+                    type.declaredAnnotations.findAll { it.annotationType().packageName == 'org.jspecify.annotations' }
+                            .collect { annotation -> "annotation ${type.name}:${annotation.annotationType().name}" } +
+                    type.declaredMethods.findAll { Modifier.isPublic(it.modifiers) }.collectMany { method ->
+                        def signature = "${type.name}#${method.name}(${method.parameterTypes*.name.join(',')})"
+                        ["method ${signature}:${method.returnType.name}"] +
+                                method.annotatedParameterTypes.toList().withIndex().collectMany { parameter, index ->
+                                    parameter.annotations.findAll { it.annotationType().packageName == 'org.jspecify.annotations' }
+                                            .collect { annotation ->
+                                                "parameter-annotation ${signature}[${index}]:${annotation.annotationType().name}"
+                                            }
+                                }
+                    }
+        }
+        def protocolNullability = [AnnoDoc, InlineJavadocs].collectMany { type ->
+            type.declaredAnnotations.findAll { it.annotationType().packageName == 'org.jspecify.annotations' }
+                    .collect { annotation -> "annotation ${type.name}:${annotation.annotationType().name}" }
+        }
+        (authoringSignatures + protocolNullability).sort()
     }
 
     private static List<String> baselineSignatures() {

@@ -13,6 +13,7 @@ tasks.withType(Jar).configureEach {
 
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
+    api libs.jspecify
     implementation "com.squareup:javapoet:1.13.0"
     implementation "org.ow2.asm:asm-tree:9.10.1"
     sharedTests "com.google.testing.compile:compile-testing:0.23.0"
@@ -23,12 +24,24 @@ dependencies {
 tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     relocate 'com.squareup.javapoet', 'shadow.javapoet'
     relocate 'org.objectweb.asm', 'shadow.asm'
+    dependencies {
+        exclude(dependency('org.jspecify:jspecify:.*'))
+    }
 }
 
 publishing {
     publications {
         shadow(MavenPublication) {
             components.shadow
+            pom.withXml {
+                def jspecify = libs.jspecify.get()
+                def dependenciesNode = asNode().appendNode('dependencies')
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', jspecify.module.group)
+                dependencyNode.appendNode('artifactId', jspecify.module.name)
+                dependencyNode.appendNode('version', jspecify.versionConstraint.requiredVersion)
+                dependencyNode.appendNode('scope', 'compile')
+            }
         }
     }
 }

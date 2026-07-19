@@ -23,9 +23,12 @@
  */
 package com.blackbuild.annodocimal.generator
 
+import org.jspecify.annotations.Nullable
 import spock.lang.Specification
 
 import java.lang.reflect.Modifier
+import java.nio.file.Path
+import java.util.Optional
 
 class SupportedProjectionApiBaselineTest extends Specification {
 
@@ -42,14 +45,58 @@ class SupportedProjectionApiBaselineTest extends Specification {
         actualSignatures() == baselineSignatures()
     }
 
+    def "Java and Groovy consumers observe the supported projection API as null-marked"() {
+        expect:
+        SUPPORTED_TYPES.every(SupportedNullabilityJavaConsumer::isEffectivelyNullMarked)
+
+        and:
+        SupportedNullabilityJavaConsumer.defaultPolicy() == ProjectionPolicy.documentation()
+        SupportedNullabilityJavaConsumer.unknownIdentifier(Path.of('Example.class')) == Optional.empty()
+    }
+
+    def "projection value equality accepts a genuinely nullable comparison value"() {
+        expect:
+        ProjectionPolicy.getDeclaredMethod('equals', Object).annotatedParameterTypes[0]
+                .isAnnotationPresent(Nullable)
+    }
+
+    def "implementation-only projection types remain outside the null-marked boundary"() {
+        expect:
+        !SupportedNullabilityJavaConsumer.isEffectivelyNullMarked(SpecConverter)
+    }
+
+    def "runtime null rejection remains the projection contract"() {
+        when:
+        operation.call()
+
+        then:
+        thrown(NullPointerException)
+
+        where:
+        operation << [
+                { new SourceProjector(null) },
+                { ProjectionPolicy.builder().includedVisibilities(null) },
+                { ProjectionPolicy.builder().includedVisibilities([null]) }
+        ]
+    }
+
     private static List<String> actualSignatures() {
         SUPPORTED_TYPES.collectMany { type ->
             ["type ${Modifier.toString(type.modifiers)} ${type.name}"] +
+                    type.declaredAnnotations.findAll { it.annotationType().packageName == 'org.jspecify.annotations' }
+                            .collect { annotation -> "annotation ${type.name}:${annotation.annotationType().name}" } +
                     type.declaredConstructors.findAll { Modifier.isPublic(it.modifiers) }.collect { constructor ->
                         "constructor ${type.name}(${constructor.genericParameterTypes*.typeName.join(',')})"
                     } +
-                    type.declaredMethods.findAll { Modifier.isPublic(it.modifiers) }.collect { method ->
-                        "method ${type.name}#${method.name}(${method.genericParameterTypes*.typeName.join(',')}):${method.genericReturnType.typeName}"
+                    type.declaredMethods.findAll { Modifier.isPublic(it.modifiers) }.collectMany { method ->
+                        def signature = "${type.name}#${method.name}(${method.genericParameterTypes*.typeName.join(',')})"
+                        ["method ${signature}:${method.genericReturnType.typeName}"] +
+                                method.annotatedParameterTypes.toList().withIndex().collectMany { parameter, index ->
+                                    parameter.annotations.findAll { it.annotationType().packageName == 'org.jspecify.annotations' }
+                                            .collect { annotation ->
+                                                "parameter-annotation ${signature}[${index}]:${annotation.annotationType().name}"
+                                            }
+                                }
                     } +
                     type.declaredFields.findAll { Modifier.isPublic(it.modifiers) }.collect { field ->
                         "field ${type.name}#${field.name}:${field.genericType.typeName}"

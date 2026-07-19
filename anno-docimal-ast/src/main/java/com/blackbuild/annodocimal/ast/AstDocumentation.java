@@ -35,6 +35,8 @@ import org.codehaus.groovy.ast.FieldNode;
 import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.Parameter;
 import org.codehaus.groovy.ast.expr.ConstantExpression;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,6 +48,7 @@ import java.util.stream.Collectors;
 /**
  * Supported documentation capabilities for Groovy AST transformations.
  */
+@NullMarked
 public final class AstDocumentation {
 
     private AstDocumentation() {
@@ -127,7 +130,7 @@ public final class AstDocumentation {
         throw new IllegalArgumentException("Cannot create a documentation reference for " + node.getClass().getName());
     }
 
-    private static String annotationText(AnnotatedNode node) {
+    private static @Nullable String annotationText(AnnotatedNode node) {
         return node.getAnnotations().stream()
                 .filter(annotation -> annotation.getClassNode().getName().equals(AnnoDoc.class.getName()))
                 .findFirst()
@@ -176,7 +179,7 @@ public final class AstDocumentation {
         return declaringClass;
     }
 
-    private static String className(ClassNode node) {
+    private static String className(@Nullable ClassNode node) {
         if (node == null || node.getName() == null || node.getName().isBlank()) throw new IllegalArgumentException("Cannot create a documentation reference without a class name");
         return node.isArray() ? className(node.getComponentType()) + "[]" : node.getName().replace('$', '.');
     }

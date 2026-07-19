@@ -6,6 +6,10 @@ plugins {
 
 description "Annotations for AnnoDocimal"
 
+dependencies {
+    api libs.jspecify
+}
+
 tasks.withType(Jar).configureEach {
     manifest.attributes('Automatic-Module-Name': 'com.blackbuild.annodocimal.annotations')
 }

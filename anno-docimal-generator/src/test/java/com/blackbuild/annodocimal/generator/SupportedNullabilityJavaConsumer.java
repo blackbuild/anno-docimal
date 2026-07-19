@@ -21,17 +21,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.blackbuild.annodocimal.annotations;
+package com.blackbuild.annodocimal.generator;
 
 import org.jspecify.annotations.NullMarked;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
+import java.nio.file.Path;
+import java.util.Optional;
 
-@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.CONSTRUCTOR})
-@Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
-@NullMarked
-public @interface AnnoDoc {
-    String value();
+final class SupportedNullabilityJavaConsumer {
+
+    private SupportedNullabilityJavaConsumer() {
+    }
+
+    static ProjectionPolicy defaultPolicy() {
+        return ProjectionPolicy.builder().build();
+    }
+
+    static Optional<String> unknownIdentifier(Path inputPath) {
+        return new SourceProjectionException(inputPath, null, "projection failed").getDeclarationIdentifier();
+    }
+
+    static boolean isEffectivelyNullMarked(Class<?> type) {
+        Class<?> current = type;
+        while (current != null) {
+            if (current.isAnnotationPresent(NullMarked.class)) return true;
+            current = current.getEnclosingClass();
+        }
+        return false;
+    }
 }

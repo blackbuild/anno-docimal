@@ -23,9 +23,12 @@
  */
 package com.blackbuild.annodocimal.generator;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * Java declaration visibility levels that a {@link ProjectionPolicy} can select.
  */
+@NullMarked
 public enum DeclarationVisibility {
     /** Public declarations. */
     PUBLIC,

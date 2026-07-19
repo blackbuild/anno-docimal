@@ -30,6 +30,7 @@ dependencyResolutionManagement {
             library('groovy-v5', 'org.apache.groovy', 'groovy-all').versionRef("groovy-v5")
 
             library("jb-anno", "org.jetbrains:annotations:16.0.2")
+            library("jspecify", "org.jspecify:jspecify:1.0.0")
 
             version("spock-g3", "2.4-groovy-3.0")
             version("spock-g4", "2.4-groovy-4.0")

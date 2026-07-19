@@ -23,6 +23,9 @@
  */
 package com.blackbuild.annodocimal.ast;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +43,7 @@ import java.util.regex.Pattern;
  * Instances preserve authored block and generic-tag order and expose immutable collections. Use
  * {@link #toBuilder()} to rewrite a value and {@link #render()} to produce normalized carrier content.
  */
+@NullMarked
 public final class Documentation {
 
     private static final Documentation EMPTY = new Documentation(null, List.of(), Map.of(), null, Map.of(), List.of(), Map.of());
@@ -52,15 +56,16 @@ public final class Documentation {
     private static final String PARAMETER_FRAGMENT = "param:";
     private static final Pattern TEMPLATE_KEY = Pattern.compile("[A-Za-z][A-Za-z0-9_.-]*");
 
-    private final String summary;
+    private final @Nullable String summary;
     private final List<Block> blocks;
     private final Map<String, String> parameters;
-    private final String returnDescription;
+    private final @Nullable String returnDescription;
     private final Map<String, String> exceptions;
     private final List<Tag> tags;
     private final Map<String, String> templateValues;
 
-    private Documentation(String summary, List<Block> blocks, Map<String, String> parameters, String returnDescription,
+    private Documentation(@Nullable String summary, List<Block> blocks, Map<String, String> parameters,
+                          @Nullable String returnDescription,
                           Map<String, String> exceptions, List<Tag> tags, Map<String, String> templateValues) {
         this.summary = summary;
         this.blocks = List.copyOf(blocks);
@@ -191,8 +196,8 @@ public final class Documentation {
     }
 
     private static void parseTags(List<String> lines, int index, Builder builder) {
-        String currentName = null;
-        StringBuilder currentValue = null;
+        @Nullable String currentName = null;
+        @Nullable StringBuilder currentValue = null;
         for (; index < lines.size(); index++) {
             String line = lines.get(index);
             if (line.startsWith("@") && line.length() > 1 && !Character.isWhitespace(line.charAt(1))) {
@@ -207,7 +212,7 @@ public final class Documentation {
         addTag(builder, currentName, currentValue);
     }
 
-    private static void addTag(Builder builder, String name, StringBuilder value) {
+    private static void addTag(Builder builder, @Nullable String name, @Nullable StringBuilder value) {
         if (name == null) return;
         String description = value == null ? "" : value.toString();
         TagParts namedTag = splitTag(description);
@@ -334,7 +339,7 @@ public final class Documentation {
         return renderForParameters(requireParameterNames(finalParameters), DOCUMENTATION);
     }
 
-    String renderForParameters(Collection<String> finalParameters, String target) {
+    String renderForParameters(@Nullable Collection<String> finalParameters, String target) {
         StringBuilder rendered = renderSections();
         appendTags(rendered, finalParameters);
         Collection<String> parametersForTemplates = finalParameters == null ? parameters.keySet() : finalParameters;
@@ -348,7 +353,7 @@ public final class Documentation {
         return rendered;
     }
 
-    private void appendTags(StringBuilder rendered, Collection<String> finalParameters) {
+    private void appendTags(StringBuilder rendered, @Nullable Collection<String> finalParameters) {
         boolean hasTags = !parameters.isEmpty() || returnDescription != null || !exceptions.isEmpty() || !tags.isEmpty();
         if (hasTags && !rendered.isEmpty()) rendered.append('\n');
         appendParameters(rendered, finalParameters);
@@ -357,7 +362,7 @@ public final class Documentation {
         for (Tag tag : tags) appendTag(rendered, tag.getName(), tag.getValue());
     }
 
-    private void appendParameters(StringBuilder rendered, Collection<String> finalParameters) {
+    private void appendParameters(StringBuilder rendered, @Nullable Collection<String> finalParameters) {
         if (finalParameters == null) {
             parameters.forEach((name, description) -> appendTag(rendered, "param " + name, description));
             return;
@@ -368,7 +373,7 @@ public final class Documentation {
         }
     }
 
-    private static void appendSection(StringBuilder rendered, String value) {
+    private static void appendSection(StringBuilder rendered, @Nullable String value) {
         if (value == null || value.isBlank()) return;
         if (!rendered.isEmpty()) rendered.append("\n\n");
         rendered.append(value);
@@ -465,7 +470,7 @@ public final class Documentation {
         return value.isEmpty() ? UNKNOWN_KEY : value;
     }
 
-    private static String blankToNull(String value) {
+    private static @Nullable String blankToNull(@Nullable String value) {
         return value == null || value.isBlank() ? null : value.strip();
     }
 
@@ -477,7 +482,7 @@ public final class Documentation {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
         if (this == other) return true;
         if (!(other instanceof Documentation that)) return false;
         return Objects.equals(summary, that.summary) && blocks.equals(that.blocks) && parameters.equals(that.parameters)
@@ -536,7 +541,7 @@ public final class Documentation {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(@Nullable Object other) {
             return other instanceof Block that && code == that.code && text.equals(that.text);
         }
 
@@ -580,7 +585,7 @@ public final class Documentation {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(@Nullable Object other) {
             return other instanceof Tag that && name.equals(that.name) && value.equals(that.value);
         }
 
@@ -598,9 +603,9 @@ public final class Documentation {
     /** A first-class documentation reference that can render inline or as a {@code @see} tag. */
     public static final class Link {
         private final String target;
-        private final String label;
+        private final @Nullable String label;
 
-        private Link(String target, String label) {
+        private Link(String target, @Nullable String label) {
             this.target = requireContent(target, "link target");
             this.label = blankToNull(label);
         }
@@ -662,7 +667,7 @@ public final class Documentation {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(@Nullable Object other) {
             return other instanceof Link that && target.equals(that.target) && Objects.equals(label, that.label);
         }
 
@@ -688,10 +693,10 @@ public final class Documentation {
      * A mutable, non-thread-safe builder whose {@link #build()} results are independent immutable snapshots.
      */
     public static final class Builder {
-        private String summary;
+        private @Nullable String summary;
         private final List<Block> blocks = new ArrayList<>();
         private final Map<String, String> parameters = new LinkedHashMap<>();
-        private String returnDescription;
+        private @Nullable String returnDescription;
         private final Map<String, String> exceptions = new LinkedHashMap<>();
         private final List<Tag> tags = new ArrayList<>();
         private final Map<String, String> templateValues = new LinkedHashMap<>();
@@ -916,7 +921,7 @@ public final class Documentation {
             return this;
         }
 
-        private Builder templateValue(Object key, Object value) {
+        private Builder templateValue(@Nullable Object key, @Nullable Object value) {
             String name = requireTemplateKeyValue(key);
             if (!(value instanceof String)) throw templateFailure(DOCUMENTATION, name, value == null ? "null value" : "non-string value");
             templateValues.put(name, (String) value);
@@ -1001,12 +1006,12 @@ public final class Documentation {
         return values;
     }
 
-    private static String requireTemplateKey(String key) {
+    private static String requireTemplateKey(@Nullable String key) {
         if (key == null || !TEMPLATE_KEY.matcher(key).matches()) throw templateFailure(DOCUMENTATION, key == null ? UNKNOWN_KEY : key, "malformed key");
         return key;
     }
 
-    private static String requireTemplateKeyValue(Object key) {
+    private static String requireTemplateKeyValue(@Nullable Object key) {
         if (!(key instanceof String)) {
             throw templateFailure(DOCUMENTATION, key == null ? UNKNOWN_KEY : String.valueOf(key), "malformed key");
         }

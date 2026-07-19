@@ -1,5 +1,9 @@
 # Supported anno-docimal-generator 1.0 projection API.
 # Keep this allowlist scoped: public implementation and shaded types are intentionally absent.
+annotation com.blackbuild.annodocimal.generator.DeclarationVisibility:org.jspecify.annotations.NullMarked
+annotation com.blackbuild.annodocimal.generator.ProjectionPolicy:org.jspecify.annotations.NullMarked
+annotation com.blackbuild.annodocimal.generator.SourceProjectionException:org.jspecify.annotations.NullMarked
+annotation com.blackbuild.annodocimal.generator.SourceProjector:org.jspecify.annotations.NullMarked
 constructor com.blackbuild.annodocimal.generator.SourceProjector(com.blackbuild.annodocimal.generator.ProjectionPolicy)
 field com.blackbuild.annodocimal.generator.DeclarationVisibility#PACKAGE_PRIVATE:com.blackbuild.annodocimal.generator.DeclarationVisibility
 field com.blackbuild.annodocimal.generator.DeclarationVisibility#PRIVATE:com.blackbuild.annodocimal.generator.DeclarationVisibility
@@ -26,6 +30,7 @@ method com.blackbuild.annodocimal.generator.SourceProjectionException#getDeclara
 method com.blackbuild.annodocimal.generator.SourceProjectionException#getInputPath():java.nio.file.Path
 method com.blackbuild.annodocimal.generator.SourceProjector#projectToDirectory(java.nio.file.Path,java.nio.file.Path):java.nio.file.Path
 method com.blackbuild.annodocimal.generator.SourceProjector#projectToText(java.nio.file.Path):java.lang.String
+parameter-annotation com.blackbuild.annodocimal.generator.ProjectionPolicy#equals(java.lang.Object)[0]:org.jspecify.annotations.Nullable
 type public final com.blackbuild.annodocimal.generator.DeclarationVisibility
 type public final com.blackbuild.annodocimal.generator.ProjectionPolicy
 type public final com.blackbuild.annodocimal.generator.SourceProjectionException

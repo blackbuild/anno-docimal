@@ -1,3 +1,7 @@
+annotation com.blackbuild.annodocimal.annotations.AnnoDoc:org.jspecify.annotations.NullMarked
+annotation com.blackbuild.annodocimal.annotations.InlineJavadocs:org.jspecify.annotations.NullMarked
+annotation com.blackbuild.annodocimal.ast.AstDocumentation:org.jspecify.annotations.NullMarked
+annotation com.blackbuild.annodocimal.ast.Documentation:org.jspecify.annotations.NullMarked
 method com.blackbuild.annodocimal.ast.AstDocumentation#attach(org.codehaus.groovy.ast.AnnotatedNode,com.blackbuild.annodocimal.ast.Documentation):void
 method com.blackbuild.annodocimal.ast.AstDocumentation#attachText(org.codehaus.groovy.ast.AnnotatedNode,java.lang.String):void
 method com.blackbuild.annodocimal.ast.AstDocumentation#extractExact(org.codehaus.groovy.ast.AnnotatedNode):java.util.Optional
@@ -59,6 +63,10 @@ method com.blackbuild.annodocimal.ast.Documentation$Tag#getName():java.lang.Stri
 method com.blackbuild.annodocimal.ast.Documentation$Tag#getValue():java.lang.String
 method com.blackbuild.annodocimal.ast.Documentation$Tag#hashCode():int
 method com.blackbuild.annodocimal.ast.Documentation$Tag#toString():java.lang.String
+parameter-annotation com.blackbuild.annodocimal.ast.Documentation#equals(java.lang.Object)[0]:org.jspecify.annotations.Nullable
+parameter-annotation com.blackbuild.annodocimal.ast.Documentation$Block#equals(java.lang.Object)[0]:org.jspecify.annotations.Nullable
+parameter-annotation com.blackbuild.annodocimal.ast.Documentation$Link#equals(java.lang.Object)[0]:org.jspecify.annotations.Nullable
+parameter-annotation com.blackbuild.annodocimal.ast.Documentation$Tag#equals(java.lang.Object)[0]:org.jspecify.annotations.Nullable
 type com.blackbuild.annodocimal.ast.AstDocumentation
 type com.blackbuild.annodocimal.ast.Documentation
 type com.blackbuild.annodocimal.ast.Documentation$Block

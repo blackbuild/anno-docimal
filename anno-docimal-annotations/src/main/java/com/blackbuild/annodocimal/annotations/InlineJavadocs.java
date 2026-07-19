@@ -24,6 +24,7 @@
 package com.blackbuild.annodocimal.annotations;
 
 import org.codehaus.groovy.transform.GroovyASTTransformationClass;
+import org.jspecify.annotations.NullMarked;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -41,6 +42,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 @Retention(RetentionPolicy.SOURCE)
 @GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")
+@NullMarked
 public @interface InlineJavadocs {
     String JAVADOC_PROPERTIES_SUFFIX = "__annodoc.properties";
 }

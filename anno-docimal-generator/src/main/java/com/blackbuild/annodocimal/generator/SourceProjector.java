@@ -23,6 +23,8 @@
  */
 package com.blackbuild.annodocimal.generator;
 
+import org.jspecify.annotations.NullMarked;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -37,6 +39,7 @@ import java.util.Objects;
  * <p>This service does not scan class directories, select top-level inputs, or remove stale outputs. Those collection
  * concerns belong to the caller or build task.</p>
  */
+@NullMarked
 public final class SourceProjector {
 
     private final ProjectionPolicy policy;

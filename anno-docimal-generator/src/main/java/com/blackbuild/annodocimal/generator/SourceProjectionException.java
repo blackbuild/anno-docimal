@@ -23,6 +23,9 @@
  */
 package com.blackbuild.annodocimal.generator;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,18 +33,20 @@ import java.util.Optional;
 /**
  * Reports that a readable class contains a selected declaration that cannot be represented as valid Java source.
  */
+@NullMarked
 public final class SourceProjectionException extends RuntimeException {
 
     /** Projection input retained for diagnostics. */
     private final Path inputPath;
     /** Stable identifier for the selected declaration, when known. */
-    private final String declarationIdentifier;
+    private final @Nullable String declarationIdentifier;
 
-    SourceProjectionException(Path inputPath, String declarationIdentifier, String message) {
+    SourceProjectionException(Path inputPath, @Nullable String declarationIdentifier, String message) {
         this(inputPath, declarationIdentifier, message, null);
     }
 
-    SourceProjectionException(Path inputPath, String declarationIdentifier, String message, Throwable cause) {
+    SourceProjectionException(Path inputPath, @Nullable String declarationIdentifier, String message,
+                              @Nullable Throwable cause) {
         super(message, cause);
         this.inputPath = Objects.requireNonNull(inputPath, "inputPath");
         this.declarationIdentifier = declarationIdentifier;

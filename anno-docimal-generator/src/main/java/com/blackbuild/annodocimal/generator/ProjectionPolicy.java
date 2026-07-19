@@ -23,6 +23,9 @@
  */
 package com.blackbuild.annodocimal.generator;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -34,6 +37,7 @@ import java.util.Set;
  *
  * <p>Every policy retains signature closure and valid Java output. Those safety rules are not configurable.</p>
  */
+@NullMarked
 public final class ProjectionPolicy {
 
     private static final ProjectionPolicy DOCUMENTATION = new Builder()
@@ -126,7 +130,7 @@ public final class ProjectionPolicy {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
         if (this == other) return true;
         if (!(other instanceof ProjectionPolicy)) return false;
         ProjectionPolicy that = (ProjectionPolicy) other;
