@@ -85,6 +85,7 @@ license {
     mapping("gdsl", "SLASHSTAR_STYLE")
     exclude("mockup/**")
     exclude("**/META-INF/services/*")
+    exclude("**/*.txt")
     strictCheck(true)
 }
 
