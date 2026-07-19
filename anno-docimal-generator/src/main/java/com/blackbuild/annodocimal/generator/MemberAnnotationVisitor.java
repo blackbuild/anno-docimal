@@ -31,6 +31,8 @@ import org.objectweb.asm.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -41,36 +43,50 @@ final class MemberAnnotationVisitor {
     private MemberAnnotationVisitor() {}
 
     static AnnotationVisitor create(Type type, Object target) {
+        return create(type, target, TypeConversion::fromInternalNameToClassName);
+    }
+
+    static AnnotationVisitor create(Type type, Object target, Function<String, ClassName> classNameResolver) {
 
         if (type.getClassName().equals(JavaPoetClassVisitor.ANNO_DOC_CLASS))
             return new Javadoc(target);
         else
-            return new Regular(type, target);
+            return new Regular(type, target, classNameResolver);
     }
 
     static class Regular extends AnnotationVisitor {
 
         protected final AnnotationSpec.Builder builder;
         private final Object target;
+        private final Function<String, ClassName> classNameResolver;
 
         Regular(Type type, Object target) {
+            this(type, target, TypeConversion::fromInternalNameToClassName);
+        }
+
+        Regular(Type type, Object target, Function<String, ClassName> classNameResolver) {
             super(CompilerConfiguration.ASM_API_VERSION);
+            this.classNameResolver = Objects.requireNonNull(classNameResolver, "classNameResolver");
             builder = AnnotationSpec.builder(toClassName(type));
             this.target = target;
         }
 
-        private static ClassName toClassName(Type type) {
-            return TypeConversion.fromInternalNameToClassName(type.getInternalName());
+        private ClassName toClassName(Type type) {
+            return classNameResolver.apply(type.getInternalName());
         }
 
         @Override
         public void visit(String name, Object value) {
-            builder.addMember(name, toCodeBlock(value));
+            builder.addMember(name, toCodeBlock(value, classNameResolver));
         }
 
         static CodeBlock toCodeBlock(Object value) {
+            return toCodeBlock(value, TypeConversion::fromInternalNameToClassName);
+        }
+
+        private static CodeBlock toCodeBlock(Object value, Function<String, ClassName> classNameResolver) {
             if (value instanceof Type type && type.getSort() == Type.OBJECT)
-                return CodeBlock.of("$T.class", toClassName(type));
+                return CodeBlock.of("$T.class", classNameResolver.apply(type.getInternalName()));
             else if (value instanceof String string)
                 return CodeBlock.of("$S", string);
             else if (value instanceof Float f)
@@ -81,7 +97,7 @@ final class MemberAnnotationVisitor {
                 return CodeBlock.of("'$L'", characterLiteralWithoutSingleQuotes(c));
             else if (value.getClass().isArray())
                 return streamArray(value)
-                        .map(Regular::toCodeBlock)
+                        .map(element -> toCodeBlock(element, classNameResolver))
                         .collect(CodeBlock.joining(", ", "{", "}"));
             else
                 return CodeBlock.of("$L", value);
@@ -127,7 +143,7 @@ final class MemberAnnotationVisitor {
         @Override
         public AnnotationVisitor visitAnnotation(String name, String descriptor) {
             final AnnotationSpec.Builder outer = this.builder;
-            return new MemberAnnotationVisitor.Regular(Type.getType(descriptor), null) {
+            return new MemberAnnotationVisitor.Regular(Type.getType(descriptor), null, classNameResolver) {
                 @Override
                 public void visitEnd() {
                     outer.addMember(name, "$L", this.builder.build());
@@ -137,7 +153,7 @@ final class MemberAnnotationVisitor {
 
         @Override
         public AnnotationVisitor visitArray(String name) {
-            return new MemberArray(builder, name);
+            return new MemberArray(builder, name, classNameResolver);
         }
 
         @Override
@@ -158,26 +174,29 @@ final class MemberAnnotationVisitor {
         private final AnnotationSpec.Builder target;
         private final String memberName;
         private final List<CodeBlock> elements = new ArrayList<>();
+        private final Function<String, ClassName> classNameResolver;
 
-        private MemberArray(AnnotationSpec.Builder target, String memberName) {
+        private MemberArray(AnnotationSpec.Builder target, String memberName,
+                            Function<String, ClassName> classNameResolver) {
             super(CompilerConfiguration.ASM_API_VERSION);
             this.target = target;
             this.memberName = memberName;
+            this.classNameResolver = classNameResolver;
         }
 
         @Override
         public void visit(String name, Object value) {
-            elements.add(Regular.toCodeBlock(value));
+            elements.add(Regular.toCodeBlock(value, classNameResolver));
         }
 
         @Override
         public void visitEnum(String name, String descriptor, String value) {
-            elements.add(CodeBlock.of("$T.$L", Regular.toClassName(Type.getType(descriptor)), value));
+            elements.add(CodeBlock.of("$T.$L", classNameResolver.apply(Type.getType(descriptor).getInternalName()), value));
         }
 
         @Override
         public AnnotationVisitor visitAnnotation(String name, String descriptor) {
-            return new MemberAnnotationVisitor.Regular(Type.getType(descriptor), null) {
+            return new MemberAnnotationVisitor.Regular(Type.getType(descriptor), null, classNameResolver) {
                 @Override
                 public void visitEnd() {
                     elements.add(CodeBlock.of("$L", this.builder.build()));

@@ -28,18 +28,9 @@ import spock.lang.Specification
 
 class TypeConversionTest extends Specification {
 
-    def "typename of inner class is correctly retrieved"() {
-        when:
-        def result = TypeConversion.toTypeName(Type.getType(Map.Entry))
-
-        then:
-        result.toString() == "java.util.Map.Entry"
-    }
-
-    def "typename preserves the complete nested owner chain"() {
+    def "unclassified dollar names are preserved as top-level identities"() {
         expect:
-        TypeConversion.toTypeName(Type.getObjectType('dummy/Outer$Middle$Inner')).toString() ==
-                'dummy.Outer.Middle.Inner'
+        TypeConversion.toTypeName(Type.getObjectType('dummy/Dollar$Top')).toString() == 'dummy.Dollar$Top'
     }
 
 }

@@ -423,6 +423,64 @@ public class Dollar$Top {
         compilation.status() == Compilation.Status.SUCCESS
     }
 
+    def "external semantic top-level dollar names retain their identity in signatures and annotations"() {
+        given:
+        String dollarType = '''
+            package api;
+            public class Dollar$Type {}
+        '''
+        String markerType = '''
+            package api;
+            public @interface Marker$Type {
+                Class<?> value();
+            }
+        '''
+        compile([
+                'api.Dollar$Type': dollarType,
+                'api.Marker$Type': markerType,
+                'dummy.ExternalDollarFixture': '''
+                    package dummy;
+                    import api.Dollar$Type;
+                    import api.Marker$Type;
+
+                    @Marker$Type(Dollar$Type.class)
+                    public class ExternalDollarFixture {
+                        public Dollar$Type value() { return null; }
+                    }
+                '''
+        ], 'dummy.ExternalDollarFixture')
+
+        when:
+        String source = new SourceProjector(ProjectionPolicy.documentation()).projectToText(file.toPath())
+
+        then:
+        source == '''package dummy;
+
+import api.Dollar$Type;
+import api.Marker$Type;
+
+@Marker$Type(Dollar$Type.class)
+public class ExternalDollarFixture {
+  public ExternalDollarFixture() {
+  }
+
+  public Dollar$Type value() {
+    return null;
+  }
+}
+'''
+
+        when:
+        compile([
+                'api.Dollar$Type': dollarType,
+                'api.Marker$Type': markerType,
+                'dummy.ExternalDollarFixture': source
+        ], 'dummy.ExternalDollarFixture')
+
+        then:
+        compilation.status() == Compilation.Status.SUCCESS
+    }
+
     def "direct projection roots must be top-level declarations"() {
         given:
         compile('''

@@ -30,7 +30,6 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 import javax.lang.model.element.Modifier;
-import java.util.Arrays;
 import java.util.EnumSet;
 
 final class TypeConversion {
@@ -47,12 +46,7 @@ final class TypeConversion {
         String packageName = packageSeparator < 0 ? "" : name.substring(0, packageSeparator).replace('/', '.');
         String className = name.substring(packageSeparator + 1);
 
-        if (!className.contains("$")) {
-            return ClassName.get(packageName, className);
-        }
-
-        String[] simpleNames = className.split("\\$");
-        return ClassName.get(packageName, simpleNames[0], Arrays.copyOfRange(simpleNames, 1, simpleNames.length));
+        return ClassName.get(packageName, className);
     }
 
     static Modifier[] decodeModifiers(int flags) {

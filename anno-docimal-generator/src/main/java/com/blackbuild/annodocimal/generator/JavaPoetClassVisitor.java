@@ -262,7 +262,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
                         }
                     };
                 }
-                return new MemberAnnotationVisitor.Regular(annotationType, methodBuilder);
+                return new MemberAnnotationVisitor.Regular(annotationType, methodBuilder, specConverter::toClassName);
             }
 
             @Override
@@ -270,7 +270,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
                 int sourceParameter = hasImplicitOuterParameter ? parameter - 1 : parameter;
                 if (sourceParameter < 0) return null;
                 List<AnnotationSpec> list = parameterAnnotations.computeIfAbsent(sourceParameter, k -> new ArrayList<>());
-                return MemberAnnotationVisitor.create(Type.getType(desc), list);
+                return MemberAnnotationVisitor.create(Type.getType(desc), list, specConverter::toClassName);
             }
 
             @Override
@@ -283,7 +283,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
             @Override
             public AnnotationVisitor visitAnnotationDefault() {
-                return new MemberAnnotationVisitor.Regular(Type.getType(Object.class), null) {
+                return new MemberAnnotationVisitor.Regular(Type.getType(Object.class), null,
+                        specConverter::toClassName) {
 
                     @Override
                     public void visitEnd() {
@@ -365,7 +366,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-        return MemberAnnotationVisitor.create(Type.getType(desc), typeBuilder);
+        return MemberAnnotationVisitor.create(Type.getType(desc), typeBuilder, specConverter::toClassName);
     }
 
     @Override
@@ -393,7 +394,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
                 @Override
                 public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                    return MemberAnnotationVisitor.create(Type.getType(desc), enumClass);
+                    return MemberAnnotationVisitor.create(Type.getType(desc), enumClass, specConverter::toClassName);
                 }
 
                 @Override
@@ -413,7 +414,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
                 @Override
                 public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                    return MemberAnnotationVisitor.create(Type.getType(desc), field);
+                    return MemberAnnotationVisitor.create(Type.getType(desc), field, specConverter::toClassName);
                 }
 
                 @Override

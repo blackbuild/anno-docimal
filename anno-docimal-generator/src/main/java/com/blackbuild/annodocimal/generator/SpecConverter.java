@@ -39,6 +39,7 @@ import org.objectweb.asm.tree.InnerClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Converts class-file declarations to their JavaPoet counterparts.
@@ -66,13 +68,17 @@ final class SpecConverter {
     private final Path inputPath;
     private final ProjectionPolicy policy;
     private final Map<String, ClassData> classes = new LinkedHashMap<>();
+    private final Map<String, ClassNode> referencedClasses = new LinkedHashMap<>();
+    private final Set<String> unresolvedReferencedClasses = new LinkedHashSet<>();
     private final Set<String> includedClasses = new LinkedHashSet<>();
     private final ClassData root;
+    private final Path classPathRoot;
 
     private SpecConverter(Path inputPath, ProjectionPolicy policy) throws IOException {
         this.inputPath = inputPath;
         this.policy = policy;
         root = readRoot(inputPath);
+        classPathRoot = classPathRoot(inputPath, root.node.name);
         validateTopLevelRoot(root.node);
         loadNestedDeclarations(root);
         selectNestedDeclarations();
@@ -113,7 +119,28 @@ final class SpecConverter {
 
     ClassName toClassName(String internalName) {
         ClassData classData = classes.get(internalName);
-        if (classData == null) return TypeConversion.fromInternalNameToClassName(internalName);
+        if (classData == null) {
+            InnerClassNode nestedReference = findNestedReference(internalName);
+            if (nestedReference != null) {
+                return toClassName(nestedReference.outerName).nestedClass(nestedReference.innerName);
+            }
+            ClassNode referencedClass = readReferencedClass(internalName);
+            if (referencedClass != null) {
+                InnerClassNode self = referencedClass.innerClasses.stream()
+                        .filter(inner -> internalName.equals(inner.name))
+                        .findFirst()
+                        .orElse(null);
+                if (self != null && self.outerName != null && self.innerName != null) {
+                    return toClassName(self.outerName).nestedClass(self.innerName);
+                }
+                return TypeConversion.fromInternalNameToClassName(internalName);
+            }
+            if (internalName.substring(internalName.lastIndexOf('/') + 1).contains("$")) {
+                throw failure(internalName, "Cannot classify referenced declaration containing '$': "
+                        + identifier(internalName));
+            }
+            return TypeConversion.fromInternalNameToClassName(internalName);
+        }
 
         Deque<String> nestedNames = new ArrayDeque<>();
         while (classData.outerName != null && classes.containsKey(classData.outerName)) {
@@ -127,6 +154,67 @@ final class SpecConverter {
                 ? ""
                 : classData.node.name.substring(0, packageSeparator).replace('/', '.');
         return ClassName.get(packageName, topLevelName, nestedNames.toArray(new String[0]));
+    }
+
+    private InnerClassNode findNestedReference(String internalName) {
+        return Stream.concat(
+                        classes.values().stream().map(classData -> classData.node),
+                        referencedClasses.values().stream())
+                .flatMap(node -> node.innerClasses.stream())
+                .filter(inner -> internalName.equals(inner.name) && inner.outerName != null && inner.innerName != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private ClassNode readReferencedClass(String internalName) {
+        if (referencedClasses.containsKey(internalName)) return referencedClasses.get(internalName);
+        if (unresolvedReferencedClasses.contains(internalName)) return null;
+
+        byte[] bytecode = null;
+        Path candidate = classPathRoot.resolve(internalName + ".class");
+        try {
+            if (Files.isRegularFile(candidate)) {
+                bytecode = Files.readAllBytes(candidate);
+            } else {
+                try (InputStream stream = referencedClassStream(internalName)) {
+                    if (stream != null) bytecode = stream.readAllBytes();
+                }
+            }
+        } catch (IOException exception) {
+            throw failure(internalName, "Could not inspect referenced declaration " + identifier(internalName),
+                    exception);
+        }
+
+        if (bytecode == null) {
+            unresolvedReferencedClasses.add(internalName);
+            return null;
+        }
+        ClassNode node = readMetadata(bytecode);
+        if (!internalName.equals(node.name)) {
+            throw failure(internalName, "Referenced class metadata does not match " + identifier(internalName));
+        }
+        referencedClasses.put(internalName, node);
+        return node;
+    }
+
+    private static InputStream referencedClassStream(String internalName) {
+        String resourceName = internalName + ".class";
+        ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+        InputStream stream = contextLoader == null ? null : contextLoader.getResourceAsStream(resourceName);
+        if (stream != null) return stream;
+        ClassLoader ownLoader = SpecConverter.class.getClassLoader();
+        return ownLoader == null
+                ? ClassLoader.getSystemResourceAsStream(resourceName)
+                : ownLoader.getResourceAsStream(resourceName);
+    }
+
+    private static Path classPathRoot(Path classFile, String internalName) {
+        Path result = classFile.toAbsolutePath().normalize().getParent();
+        int packageSegments = (int) internalName.chars().filter(character -> character == '/').count();
+        for (int index = 0; index < packageSegments && result != null; index++) {
+            result = result.getParent();
+        }
+        return result == null ? classFile.toAbsolutePath().normalize().getParent() : result;
     }
 
     TypeName toTypeName(Type type) {
