@@ -16,6 +16,14 @@ Repository-local generic workflows live under `.agents/skills/`. Use them when t
 apply this repository's `AGENTS.md`, `CONTEXT.md`, ADRs, and `docs/agents/` policies where generic examples differ. Do not
 invent AnnoDocimal-specific workflows until repeated repository work demonstrates a stable need.
 
+### License plugin
+
+If license-plugin configuration conflicts with a planned change, ask for the plugin/configuration to be changed. Never
+rename, retype, or otherwise adapt files merely to circumvent license-header handling; for example, do not rename a
+`.txt` file to `.java` because the plugin cannot handle `.txt`. An outdated license-file year requires a dedicated issue.
+If an outdated year or related structural problem is discovered incidentally during another task, ask for confirmation
+before creating the separate issue or task.
+
 ### Domain documentation
 
 AnnoDocimal is a single-context repository. Read the root `CONTEXT.md` before architecture or API work and read relevant
