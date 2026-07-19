@@ -1,0 +1,62 @@
+# Source projection
+
+AnnoDocimal reconstructs documentation-oriented Java declarations from compiled JVM classes. A projection is a class
+stub or IDE source mirror: it preserves selected declaration meaning and documentation, but it is not original source or
+a decompilation.
+
+## Project one top-level class
+
+`SourceProjector` is final, thread-safe, and reusable. Construct it with one immutable policy:
+
+```java
+SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation());
+
+String source = projector.projectToText(classFile);
+Path sourceFile = projector.projectToDirectory(classFile, outputDirectory);
+```
+
+Both operations project exactly one caller-selected top-level `.class` file. A direct nested, local, or anonymous class
+file is rejected as a projection root. Directory scanning, top-level class-file filtering, and stale-output cleanup stay
+with the caller or Gradle task.
+
+`projectToText` returns deterministic Java text with LF endings. `projectToDirectory` writes the identical UTF-8 text to
+the package/type-relative `.java` path beneath the supplied output directory. It creates parent directories and replaces
+only that managed file, atomically when the file system supports atomic moves. It does not clean sibling output.
+
+## Documentation inclusion policy
+
+`ProjectionPolicy.documentation()` has the stable documentation-oriented defaults:
+
+| Concern | Default and invariant |
+|---|---|
+| Projection root | Always included. The visibility selection does not remove it. |
+| Visibility | Public and protected members are included. Package-private and private members are excluded unless signature closure requires them. |
+| Nested declarations | Named member types are included recursively when their visibility is selected. Local and anonymous classes are excluded. |
+| Synthetic declarations | Excluded. Enabling them cannot disable valid-source checks; conflicting bridge declarations fail projection. |
+| Groovy runtime artifacts | Groovy runtime interfaces, metadata fields/accessors, and similarly named scaffolding are excluded. Visible language-level APIs such as generated property accessors remain included. |
+| Signature closure | Always enabled. It includes otherwise-excluded named member types and their enclosing chain when selected signatures or annotations refer to them. External dependency declarations are never copied. |
+
+Use `ProjectionPolicy.builder()` or `policy.toBuilder()` to replace the included `DeclarationVisibility` values or toggle
+named nested, synthetic, and Groovy-runtime inclusion. Builders are mutable and not thread-safe; every `build()` call
+returns an independent immutable value. Signature closure and valid Java output are not optional policy switches.
+
+Source projection preserves declaration kind and nesting, visibility and modifiers, generic and inheritance signatures,
+selected constructors/methods/fields, parameter metadata, annotations, exceptions, and embedded documentation. It does
+not promise bodies, initializers, synthetic implementation details under the documentation preset, original whitespace,
+or import layout.
+
+## Failures
+
+Ordinary class-input and managed-output file-system failures are `IOException`. A readable class whose selected
+declaration cannot be represented as valid Java throws `SourceProjectionException`; the exception retains the input path
+and exposes a stable declaration identifier when one is available.
+
+## Supported API boundary and migration
+
+The supported generator API contains only `SourceProjector`, `ProjectionPolicy`, `ProjectionPolicy.Builder`,
+`DeclarationVisibility`, and `SourceProjectionException`. ASM, JavaPoet, signature parsers, visitors, converters,
+annotation readers, and shaded types are implementation details and are excluded from the compatibility baseline.
+
+The provisional 0.x `AnnoDocGenerator` helper is removed without a compatibility shim. See the
+[0.x-to-1.0 supported-API migration](migration/0.x-to-1.0-supported-api.md) for the direct replacement. The reusable
+Gradle task contract, including collection filtering and stale-output cleanup, remains owned by issue #35.

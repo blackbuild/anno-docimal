@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added the supported `SourceProjector` and explicit `ProjectionPolicy` contract for deterministic
+  documentation-oriented Java text and managed output files. The policy now defines visibility, named nesting,
+  synthetic and Groovy-runtime artifacts, and mandatory signature closure. The provisional `AnnoDocGenerator` API is
+  removed; see the [source-projection guide](docs/source-projection.md) and
+  [0.x-to-1.0 migration](docs/migration/0.x-to-1.0-supported-api.md).
+
 - Stabilized the 1.0 transformation-authoring language around `Documentation` and `AstDocumentation`, including
   first-class code blocks, deterministic normalization, one-pass named templates, canonical links, and exact
   extraction/attachment. The accidental 0.x helper names are replaced; see the

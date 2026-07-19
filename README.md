@@ -163,6 +163,18 @@ explicit `String`, required, inserted literally, and evaluated only once. `{{par
 only if the generated method has the named parameter. See the [supported API](docs/api/1.0-supported-api.md) and
 [migration guide](docs/migration/0.x-to-1.0-authoring-language.md) for the full contract.
 
+## Source projection
+
+Use `SourceProjector` to reconstruct one caller-selected top-level class file as documentation-oriented Java source.
+`projectToText` returns source text; `projectToDirectory` writes the same UTF-8/LF text to its managed package-relative
+`.java` path. `ProjectionPolicy.documentation()` selects public/protected declarations and named nested types, excludes
+synthetic and Groovy runtime scaffolding, retains visible language-level generated APIs, and always applies signature
+closure. Class-file scanning and stale-output cleanup belong to the caller or Gradle task.
+
+See the [source-projection contract and inclusion policy](docs/source-projection.md) and the
+[0.x-to-1.0 migration](docs/migration/0.x-to-1.0-supported-api.md). The provisional `AnnoDocGenerator` helper is removed;
+ASM, JavaPoet, parsers, visitors, converters, and shaded types are not supported APIs.
+
 ## Source Extractors
 
 If the transformation using anno-docimal enhances existing code, i.e. adds methods or, as in the case of "klum-ast", the result is a mix of source based and annotation based javadoc comments. To generate the final documentation, two approaches are possible:
