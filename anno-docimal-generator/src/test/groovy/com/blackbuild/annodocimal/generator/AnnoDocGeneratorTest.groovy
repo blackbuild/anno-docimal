@@ -398,7 +398,7 @@ public interface Dummy {
         "void method(@WithPrimitives(intValue = 5) String param0)" | ""
     }
 
-    def "private methods are ignored"() {
+    def "documentation policy includes public and protected methods"() {
         given:
         createClass("""
             package dummy
@@ -418,7 +418,7 @@ public interface Dummy {
         then:
         !generatedSource.contains("privateMethod()")
         generatedSource.contains("protected void protectedMethod()")
-        generatedSource.contains("void packageMethod()")
+        !generatedSource.contains("packageMethod()")
         generatedSource.contains("public void publicMethod()")
     }
 
@@ -1058,8 +1058,7 @@ import java.lang.annotation.Target
     }
 
     void generateSourceText() {
-        StringBuilder builder = new StringBuilder()
-        AnnoDocGenerator.generate(new File(outputDirectory, clazz.getName().replace('.', '/') + ".class"), builder)
-        generatedSource = builder.toString()
+        def classFile = new File(outputDirectory, clazz.getName().replace('.', '/') + ".class")
+        generatedSource = new SourceProjector(ProjectionPolicy.documentation()).projectToText(classFile.toPath())
     }
 }

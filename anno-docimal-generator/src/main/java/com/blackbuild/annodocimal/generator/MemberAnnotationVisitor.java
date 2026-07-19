@@ -36,11 +36,11 @@ import java.util.stream.Stream;
 
 import static java.lang.Character.isISOControl;
 
-public class MemberAnnotationVisitor {
+final class MemberAnnotationVisitor {
 
     private MemberAnnotationVisitor() {}
 
-    public static AnnotationVisitor create(Type type, Object target) {
+    static AnnotationVisitor create(Type type, Object target) {
 
         if (type.getClassName().equals(JavaPoetClassVisitor.ANNO_DOC_CLASS))
             return new Javadoc(target);
@@ -48,7 +48,7 @@ public class MemberAnnotationVisitor {
             return new Regular(type, target);
     }
 
-    public static class Regular extends AnnotationVisitor {
+    static class Regular extends AnnotationVisitor {
 
         protected final AnnotationSpec.Builder builder;
         private final Object target;
@@ -87,7 +87,7 @@ public class MemberAnnotationVisitor {
                 return CodeBlock.of("$L", value);
         }
 
-        public static Stream<Object> streamArray(Object array) {
+        static Stream<Object> streamArray(Object array) {
             if (array == null) throw new IllegalArgumentException("Array cannot be null");
             if (!array.getClass().isArray()) throw new IllegalArgumentException("Provided object is not an array");
 
@@ -153,7 +153,7 @@ public class MemberAnnotationVisitor {
         }
     }
 
-    public static class MemberArray extends AnnotationVisitor {
+    static class MemberArray extends AnnotationVisitor {
 
         private final AnnotationSpec.Builder target;
         private final String memberName;
@@ -191,7 +191,7 @@ public class MemberAnnotationVisitor {
         }
     }
 
-    public static class Javadoc extends AnnotationVisitor {
+    static class Javadoc extends AnnotationVisitor {
 
         private final Object target;
         protected String javadocText;

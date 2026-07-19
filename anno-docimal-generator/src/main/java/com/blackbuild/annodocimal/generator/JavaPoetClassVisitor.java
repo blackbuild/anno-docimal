@@ -36,18 +36,22 @@ import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.toSet;
 
-public class JavaPoetClassVisitor extends ClassVisitor {
+class JavaPoetClassVisitor extends ClassVisitor {
     static final String ANNO_DOC_CLASS = "com.blackbuild.annodocimal.annotations.AnnoDoc";
     private final SpecConverter specConverter;
+    private final ProjectionPolicy policy;
+    private final Set<String> includedClasses;
     private TypeSpec.Builder typeBuilder;
     private TypeSpec type;
     private String packageName;
     private ClassName className;
     private TypeSpec.Kind kind;
 
-    public JavaPoetClassVisitor(SpecConverter specConverter) {
+    JavaPoetClassVisitor(SpecConverter specConverter, ProjectionPolicy policy, Set<String> includedClasses) {
         super(CompilerConfiguration.ASM_API_VERSION);
         this.specConverter = specConverter;
+        this.policy = policy;
+        this.includedClasses = includedClasses;
     }
 
     @Override
@@ -59,12 +63,13 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             if (kind == TypeSpec.Kind.CLASS)
                 typeBuilder.superclass(TypeConversion.fromInternalNameToClassName(superName));
             for (String interf : interfaceNames) {
-                if (interf.equals("groovy/lang/GroovyObject")) continue;
+                if (!policy.isGroovyRuntimeArtifactsIncluded() && interf.equals("groovy/lang/GroovyObject")) continue;
                 if (kind == TypeSpec.Kind.ANNOTATION && interf.equals("java/lang/annotation/Annotation")) continue;
                 typeBuilder.addSuperinterface(TypeConversion.fromInternalNameToClassName(interf));
             }
         }
-        packageName = name.substring(0, name.lastIndexOf('/')).replace('/', '.');
+        int packageSeparator = name.lastIndexOf('/');
+        packageName = packageSeparator < 0 ? "" : name.substring(0, packageSeparator).replace('/', '.');
     }
 
     private void prepareTypeBuilder(int access, String name) {
@@ -137,22 +142,14 @@ public class JavaPoetClassVisitor extends ClassVisitor {
             return;
         }
 
-        if (innerName.equals("Helper") && typeBuilder.annotations.stream().anyMatch(a -> a.type.toString().equals("groovy.transform.Trait"))) {
-            return;
-        }
-
         if (!outerName.equals(className.reflectionName().replace('.', '/'))) {
             return;
         }
 
-        try {
-            String simpleName = name.substring(name.lastIndexOf('/') + 1);
-            JavaPoetClassVisitor innerReader = specConverter.readClass(simpleName);
-            typeBuilder.addType(innerReader.getType());
+        if (!includedClasses.contains(name)) return;
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        JavaPoetClassVisitor innerReader = specConverter.readClass(name);
+        typeBuilder.addType(innerReader.getType());
 
 
         /*
@@ -166,7 +163,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-        if (shouldIgnoreMethod(access, name)) return null;
+        if (!ProjectionSelection.includesMethod(policy, access, name, typeAccess())) return null;
 
         final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(name).addModifiers(TypeConversion.decodeModifiers(access));
 
@@ -326,24 +323,6 @@ public class JavaPoetClassVisitor extends ClassVisitor {
         };
     }
 
-    private boolean shouldIgnoreMethod(int access, String name) {
-        if ("<clinit>".equals(name)) return true;
-        if (name.contains("$")) return true;
-        if ((access & Opcodes.ACC_PRIVATE) != 0) return true;
-        if ((access & Opcodes.ACC_SYNTHETIC) != 0) return true;
-        if (name.equals("getMetaClass")) return true;
-        if (name.equals("setMetaClass")) return true;
-        if (kind == TypeSpec.Kind.ENUM) {
-            if (name.equals("<init>")) return true;
-            if (name.equals("valueOf")) return true;
-            if (name.equals("values")) return true;
-            if (name.equals("previous")) return true;
-            if (name.equals("next")) return true;
-        }
-
-        return false;
-    }
-
     @Override
     public void visitEnd() {
         type = typeBuilder.build();
@@ -356,7 +335,7 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-        if (shouldIgnoreField(access, name)) return null;
+        if (!ProjectionSelection.includesField(policy, access, name, typeAccess())) return null;
 
         final TypeName[] fieldType = {null}; // Array to allow write access from inner class
 
@@ -404,22 +383,20 @@ public class JavaPoetClassVisitor extends ClassVisitor {
 
     }
 
-    private boolean shouldIgnoreField(int access, String name) {
-        if (name.contains("$")) return true;
-        if ((access & Opcodes.ACC_PRIVATE) != 0) return true;
-        if ((access & Opcodes.ACC_SYNTHETIC) != 0) return true;
-        if (kind == TypeSpec.Kind.ENUM) {
-            if (name.equals("MAX_VALUE")) return true;
-            if (name.equals("MIN_VALUE")) return true;
-        }
-        return false;
+    private int typeAccess() {
+        int access = 0;
+        if (typeBuilder.modifiers.contains(Modifier.PUBLIC)) access |= Opcodes.ACC_PUBLIC;
+        if (typeBuilder.modifiers.contains(Modifier.PROTECTED)) access |= Opcodes.ACC_PROTECTED;
+        if (typeBuilder.modifiers.contains(Modifier.PRIVATE)) access |= Opcodes.ACC_PRIVATE;
+        if (kind == TypeSpec.Kind.ENUM) access |= Opcodes.ACC_ENUM;
+        return access;
     }
 
-    public TypeSpec getType() {
+    TypeSpec getType() {
         return Objects.requireNonNull(type);
     }
 
-    public String getPackageName() {
+    String getPackageName() {
         return packageName;
     }
 

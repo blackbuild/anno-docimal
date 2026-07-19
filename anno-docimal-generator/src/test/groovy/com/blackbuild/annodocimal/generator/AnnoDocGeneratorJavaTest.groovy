@@ -86,7 +86,7 @@ public interface Dummy {
 """
     }
 
-    def "inner class visibility"() {
+    def "documentation policy includes public and protected nested classes"() {
         given:
         compile("""
             package dummy;
@@ -109,12 +109,12 @@ public interface Dummy {
         then:
         generatedSource.contains("public class Inner")
         generatedSource.contains("protected class InnerProtected")
-        generatedSource.contains("private class InnerPrivate")
-        generatedSource.contains("class InnerDefault") && !generatedSource.contains("public class InnerDefault")
+        !generatedSource.contains("InnerPrivate")
+        !generatedSource.contains("InnerDefault")
         generatedSource.contains("public static class InnerStatic")
         generatedSource.contains("protected static class InnerProtectedStatic")
-        generatedSource.contains("private static class InnerPrivateStatic")
-        generatedSource.contains("static class InnerDefaultStatic") && !generatedSource.contains("public static class InnerDefaultStatic")
+        !generatedSource.contains("InnerPrivateStatic")
+        !generatedSource.contains("InnerDefaultStatic")
         generatedSource.contains("protected abstract static class InnerAbstractStatic")
     }
 
@@ -124,8 +124,6 @@ public interface Dummy {
     }
 
     void generateSourceText() {
-        StringBuilder builder = new StringBuilder()
-        AnnoDocGenerator.generate(file, builder)
-        generatedSource = builder.toString()
+        generatedSource = new SourceProjector(ProjectionPolicy.documentation()).projectToText(file.toPath())
     }
 }
