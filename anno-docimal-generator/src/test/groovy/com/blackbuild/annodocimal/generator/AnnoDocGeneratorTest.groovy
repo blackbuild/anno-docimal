@@ -342,6 +342,7 @@ import java.lang.String;
 @Trait
 public interface Dummy {
   default String method() {
+    return null;
   }
 }
 '''
@@ -369,6 +370,7 @@ import java.lang.String;
 
 public interface Dummy {
   default String method() {
+    return null;
   }
 }
 '''

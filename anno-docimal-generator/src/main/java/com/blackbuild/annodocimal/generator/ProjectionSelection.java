@@ -30,15 +30,22 @@ final class ProjectionSelection {
     private ProjectionSelection() {
     }
 
-    static boolean includesMethod(ProjectionPolicy policy, int access, String name, int ownerAccess) {
+    static boolean includesMethod(ProjectionPolicy policy, int access, String name, int ownerAccess, boolean groovyClass) {
         if ("<clinit>".equals(name)) return false;
         if (isImplicitEnumMethod(ownerAccess, name)) return false;
-        return includesDeclaration(policy, access) && (policy.isGroovyRuntimeArtifactsIncluded() || !isGroovyMethod(name));
+        return includesDeclaration(policy, access)
+                && (policy.isGroovyRuntimeArtifactsIncluded() || !groovyClass || !isGroovyMethod(name));
     }
 
-    static boolean includesField(ProjectionPolicy policy, int access, String name, int ownerAccess) {
+    static boolean includesField(ProjectionPolicy policy, int access, String name, int ownerAccess, boolean groovyClass) {
         if ((access & Opcodes.ACC_ENUM) != 0) return true;
-        return includesDeclaration(policy, access) && (policy.isGroovyRuntimeArtifactsIncluded() || !isGroovyField(name));
+        return includesDeclaration(policy, access)
+                && (policy.isGroovyRuntimeArtifactsIncluded() || !groovyClass || !isGroovyField(name));
+    }
+
+    static boolean includesNestedDeclaration(ProjectionPolicy policy, int access, boolean groovyRuntimeArtifact) {
+        return includesDeclaration(policy, access)
+                && (policy.isGroovyRuntimeArtifactsIncluded() || !groovyRuntimeArtifact);
     }
 
     static DeclarationVisibility visibility(int access) {

@@ -100,6 +100,10 @@ class SourceBlock {
                 return parent.parent.newInnerBlock()
             return parent
         }
+        if (trimmedLine.startsWith("return ") && trimmedLine.endsWith(";")) {
+            // Projected non-void method bodies use deterministic default return values.
+            return this
+        }
         if (trimmedLine.endsWith(";")) {
             setText  line.substring(0, line.length() - 1).stripTrailing()
             return parent

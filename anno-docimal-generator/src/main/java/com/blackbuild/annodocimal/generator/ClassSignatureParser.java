@@ -38,7 +38,8 @@ class ClassSignatureParser {
           /* This utility class should not be instantiated */
      }
 
-    static void parseClassSignature(String signature, TypeSpec.Builder builder, TypeSpec.Kind kind) {
+    static void parseClassSignature(String signature, TypeSpec.Builder builder, TypeSpec.Kind kind,
+                                    boolean includeGroovyObject) {
         final List<TypeName> interfaces = new ArrayList<>();
         FormalParameterParser v = new FormalParameterParser() {
 
@@ -58,7 +59,7 @@ class ClassSignatureParser {
                 return new TypeSignatureParser() {
                     @Override
                     void finished(TypeName result) {
-                        if (result.toString().equals("groovy.lang.GroovyObject")) return;
+                        if (!includeGroovyObject && result.toString().equals("groovy.lang.GroovyObject")) return;
                         if (kind == TypeSpec.Kind.ANNOTATION && result.toString().equals("java.lang.annotation.Annotation")) return;
                         interfaces.add(result);
                     }

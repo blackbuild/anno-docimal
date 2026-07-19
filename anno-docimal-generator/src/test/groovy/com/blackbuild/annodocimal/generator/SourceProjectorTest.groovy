@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.generator
 
+import com.google.testing.compile.Compilation
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.Opcodes
 
@@ -84,8 +85,16 @@ class SourceProjectorTest extends JavaClassGeneratingTest {
         then:
         written == destination.toPath().resolve('dummy/ProjectionFixture.java')
         Files.readString(written, StandardCharsets.UTF_8) == source
-        !source.contains('\r')
-        source.contains('public void visible()')
+        source == '''package dummy;
+
+public class ProjectionFixture {
+  public ProjectionFixture() {
+  }
+
+  public void visible() {
+  }
+}
+'''
         unrelated.text == 'untouched'
     }
 
@@ -116,21 +125,58 @@ class SourceProjectorTest extends JavaClassGeneratingTest {
         String withoutUnreferencedNested = new SourceProjector(closureOnly).projectToText(file.toPath())
 
         then:
-        documented.contains('public void publicMethod()')
-        documented.contains('protected void protectedMethod()')
-        !documented.contains('packageMethod')
-        !documented.contains('privateMethod')
-        documented.contains('public static class UnusedPublic')
-        documented.contains('protected static class UnusedProtected')
-        !documented.contains('class UnusedPackage')
-        documented.contains('private static class RequiredPrivate')
-        documented.contains('public RequiredPrivate required()')
+        documented == '''package dummy;
+
+public class PolicyFixture {
+  public PolicyFixture() {
+  }
+
+  public void publicMethod() {
+  }
+
+  protected void protectedMethod() {
+  }
+
+  public RequiredPrivate required() {
+    return null;
+  }
+
+  private static class RequiredPrivate {
+  }
+
+  protected static class UnusedProtected {
+    protected UnusedProtected() {
+    }
+  }
+
+  public static class UnusedPublic {
+    public UnusedPublic() {
+    }
+  }
+}
+'''
 
         and:
-        !withoutUnreferencedNested.contains('UnusedPublic')
-        !withoutUnreferencedNested.contains('UnusedProtected')
-        withoutUnreferencedNested.contains('private static class RequiredPrivate')
-        withoutUnreferencedNested.contains('public RequiredPrivate required()')
+        withoutUnreferencedNested == '''package dummy;
+
+public class PolicyFixture {
+  public PolicyFixture() {
+  }
+
+  public void publicMethod() {
+  }
+
+  protected void protectedMethod() {
+  }
+
+  public RequiredPrivate required() {
+    return null;
+  }
+
+  private static class RequiredPrivate {
+  }
+}
+'''
     }
 
     def "visibility and synthetic controls are applied independently"() {
@@ -154,13 +200,28 @@ class SourceProjectorTest extends JavaClassGeneratingTest {
         String complete = new SourceProjector(expanded).projectToText(classFile.toPath())
 
         then:
-        documented.contains('public String regularField')
-        !documented.contains('syntheticField')
-        !documented.contains('privateField')
+        documented == '''package dummy;
+
+import java.lang.String;
+
+public class ControlledFixture {
+  public String regularField;
+}
+'''
 
         and:
-        complete.contains('public String syntheticField')
-        complete.contains('private String privateField')
+        complete == '''package dummy;
+
+import java.lang.String;
+
+public class ControlledFixture {
+  public String regularField;
+
+  public String syntheticField;
+
+  private String privateField;
+}
+'''
     }
 
     def "unrepresentable selected bridge methods fail with declaration context"() {
@@ -182,6 +243,60 @@ class SourceProjectorTest extends JavaClassGeneratingTest {
         exception.declarationIdentifier.orElseThrow() == 'dummy.BridgeFixture#get'
     }
 
+    def "Java names are not Groovy scaffolding and selected final fields remain valid"() {
+        given:
+        compile('''
+            package dummy;
+            public class JavaNamesFixture {
+                public static final int MIN_VALUE = 7;
+                public final String metaClass;
+
+                public JavaNamesFixture() {
+                    metaClass = "value";
+                }
+
+                public void next() {}
+                public Object getProperty() { return null; }
+                public void $api() {}
+            }
+        ''')
+
+        when:
+        String source = new SourceProjector(ProjectionPolicy.documentation()).projectToText(file.toPath())
+
+        then:
+        source == '''package dummy;
+
+import java.lang.Object;
+import java.lang.String;
+
+public class JavaNamesFixture {
+  public static final int MIN_VALUE = 7;
+
+  public final String metaClass = null;
+
+  public JavaNamesFixture() {
+  }
+
+  public void next() {
+  }
+
+  public Object getProperty() {
+    return null;
+  }
+
+  public void $api() {
+  }
+}
+'''
+
+        when:
+        compile(source)
+
+        then:
+        compilation.status() == Compilation.Status.SUCCESS
+    }
+
     def "signature closure includes nested declarations referenced by selected annotations"() {
         given:
         compile('''
@@ -200,9 +315,26 @@ class SourceProjectorTest extends JavaClassGeneratingTest {
         String source = new SourceProjector(ProjectionPolicy.documentation()).projectToText(file.toPath())
 
         then:
-        source.contains('@AnnotationClosureFixture.Marker(AnnotationClosureFixture.Hidden.class)')
-        source.contains('@interface Marker')
-        source.contains('static class Hidden')
+        source == '''package dummy;
+
+import java.lang.Class;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
+@AnnotationClosureFixture.Marker(AnnotationClosureFixture.Hidden.class)
+public class AnnotationClosureFixture {
+  public AnnotationClosureFixture() {
+  }
+
+  static class Hidden {
+  }
+
+  @Retention(RetentionPolicy.RUNTIME)
+  @interface Marker {
+    Class<?> value();
+  }
+}
+'''
     }
 
     def "direct projection roots must be top-level declarations"() {

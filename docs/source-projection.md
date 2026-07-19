@@ -42,8 +42,9 @@ returns an independent immutable value. Signature closure and valid Java output 
 
 Source projection preserves declaration kind and nesting, visibility and modifiers, generic and inheritance signatures,
 selected constructors/methods/fields, parameter metadata, annotations, exceptions, and embedded documentation. It does
-not promise bodies, initializers, synthetic implementation details under the documentation preset, original whitespace,
-or import layout.
+not promise original bodies or initializers: deterministic default statements and values are synthesized where Java
+requires them for a valid stub. Synthetic implementation details under the documentation preset, original whitespace,
+and import layout are likewise not preserved.
 
 ## Failures
 

@@ -98,7 +98,7 @@ final class SpecConverter {
 
     JavaPoetClassVisitor readClass(String internalName) {
         ClassData classData = Objects.requireNonNull(classes.get(internalName), internalName);
-        JavaPoetClassVisitor visitor = new JavaPoetClassVisitor(this, policy, includedClasses);
+        JavaPoetClassVisitor visitor = new JavaPoetClassVisitor(this, policy, includedClasses, classData.groovyClass);
         new ClassReader(classData.bytecode).accept(visitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
         return visitor;
     }
@@ -106,7 +106,7 @@ final class SpecConverter {
     private ClassData readRoot(Path classFile) throws IOException {
         byte[] bytecode = Files.readAllBytes(classFile);
         ClassNode node = readMetadata(bytecode);
-        ClassData result = new ClassData(node, bytecode, node.access, null, null, false);
+        ClassData result = new ClassData(node, bytecode, node.access, null, null, false, isGroovyClass(node));
         classes.put(node.name, result);
         return result;
     }
@@ -132,7 +132,7 @@ final class SpecConverter {
             }
             boolean groovyRuntimeArtifact = "Helper".equals(inner.innerName) && hasAnnotation(owner.node, GROOVY_TRAIT_DESCRIPTOR);
             ClassData nested = new ClassData(node, bytecode, inner.access, inner.outerName, inner.innerName,
-                    groovyRuntimeArtifact);
+                    groovyRuntimeArtifact, isGroovyClass(node));
             classes.put(node.name, nested);
             loadNestedDeclarations(nested);
         }
@@ -164,10 +164,8 @@ final class SpecConverter {
     }
 
     private boolean isSelectedNestedDeclaration(ClassData classData) {
-        return includesVisibility(classData.declarationAccess)
-                && (policy.isSyntheticDeclarationsIncluded()
-                || (classData.declarationAccess & Opcodes.ACC_SYNTHETIC) == 0)
-                && (policy.isGroovyRuntimeArtifactsIncluded() || !classData.groovyRuntimeArtifact);
+        return ProjectionSelection.includesNestedDeclaration(policy, classData.declarationAccess,
+                classData.groovyRuntimeArtifact);
     }
 
     private Collection<String> enclosingChain(String className) {
@@ -191,7 +189,8 @@ final class SpecConverter {
         scanAnnotations(node.invisibleTypeAnnotations, result);
 
         for (FieldNode field : node.fields) {
-            if (!ProjectionSelection.includesField(policy, field.access, field.name, node.access)) continue;
+            if (!ProjectionSelection.includesField(policy, field.access, field.name, node.access,
+                    classes.get(node.name).groovyClass)) continue;
             scanType(Type.getType(field.desc), result);
             scanSignature(field.signature, result);
             scanAnnotations(field.visibleAnnotations, result);
@@ -200,7 +199,8 @@ final class SpecConverter {
             scanAnnotations(field.invisibleTypeAnnotations, result);
         }
         for (MethodNode method : node.methods) {
-            if (!ProjectionSelection.includesMethod(policy, method.access, method.name, node.access)) continue;
+            if (!ProjectionSelection.includesMethod(policy, method.access, method.name, node.access,
+                    classes.get(node.name).groovyClass)) continue;
             scanType(Type.getMethodType(method.desc), result);
             scanSignature(method.signature, result);
             if (method.exceptions != null) method.exceptions.forEach(name -> addInternalName(name, result));
@@ -220,7 +220,8 @@ final class SpecConverter {
             ClassNode node = classes.get(className).node;
             Map<String, MethodNode> signatures = new LinkedHashMap<>();
             for (MethodNode method : node.methods) {
-                if (!ProjectionSelection.includesMethod(policy, method.access, method.name, node.access)) continue;
+                if (!ProjectionSelection.includesMethod(policy, method.access, method.name, node.access,
+                        classes.get(node.name).groovyClass)) continue;
                 Type[] arguments = Type.getArgumentTypes(method.desc);
                 String key = method.name + Arrays.toString(Arrays.stream(arguments).map(Type::getDescriptor).toArray());
                 MethodNode previous = signatures.putIfAbsent(key, method);
@@ -235,7 +236,7 @@ final class SpecConverter {
 
     private static ClassNode readMetadata(byte[] bytecode) {
         ClassNode node = new ClassNode();
-        new ClassReader(bytecode).accept(node, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+        new ClassReader(bytecode).accept(node, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
         return node;
     }
 
@@ -250,12 +251,12 @@ final class SpecConverter {
         return containsAnnotation(node.visibleAnnotations, descriptor) || containsAnnotation(node.invisibleAnnotations, descriptor);
     }
 
-    private static boolean containsAnnotation(List<AnnotationNode> annotations, String descriptor) {
-        return annotations != null && annotations.stream().anyMatch(annotation -> descriptor.equals(annotation.desc));
+    private static boolean isGroovyClass(ClassNode node) {
+        return node.sourceFile != null && node.sourceFile.endsWith(".groovy");
     }
 
-    private boolean includesVisibility(int access) {
-        return policy.getIncludedVisibilities().contains(ProjectionSelection.visibility(access));
+    private static boolean containsAnnotation(List<AnnotationNode> annotations, String descriptor) {
+        return annotations != null && annotations.stream().anyMatch(annotation -> descriptor.equals(annotation.desc));
     }
 
     private static void scanSignature(String signature, Set<String> result) {
@@ -355,15 +356,17 @@ final class SpecConverter {
         private final String outerName;
         private final String innerName;
         private final boolean groovyRuntimeArtifact;
+        private final boolean groovyClass;
 
         private ClassData(ClassNode node, byte[] bytecode, int declarationAccess, String outerName, String innerName,
-                          boolean groovyRuntimeArtifact) {
+                          boolean groovyRuntimeArtifact, boolean groovyClass) {
             this.node = node;
             this.bytecode = bytecode;
             this.declarationAccess = declarationAccess;
             this.outerName = outerName;
             this.innerName = innerName;
             this.groovyRuntimeArtifact = groovyRuntimeArtifact;
+            this.groovyClass = groovyClass;
         }
     }
 }

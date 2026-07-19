@@ -29,8 +29,8 @@ class SourceProjectorGroovyTest extends ClassGeneratingTest {
         given:
         createClass('''
             package dummy
-            class GroovyFixture {
-                String value
+            class GroovyFixture<T> {
+                T value
             }
         ''')
         def classFile = new File(outputDirectory, clazz.name.replace('.', '/') + '.class').toPath()
@@ -41,15 +41,61 @@ class SourceProjectorGroovyTest extends ClassGeneratingTest {
         String runtimeAware = new SourceProjector(withRuntime).projectToText(classFile)
 
         then:
-        documented.contains('public String getValue()')
-        documented.contains('public void setValue(String value)')
-        !documented.contains('GroovyObject')
-        !documented.contains('getMetaClass')
-        !documented.contains('setMetaClass')
+        documented == '''package dummy;
+
+import groovy.transform.Generated;
+
+public class GroovyFixture<T> {
+  @Generated
+  public GroovyFixture() {
+  }
+
+  @Generated
+  public T getValue() {
+    return null;
+  }
+
+  @Generated
+  public void setValue(T value) {
+  }
+}
+'''
 
         and:
-        runtimeAware.contains('implements GroovyObject')
-        runtimeAware.contains('public MetaClass getMetaClass()')
-        runtimeAware.contains('public void setMetaClass(MetaClass mc)')
+        runtimeAware == '''package dummy;
+
+import groovy.lang.GroovyObject;
+import groovy.lang.MetaClass;
+import groovy.transform.Generated;
+import groovy.transform.Internal;
+import java.beans.Transient;
+
+public class GroovyFixture<T> implements GroovyObject {
+  @Generated
+  public GroovyFixture() {
+  }
+
+  @Generated
+  @Internal
+  @Transient
+  public MetaClass getMetaClass() {
+    return null;
+  }
+
+  @Generated
+  @Internal
+  public void setMetaClass(MetaClass mc) {
+  }
+
+  @Generated
+  public T getValue() {
+    return null;
+  }
+
+  @Generated
+  public void setValue(T value) {
+  }
+}
+'''
     }
 }
