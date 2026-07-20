@@ -51,6 +51,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private String packageName;
     private ClassName className;
     private TypeSpec.Kind kind;
+    private boolean record;
+    private final List<String> recordComponents = new ArrayList<>();
 
     JavaPoetClassVisitor(SpecConverter specConverter, ProjectionPolicy policy, Set<String> includedClasses,
                          boolean groovyClass, Set<String> groovyRuntimeMethods, Set<String> groovyRuntimeFields) {
@@ -66,12 +68,14 @@ class JavaPoetClassVisitor extends ClassVisitor {
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaceNames) {
         internalName = name;
+        record = (access & Opcodes.ACC_RECORD) != 0;
         prepareTypeBuilder(access, name);
         if (signature != null) {
-            ClassSignatureParser.parseClassSignature(signature, typeBuilder, kind,
+            ClassSignatureParser.parseClassSignature(signature, typeBuilder,
+                    record ? TypeSpec.Kind.INTERFACE : kind,
                     policy.isGroovyRuntimeArtifactsIncluded() || !groovyClass, specConverter::toClassName);
         } else {
-            if (kind == TypeSpec.Kind.CLASS)
+            if (kind == TypeSpec.Kind.CLASS && !record)
                 typeBuilder.superclass(specConverter.toClassName(superName));
             for (String interf : interfaceNames) {
                 if (groovyClass && !policy.isGroovyRuntimeArtifactsIncluded()
@@ -82,6 +86,12 @@ class JavaPoetClassVisitor extends ClassVisitor {
         }
         int packageSeparator = name.lastIndexOf('/');
         packageName = packageSeparator < 0 ? "" : name.substring(0, packageSeparator).replace('/', '.');
+    }
+
+    @Override
+    public RecordComponentVisitor visitRecordComponent(String name, String descriptor, String signature) {
+        recordComponents.add(name);
+        return null;
     }
 
     private void prepareTypeBuilder(int access, String name) {
@@ -213,7 +223,9 @@ class JavaPoetClassVisitor extends ClassVisitor {
                     return new TypeSignatureParser(specConverter::toClassName, variableResolver) {
                         @Override
                         void finished(TypeName result) {
-                            methodBuilder.returns(result);
+                            if (!name.equals("<init>")) {
+                                methodBuilder.returns(result);
+                            }
                         }
                     };
                 }
@@ -470,6 +482,45 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
     String getPackageName() {
         return packageName;
+    }
+
+    String finishSource(String source) {
+        if (!record) return source;
+
+        String constructorPrefix = "  public " + className.simpleName() + "(";
+        int constructorStart = source.indexOf(constructorPrefix);
+        if (constructorStart < 0) {
+            throw new IllegalStateException("Projected record is missing its canonical constructor: " + className);
+        }
+        int parametersStart = constructorStart + constructorPrefix.length();
+        int parametersEnd = source.indexOf(") {", parametersStart);
+        if (parametersEnd < 0) {
+            throw new IllegalStateException("Projected record has an invalid canonical constructor: " + className);
+        }
+        String components = source.substring(parametersStart, parametersEnd);
+
+        String classDeclaration = "public final class " + className.simpleName();
+        int declarationStart = source.indexOf(classDeclaration);
+        int declarationEnd = source.indexOf(" {", declarationStart);
+        if (declarationStart < 0 || declarationEnd < 0) {
+            throw new IllegalStateException("Projected record is missing its type declaration: " + className);
+        }
+        String declaration = source.substring(declarationStart, declarationEnd);
+        String recordDeclaration = declaration.replace("public final class ", "public record ");
+        int interfacesStart = recordDeclaration.indexOf(" implements ");
+        int componentsPosition = interfacesStart < 0 ? recordDeclaration.length() : interfacesStart;
+        recordDeclaration = recordDeclaration.substring(0, componentsPosition)
+                + "(" + components + ")"
+                + recordDeclaration.substring(componentsPosition);
+        source = source.substring(0, declarationStart) + recordDeclaration + source.substring(declarationEnd);
+
+        constructorStart = source.indexOf(constructorPrefix);
+        parametersEnd = source.indexOf(") {", constructorStart + constructorPrefix.length());
+        int constructorBody = parametersEnd + 3;
+        String assignments = recordComponents.stream()
+                .map(component -> "    this." + component + " = " + component + ";\n")
+                .collect(java.util.stream.Collectors.joining());
+        return source.substring(0, constructorBody) + "\n" + assignments + source.substring(constructorBody);
     }
 
 }
