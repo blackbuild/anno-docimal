@@ -24,6 +24,29 @@ group 'com.blackbuild.annodocimal'
 
 description 'Create javadoc from annotations'
 
+ext {
+    mavenVersion = '3.9.12'
+    mavenCompilerPluginVersion = '3.13.0'
+}
+
+configurations {
+    mavenDistribution
+    mavenCompilerPlugin
+}
+
+dependencies {
+    mavenDistribution("org.apache.maven:apache-maven:${mavenVersion}:bin@tar.gz") {
+        transitive = false
+    }
+    mavenCompilerPlugin "org.apache.maven.plugins:maven-compiler-plugin:${mavenCompilerPluginVersion}"
+}
+
+def extractedMavenDirectory = layout.buildDirectory.dir('maven-distribution')
+tasks.register('extractMaven', Sync) {
+    from { tarTree(resources.gzip(configurations.mavenDistribution.singleFile)) }
+    into extractedMavenDirectory
+}
+
 nexusPublishing {
     repositories {
         sonatype {
@@ -40,4 +63,156 @@ sonar {
         property "sonar.host.url", "https://sonarcloud.io"
         property "sonar.gradle.skipCompile", "true"
     }
+}
+
+def publicationAuditRepository = layout.buildDirectory.dir('publication-audit-repository')
+def cleanPublicationAuditRepository = tasks.register('cleanPublicationAuditRepository', Delete) {
+    delete publicationAuditRepository
+}
+
+def publicationAuditModules = [
+        [project: ':anno-docimal-annotations', publication: 'mavenJava', metadata: true],
+        [project: ':anno-docimal-apt', publication: 'mavenJava', metadata: true],
+        [project: ':anno-docimal-ast', publication: 'mavenJava', metadata: true],
+        [project: ':anno-docimal-global-ast', publication: 'mavenJava', metadata: true],
+        [project: ':anno-docimal-generator', publication: 'shadow', metadata: true],
+        [project: ':anno-docimal-gradle-plugin', publication: 'pluginMaven', metadata: true],
+        [project: ':anno-docimal-gradle-plugin', publication: 'annoDocimalBasePluginPluginMarkerMaven', metadata: false],
+        [project: ':anno-docimal-gradle-plugin', publication: 'annoDocimalGroovyPluginPluginMarkerMaven', metadata: false]
+]
+
+tasks.register('stagePublicationAuditRepository') {
+    group = 'verification'
+    description = 'Stages unsigned publication artifacts in an isolated repository for consumer smoke tests.'
+    dependsOn cleanPublicationAuditRepository
+    publicationAuditModules.each { module ->
+        def capitalizedPublication = module.publication.capitalize()
+        dependsOn "${module.project}:generatePomFileFor${capitalizedPublication}Publication"
+        if (module.metadata)
+            dependsOn "${module.project}:generateMetadataFileFor${capitalizedPublication}Publication"
+    }
+
+    doLast {
+        publicationAuditModules.each { module ->
+            def publicationProject = project(module.project)
+            def publication = publicationProject.publishing.publications.getByName(module.publication)
+            def destination = publicationAuditRepository.get().dir(
+                    "${publication.groupId.replace('.', '/')}/${publication.artifactId}/${publication.version}").asFile
+
+            copy {
+                from publication.artifacts.collect { it.file }.findAll {
+                    it.isFile() && !it.name.endsWith('.asc')
+                }
+                into destination
+            }
+            copy {
+                from publicationProject.layout.buildDirectory.file(
+                        "publications/${module.publication}/pom-default.xml")
+                into destination
+                rename { "${publication.artifactId}-${publication.version}.pom" }
+            }
+            if (module.metadata) {
+                copy {
+                    from publicationProject.layout.buildDirectory.file(
+                            "publications/${module.publication}/module.json")
+                    into destination
+                    rename { "${publication.artifactId}-${publication.version}.module" }
+                }
+            }
+        }
+
+        def jspecify = project(':anno-docimal-annotations').configurations.compileClasspath
+                .resolvedConfiguration.resolvedArtifacts.find {
+            it.moduleVersion.id.group == 'org.jspecify' && it.name == 'jspecify'
+        }
+        def jspecifyDestination = publicationAuditRepository.get()
+                .dir("org/jspecify/jspecify/${jspecify.moduleVersion.id.version}").asFile
+        copy {
+            from jspecify.file
+            into jspecifyDestination
+        }
+        new File(jspecifyDestination, "jspecify-${jspecify.moduleVersion.id.version}.pom").text = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.jspecify</groupId>
+  <artifactId>jspecify</artifactId>
+  <version>${jspecify.moduleVersion.id.version}</version>
+</project>
+"""
+
+        def compilerArtifacts = configurations.mavenCompilerPlugin.resolvedConfiguration.resolvedArtifacts
+        def compilerPlugin = compilerArtifacts.find {
+            it.moduleVersion.id.group == 'org.apache.maven.plugins' &&
+                    it.name == 'maven-compiler-plugin'
+        }
+        compilerArtifacts.each { artifact ->
+            def id = artifact.moduleVersion.id
+            def destination = publicationAuditRepository.get()
+                    .dir("${id.group.replace('.', '/')}/${artifact.name}/${id.version}").asFile
+            copy {
+                from artifact.file
+                into destination
+            }
+            def dependencies = artifact == compilerPlugin ? compilerArtifacts.findAll { it != artifact } : []
+            new File(destination, "${artifact.name}-${id.version}.pom").text = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>${id.group}</groupId>
+  <artifactId>${artifact.name}</artifactId>
+  <version>${id.version}</version>
+${artifact == compilerPlugin ? '  <packaging>maven-plugin</packaging>' : ''}
+  <dependencies>
+${dependencies.collect { dependency -> """    <dependency>
+      <groupId>${dependency.moduleVersion.id.group}</groupId>
+      <artifactId>${dependency.name}</artifactId>
+      <version>${dependency.moduleVersion.id.version}</version>
+      <scope>runtime</scope>
+    </dependency>""" }.join('\n')}
+  </dependencies>
+</project>
+"""
+        }
+    }
+}
+
+tasks.register('verifyPublicationReleaseConfiguration') {
+    group = 'verification'
+    description = 'Verifies signing and remote staging configuration without publishing or signing.'
+
+    doLast {
+        publicationAuditModules.each { module ->
+            def publicationProject = project(module.project)
+            def capitalizedPublication = module.publication.capitalize()
+            def signTask = publicationProject.tasks.findByName("sign${capitalizedPublication}Publication")
+            if (signTask == null)
+                throw new GradleException("${module.project}:${module.publication} has no signing task")
+            if (signTask.signatures.empty)
+                throw new GradleException("${module.project}:${module.publication} has no configured signatures")
+        }
+
+        def sonatype = nexusPublishing.repositories.findByName('sonatype')
+        if (sonatype == null)
+            throw new GradleException('The Sonatype staging repository is not configured')
+        if (sonatype.nexusUrl.get().toString() !=
+                'https://ossrh-staging-api.central.sonatype.com/service/local/')
+            throw new GradleException("Unexpected Sonatype staging URL: ${sonatype.nexusUrl.get()}")
+        if (sonatype.snapshotRepositoryUrl.get().toString() !=
+                'https://central.sonatype.com/repository/maven-snapshots/')
+            throw new GradleException("Unexpected Sonatype snapshot URL: ${sonatype.snapshotRepositoryUrl.get()}")
+        if (project(':anno-docimal-gradle-plugin').tasks.findByName('publishPlugins') == null)
+            throw new GradleException('The Gradle Plugin Portal publication task is not configured')
+    }
+}
+
+tasks.register('publicRcSmoke') {
+    group = 'verification'
+    description = 'Runs exact-version consumer validation against public repositories only.'
+    dependsOn ':publication-smoke-tests:publicRcSmoke'
+}
+
+tasks.named('check') {
+    dependsOn ':publication-smoke-tests:test'
+    dependsOn tasks.named('verifyPublicationReleaseConfiguration')
 }

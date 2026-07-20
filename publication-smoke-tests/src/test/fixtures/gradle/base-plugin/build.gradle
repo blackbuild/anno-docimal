@@ -1,0 +1,13 @@
+plugins {
+    id 'java'
+    id 'com.blackbuild.annodocimal.base-plugin' version '%%VERSION%%'
+}
+
+tasks.register('exercisePlugin') {
+    doLast {
+        if (!plugins.hasPlugin('com.blackbuild.annodocimal.base-plugin'))
+            throw new GradleException('The base plugin marker did not apply its implementation')
+        if (tasks.findByName('createClassStubs') == null)
+            throw new GradleException('The base plugin did not register createClassStubs')
+    }
+}

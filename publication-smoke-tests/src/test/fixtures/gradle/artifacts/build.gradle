@@ -1,0 +1,50 @@
+plugins {
+    id 'java'
+}
+
+configurations {
+    publicationInventory {
+        transitive = false
+    }
+}
+
+dependencies {
+    publicationInventory "com.blackbuild.annodocimal:anno-docimal-annotations:%%VERSION%%"
+    publicationInventory "com.blackbuild.annodocimal:anno-docimal-apt:%%VERSION%%"
+    publicationInventory "com.blackbuild.annodocimal:anno-docimal-ast:%%VERSION%%"
+    publicationInventory "com.blackbuild.annodocimal:anno-docimal-global-ast:%%VERSION%%"
+    publicationInventory "com.blackbuild.annodocimal:anno-docimal-generator:%%VERSION%%"
+    publicationInventory "com.blackbuild.annodocimal:anno-docimal-gradle-plugin:%%VERSION%%"
+
+    implementation "com.blackbuild.annodocimal:anno-docimal-annotations:%%VERSION%%"
+    implementation "com.blackbuild.annodocimal:anno-docimal-generator:%%VERSION%%"
+    annotationProcessor "com.blackbuild.annodocimal:anno-docimal-apt:%%VERSION%%"
+    compileOnly "com.blackbuild.annodocimal:anno-docimal-ast:%%VERSION%%"
+    compileOnly "com.blackbuild.annodocimal:anno-docimal-global-ast:%%VERSION%%"
+}
+
+tasks.register('exerciseArtifacts', JavaExec) {
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'consumer.ArtifactConsumer'
+
+    doFirst {
+        def names = configurations.publicationInventory.files*.name as Set
+        def expected = [
+                'anno-docimal-annotations',
+                'anno-docimal-apt',
+                'anno-docimal-ast',
+                'anno-docimal-global-ast',
+                'anno-docimal-generator',
+                'anno-docimal-gradle-plugin'
+        ].collect { "${it}-%%VERSION%%.jar" } as Set
+        if (names != expected)
+            throw new GradleException("Unexpected publication inventory: $names")
+
+        def properties = fileTree(layout.buildDirectory.dir('classes/java/main')) {
+            include '**/*__annodoc.properties'
+        }.files
+        if (properties.empty)
+            throw new GradleException('The published annotation processor produced no documentation properties')
+    }
+}

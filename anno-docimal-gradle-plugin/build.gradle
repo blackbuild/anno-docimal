@@ -37,7 +37,7 @@ dependencies {
 
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     api project(path: ':anno-docimal-generator', configuration: "shadow")
-    api libs.jspecify
+    compileOnly libs.jspecify
     testImplementation libs.spock.g3
 }
 
@@ -53,6 +53,9 @@ test {
 
 tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     archiveClassifier.set('')
+    dependencies {
+        exclude(dependency('org.jspecify:jspecify:.*'))
+    }
 }
 
 publishing {

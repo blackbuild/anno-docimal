@@ -1,0 +1,14 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'annodocimal-public-rc-gradle-consumer'
+include 'artifacts', 'base-plugin', 'groovy-plugin'

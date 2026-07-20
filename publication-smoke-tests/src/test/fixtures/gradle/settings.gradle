@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        maven {
+            url = uri('%%REPOSITORY%%')
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven {
+            url = uri('%%REPOSITORY%%')
+        }
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'annodocimal-publication-consumer'
+include 'artifacts', 'base-plugin', 'groovy-plugin'
