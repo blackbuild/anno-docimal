@@ -424,7 +424,6 @@ public interface Dummy {
         generatedSource.contains("public void publicMethod()")
     }
 
-    @IgnoreIf({ GroovySystem.version ==~ /^4\..*$/ })
     @Issue("33")
     def "method conversion with annotations"() {
         given:
