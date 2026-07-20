@@ -29,9 +29,20 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+/**
+ * Runtime documentation carrier for normalized documentation attached to a declaration.
+ *
+ * <p>Use the supported transformation-author API to attach this carrier to generated declarations. The annotation's
+ * value remains readable across the 0.x-to-1.0 source-API migration.</p>
+ */
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.CONSTRUCTOR})
 @Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
 @NullMarked
 public @interface AnnoDoc {
+    /**
+     * Returns normalized documentation content.
+     *
+     * @return documentation content
+     */
     String value();
 }
