@@ -25,28 +25,29 @@ package com.blackbuild.annodocimal.plugin;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.plugins.JavaPluginExtension;
-import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskProvider;
-import org.gradle.api.tasks.javadoc.Javadoc;
+import org.gradle.api.plugins.GroovyPlugin;
+import org.gradle.api.tasks.compile.GroovyCompile;
+import org.gradle.api.tasks.compile.JavaCompile;
 
-public class AnnoDocimalBasePlugin implements Plugin<Project> {
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Applies Groovy compilation and configures documentation and parameter metadata capture.
+ */
+public class AnnoDocimalGroovyPlugin implements Plugin<Project> {
+
     @Override
     public void apply(Project project) {
-        project.getPluginManager().withPlugin("java", ignored -> configureJavaProject(project));
-    }
-
-    private static void configureJavaProject(Project project) {
-        TaskProvider<SourceProjectionTask> provider = project.getTasks().register("createClassStubs", SourceProjectionTask.class, task -> {
-            SourceSet mainSourceSet = project.getExtensions().getByType(JavaPluginExtension.class)
-                    .getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-            task.getClassesDirectories().from(mainSourceSet.getOutput().getClassesDirs());
-            task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("generated/sources/annodocimal/main"));
+        project.getPluginManager().apply(GroovyPlugin.class);
+        project.getPluginManager().apply(AnnoDocimalBasePlugin.class);
+        project.getTasks().withType(GroovyCompile.class).configureEach(task -> {
+            Map<String, Boolean> options = task.getGroovyOptions().getOptimizationOptions();
+            task.getGroovyOptions().setOptimizationOptions(options == null ? new HashMap<>() : new HashMap<>(options));
+            task.getGroovyOptions().getOptimizationOptions().put("groovydoc", true);
+            task.getGroovyOptions().setParameters(true);
         });
-
-        project.getTasks().named("javadoc", Javadoc.class, task -> {
-            task.dependsOn(provider);
-            task.setSource(provider.flatMap(SourceProjectionTask::getOutputDirectory));
-        });
+        project.getTasks().withType(JavaCompile.class).configureEach(task ->
+                task.getOptions().getCompilerArgs().add("-parameters"));
     }
 }

@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.generator;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.gradle.api.tasks.Input;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -95,6 +96,7 @@ public final class ProjectionPolicy {
      *
      * @return an immutable visibility set
      */
+    @Input
     public Set<DeclarationVisibility> getIncludedVisibilities() {
         return includedVisibilities;
     }
@@ -106,6 +108,7 @@ public final class ProjectionPolicy {
      *
      * @return whether named nested declarations are included
      */
+    @Input
     public boolean isNestedDeclarationsIncluded() {
         return nestedDeclarationsIncluded;
     }
@@ -115,6 +118,7 @@ public final class ProjectionPolicy {
      *
      * @return whether synthetic declarations are included
      */
+    @Input
     public boolean isSyntheticDeclarationsIncluded() {
         return syntheticDeclarationsIncluded;
     }
@@ -125,6 +129,7 @@ public final class ProjectionPolicy {
      *
      * @return whether Groovy runtime artifacts are included
      */
+    @Input
     public boolean isGroovyRuntimeArtifactsIncluded() {
         return groovyRuntimeArtifactsIncluded;
     }

@@ -5,9 +5,8 @@ documentation during Java or Groovy compilation, carries it in compiled output, 
 Java source for the standard Javadoc tool or an IDE source mirror. KlumAST is an important consumer, not the product
 boundary.
 
-AnnoDocimal 1.0 supports Java 17 and one artifact set across Groovy 3, 4, and 5. The wrapper is the primary Gradle
-development baseline. A verified minimum Gradle version has not yet been selected; issue [#35](https://github.com/blackbuild/anno-docimal/issues/35)
-owns that contract and the reusable task redesign.
+AnnoDocimal 1.0 supports Java 17 and one artifact set across Groovy 3, 4, and 5. The Gradle integration supports
+Gradle 7.3.3 through the current 8.14.5 wrapper baseline; both endpoints have TestKit coverage.
 
 ## Quick start: transformation authors
 

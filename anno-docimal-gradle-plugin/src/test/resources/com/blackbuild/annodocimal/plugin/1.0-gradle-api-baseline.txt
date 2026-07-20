@@ -1,0 +1,9 @@
+# Supported anno-docimal-gradle-plugin 1.0 Java API.
+# Gradle constructs the task; constructors, task actions, and plugin implementation classes are intentionally absent.
+annotation com.blackbuild.annodocimal.plugin.SourceProjectionTask:org.jspecify.annotations.NullMarked
+method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getClassesDirectories():org.gradle.api.file.ConfigurableFileCollection
+method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getExcludes():org.gradle.api.provider.SetProperty<java.lang.String>
+method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getIncludes():org.gradle.api.provider.SetProperty<java.lang.String>
+method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getOutputDirectory():org.gradle.api.file.DirectoryProperty
+method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getProjectionPolicy():org.gradle.api.provider.Property<com.blackbuild.annodocimal.generator.ProjectionPolicy>
+type public abstract com.blackbuild.annodocimal.plugin.SourceProjectionTask

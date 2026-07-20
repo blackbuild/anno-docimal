@@ -17,11 +17,11 @@ gradlePlugin {
             implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalBasePlugin'
             tags.addAll 'groovy', 'ast', 'javadoc'
         }
-        annoDocimalPlugin {
-            id = 'com.blackbuild.annodocimal.plugin'
-            displayName = 'AnnoDocimal Plugin'
-            description = 'Configure AnnoDocimal source projection and current Groovy documentation capture options'
-            implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalPlugin'
+        annoDocimalGroovyPlugin {
+            id = 'com.blackbuild.annodocimal.groovy-plugin'
+            displayName = 'AnnoDocimal Groovy Plugin'
+            description = 'Configure Groovy documentation capture and source projection for Javadoc'
+            implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalGroovyPlugin'
             tags.addAll 'groovy', 'ast', 'javadoc'
         }
     }
@@ -37,6 +37,7 @@ dependencies {
 
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     api project(path: ':anno-docimal-generator', configuration: "shadow")
+    api libs.jspecify
     testImplementation libs.spock.g3
 }
 
