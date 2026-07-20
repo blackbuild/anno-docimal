@@ -32,17 +32,21 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This annotation triggers an AST transformation that converts source code javadoc comments into
- * Javadoc annotations.
- * <p>
- *     Usually, this will be initiated by custom annotation or via a global transformation, so this
- *     annotations is mostly used for testing purposes or special corner cases.
- * </p>
+ * Marks a package or type for local documentation capture during Groovy compilation.
+ *
+ * <p>The same marker also selects Java annotation-processor capture when the APT artifact is on the processor path.
+ * Groovy global capture is enabled by the global-AST artifact instead. The public suffix constant is protocol
+ * implementation detail; use the documented documentation-properties behavior rather than that Java constant.</p>
  */
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 @Retention(RetentionPolicy.SOURCE)
 @GroovyASTTransformationClass("com.blackbuild.annodocimal.ast.InlineJavadocsTransformation")
 @NullMarked
 public @interface InlineJavadocs {
+    /**
+     * Suffix of the generated documentation-properties resource.
+     *
+     * <p>This protocol constant is not supported Java API; consumers must not couple source code to it.</p>
+     */
     String JAVADOC_PROPERTIES_SUFFIX = "__annodoc.properties";
 }

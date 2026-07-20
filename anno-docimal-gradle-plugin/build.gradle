@@ -6,21 +6,21 @@ plugins {
     id 'com.gradleup.shadow' version '8.3.4'
 }
 
-description "AnnoDocimal Stub Generator Gradle Plugin"
+description "AnnoDocimal source-projection Gradle plugins"
 
 gradlePlugin {
     plugins {
         annoDocimalBasePlugin {
             id = 'com.blackbuild.annodocimal.base-plugin'
             displayName = 'AnnoDocimal Base Plugin'
-            description = 'Create Javadocs for generated code'
+            description = 'Connect documentation-oriented source projection to the Javadoc task'
             implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalBasePlugin'
             tags.addAll 'groovy', 'ast', 'javadoc'
         }
         annoDocimalPlugin {
             id = 'com.blackbuild.annodocimal.plugin'
             displayName = 'AnnoDocimal Plugin'
-            description = 'Create Javadocs for generated code'
+            description = 'Configure AnnoDocimal source projection and current Groovy documentation capture options'
             implementationClass = 'com.blackbuild.annodocimal.plugin.AnnoDocimalPlugin'
             tags.addAll 'groovy', 'ast', 'javadoc'
         }
@@ -59,4 +59,3 @@ publishing {
         pluginMaven(MavenPublication)
     }
 }
-
