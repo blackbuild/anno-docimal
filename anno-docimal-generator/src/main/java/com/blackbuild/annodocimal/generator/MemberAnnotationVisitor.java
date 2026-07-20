@@ -250,7 +250,7 @@ final class MemberAnnotationVisitor {
 
     }
 
-    static final class Documentation {
+    static final class DocumentationCarrierSelection {
         private String canonical;
         private String interoperable;
 
@@ -289,7 +289,7 @@ final class MemberAnnotationVisitor {
             String[] lines = normalized.split("\n", -1);
             int minIndent = Arrays.stream(lines)
                     .filter(line -> !line.isBlank())
-                    .mapToInt(Documentation::leadingWhitespace)
+                    .mapToInt(DocumentationCarrierSelection::leadingWhitespace)
                     .min()
                     .orElse(0);
             normalized = Arrays.stream(lines)

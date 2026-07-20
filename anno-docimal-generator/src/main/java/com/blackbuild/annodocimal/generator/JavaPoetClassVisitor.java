@@ -50,8 +50,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private final Set<String> groovyRuntimeMethods;
     private final Set<String> groovyRuntimeFields;
     private TypeSpec.Builder typeBuilder;
-    private final MemberAnnotationVisitor.Documentation typeDocumentation =
-            new MemberAnnotationVisitor.Documentation();
+    private final MemberAnnotationVisitor.DocumentationCarrierSelection typeDocumentation =
+            new MemberAnnotationVisitor.DocumentationCarrierSelection();
     private TypeSpec type;
     private String internalName;
     private String packageName;
@@ -292,8 +292,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
         exceptionTypes.forEach(methodBuilder::addException);
 
         return new MethodVisitor(api) {
-            final MemberAnnotationVisitor.Documentation documentation =
-                    new MemberAnnotationVisitor.Documentation();
+            final MemberAnnotationVisitor.DocumentationCarrierSelection documentation =
+                    new MemberAnnotationVisitor.DocumentationCarrierSelection();
             int visitedParameters;
 
             @Override
@@ -451,8 +451,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
         if ((access & Opcodes.ACC_ENUM) != 0) {
             return new FieldVisitor(api) {
                 private TypeSpec.Builder enumClass = TypeSpec.anonymousClassBuilder(CodeBlock.builder().build());
-                private final MemberAnnotationVisitor.Documentation documentation =
-                        new MemberAnnotationVisitor.Documentation();
+                private final MemberAnnotationVisitor.DocumentationCarrierSelection documentation =
+                        new MemberAnnotationVisitor.DocumentationCarrierSelection();
 
                 @Override
                 public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
@@ -473,8 +473,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
         } else {
             return new FieldVisitor(api) {
                 private FieldSpec.Builder field = FieldSpec.builder(fieldType[0], name, TypeConversion.decodeModifiers(access));
-                private final MemberAnnotationVisitor.Documentation documentation =
-                        new MemberAnnotationVisitor.Documentation();
+                private final MemberAnnotationVisitor.DocumentationCarrierSelection documentation =
+                        new MemberAnnotationVisitor.DocumentationCarrierSelection();
 
                 {
                     if ((access & Opcodes.ACC_FINAL) != 0) {

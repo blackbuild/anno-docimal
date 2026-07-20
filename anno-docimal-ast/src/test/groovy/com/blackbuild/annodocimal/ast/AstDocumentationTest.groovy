@@ -55,7 +55,15 @@ class AstDocumentationTest extends Specification {
         then:
         AstDocumentation.extractExact(provider).orElseThrow().render() == 'Runtime GroovyDoc documentation.'
 
+        when: 'a higher-precedence carrier is empty after normalization'
+        def blankCanonical = carrier(AnnoDoc, '/** */')
+        provider.addAnnotation(blankCanonical)
+
+        then: 'it does not mask usable runtime documentation'
+        AstDocumentation.extractExact(provider).orElseThrow().render() == 'Runtime GroovyDoc documentation.'
+
         when: 'the canonical carrier is also present'
+        provider.annotations.remove(blankCanonical)
         provider.addAnnotation(carrier(AnnoDoc, 'Canonical AnnoDoc documentation.'))
 
         then:

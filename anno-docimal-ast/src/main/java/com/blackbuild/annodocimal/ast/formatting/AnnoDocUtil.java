@@ -99,8 +99,8 @@ public class AnnoDocUtil {
      * @return normalized documentation, or {@code null} when neither carrier contains documentation
      */
     public static @Nullable String getDocumentationCarrierValue(@NotNull AnnotatedNode node) {
-        String canonical = annotationValue(node, ANNODOC_ANNOTATION.getName());
-        if (canonical != null) return normalizeDocumentation(canonical);
+        String canonical = normalizeDocumentation(annotationValue(node, ANNODOC_ANNOTATION.getName()));
+        if (canonical != null) return canonical;
         return normalizeDocumentation(annotationValue(node, GROOVYDOC_ANNOTATION.getName()));
     }
 
