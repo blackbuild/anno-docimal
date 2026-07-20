@@ -30,8 +30,11 @@ import org.objectweb.asm.Type;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -52,7 +55,9 @@ final class MemberAnnotationVisitor {
 
     static class Regular extends AnnotationVisitor {
 
-        protected final AnnotationSpec.Builder builder;
+        private final AnnotationSpec.Builder builder;
+        private final Map<String, CodeBlock> members =
+                new TreeMap<>(Comparator.nullsFirst(Comparator.naturalOrder()));
         private final Object target;
         private final Function<String, ClassName> classNameResolver;
 
@@ -69,7 +74,7 @@ final class MemberAnnotationVisitor {
 
         @Override
         public void visit(String name, Object value) {
-            builder.addMember(name, toCodeBlock(value, classNameResolver));
+            addMember(name, toCodeBlock(value, classNameResolver));
         }
 
         static CodeBlock toCodeBlock(Object value) {
@@ -125,50 +130,61 @@ final class MemberAnnotationVisitor {
 
         @Override
         public void visitEnum(String name, String descriptor, String value) {
-            builder.addMember(
-                    name,
-                    "$T.$L",
-                    toClassName(Type.getType(descriptor)),
-                    value);
+            addMember(name, CodeBlock.of("$T.$L", toClassName(Type.getType(descriptor)), value));
         }
 
         @Override
         public AnnotationVisitor visitAnnotation(String name, String descriptor) {
-            final AnnotationSpec.Builder outer = this.builder;
             return new MemberAnnotationVisitor.Regular(Type.getType(descriptor), null, classNameResolver) {
                 @Override
                 public void visitEnd() {
-                    outer.addMember(name, "$L", this.builder.build());
+                    addMember(name, CodeBlock.of("$L", buildAnnotation()));
                 }
             };
         }
 
         @Override
         public AnnotationVisitor visitArray(String name) {
-            return new MemberArray(builder, name, classNameResolver);
+            return new MemberArray(this, name, classNameResolver);
         }
 
         @Override
         public void visitEnd() {
+            AnnotationSpec annotation = buildAnnotation();
             if (target instanceof MethodSpec.Builder methodBuilder)
-                methodBuilder.addAnnotation(builder.build());
+                methodBuilder.addAnnotation(annotation);
             else if (target instanceof FieldSpec.Builder fieldBuilder)
-                fieldBuilder.addAnnotation(builder.build());
+                fieldBuilder.addAnnotation(annotation);
             else if (target instanceof TypeSpec.Builder typeBuilder)
-                typeBuilder.addAnnotation(builder.build());
+                typeBuilder.addAnnotation(annotation);
             else if (target instanceof List list)
-                list.add(builder.build());
+                list.add(annotation);
+        }
+
+        private void addMember(String name, CodeBlock value) {
+            members.put(name, value);
+        }
+
+        protected final CodeBlock singleMember() {
+            if (members.size() != 1)
+                throw new IllegalStateException("Expected exactly one member in default value");
+            return members.values().iterator().next();
+        }
+
+        protected final AnnotationSpec buildAnnotation() {
+            members.forEach((name, value) -> builder.addMember(name, "$L", value));
+            return builder.build();
         }
     }
 
     static class MemberArray extends AnnotationVisitor {
 
-        private final AnnotationSpec.Builder target;
+        private final Regular target;
         private final String memberName;
         private final List<CodeBlock> elements = new ArrayList<>();
         private final Function<String, ClassName> classNameResolver;
 
-        private MemberArray(AnnotationSpec.Builder target, String memberName,
+        private MemberArray(Regular target, String memberName,
                             Function<String, ClassName> classNameResolver) {
             super(CompilerConfiguration.ASM_API_VERSION);
             this.target = target;
@@ -191,7 +207,7 @@ final class MemberAnnotationVisitor {
             return new MemberAnnotationVisitor.Regular(Type.getType(descriptor), null, classNameResolver) {
                 @Override
                 public void visitEnd() {
-                    elements.add(CodeBlock.of("$L", this.builder.build()));
+                    elements.add(CodeBlock.of("$L", buildAnnotation()));
                 }
             };
         }
