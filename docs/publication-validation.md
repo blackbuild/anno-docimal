@@ -33,9 +33,8 @@ publish task, a Plugin Portal task, or a signing task. It verifies:
 - both plugin descriptors and their implementation classes;
 - relocated generator dependencies and the absence of accidental unrelocated, Gradle, Groovy, or JSpecify contents in
   the shaded generator and plugin JARs; and
-- clean, offline Gradle and Maven-POM consumers resolving all six coordinates. The Gradle fixture also applies both
-  plugin IDs. The Maven POM is exercised through Gradle's Maven-POM resolver so the check does not depend on a locally
-  installed Maven executable.
+- clean, offline Gradle and Apache Maven consumers resolving all six coordinates. The Gradle fixture also applies both
+  plugin IDs. The Maven runtime is a pinned build-tool dependency and uses a fresh isolated local repository.
 
 `verifyPublicationReleaseConfiguration`, included in the root `check`, inspects the signing tasks for every Maven
 publication, the Maven Central staging and snapshot endpoints, and the Gradle Plugin Portal publication task. It does

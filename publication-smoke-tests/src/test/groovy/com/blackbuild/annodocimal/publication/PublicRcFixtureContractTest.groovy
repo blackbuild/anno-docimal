@@ -29,23 +29,23 @@ import spock.lang.Specification
 import java.nio.file.Files
 import java.nio.file.Path
 
-@Issue('#44')
+@Issue('44')
 class PublicRcFixtureContractTest extends Specification {
 
     def 'public RC fixtures expose no local or composite fallback'() {
         when:
-        def settings = [
-                Path.of('src/publicRc/gradle-settings.gradle'),
-                Path.of('src/publicRc/maven-settings.gradle')
-        ].collect(Files::readString).join('\n')
+        def gradleSettings = Files.readString(Path.of('src/publicRc/gradle-settings.gradle'))
+        def mavenSettings = Files.readString(Path.of('src/publicRc/maven-settings.xml'))
+        def settings = "${gradleSettings}\n${mavenSettings}"
 
         then:
-        settings.contains('gradlePluginPortal()')
-        settings.count('mavenCentral') == 2
+        gradleSettings.contains('gradlePluginPortal()')
+        gradleSettings.count('mavenCentral()') == 1
+        mavenSettings.contains('https://repo.maven.apache.org/maven2')
         !settings.contains('mavenLocal')
         !settings.contains('includeBuild')
         !settings.contains('flatDir')
-        !settings.contains('url =')
+        !settings.contains('file:')
     }
 
     def 'public RC templates enumerate the complete exact-version product'() {

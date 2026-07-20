@@ -23,8 +23,6 @@
  */
 package com.blackbuild.annodocimal.publication
 
-import org.gradle.testkit.runner.GradleRunner
-import org.gradle.testkit.runner.TaskOutcome
 import spock.lang.Issue
 import spock.lang.Specification
 import spock.lang.TempDir
@@ -32,7 +30,10 @@ import spock.lang.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 
-@Issue('#44')
+import static com.blackbuild.annodocimal.publication.ConsumerFixtureSupport.copyFixture
+import static com.blackbuild.annodocimal.publication.ConsumerFixtureSupport.replaceTokens
+
+@Issue('44')
 class MavenConsumerSmokeTest extends Specification {
 
     @TempDir Path target
@@ -40,35 +41,31 @@ class MavenConsumerSmokeTest extends Specification {
     def 'clean Maven POM consumer resolves and compiles against all six artifacts offline'() {
         given:
         copyFixture(Path.of('src/test/fixtures/maven'), target)
-        replaceTokens(target.resolve('settings.gradle'))
         replaceTokens(target.resolve('pom.xml'))
+        def localRepository = target.resolve('.m2/repository')
+        copyFixture(Path.of(System.getProperty('annodocimal.publication.repository')), localRepository)
 
         when:
-        def result = GradleRunner.create()
-                .withProjectDir(target.toFile())
-                .withArguments('exerciseMavenConsumer', '--offline', '--stacktrace')
-                .build()
+        def process = new ProcessBuilder(
+                System.getProperty('annodocimal.maven.executable'),
+                '--batch-mode',
+                '--no-transfer-progress',
+                '--offline',
+                "-Dmaven.repo.local=${localRepository}",
+                'org.apache.maven.plugins:maven-compiler-plugin:3.13.0:compile')
+                .directory(target.toFile())
+                .redirectErrorStream(true)
+                .start()
+        def output = process.inputStream.getText('UTF-8')
+        def exitCode = process.waitFor()
 
         then:
-        result.task(':exerciseMavenConsumer').outcome == TaskOutcome.SUCCESS
+        exitCode == 0
+        Files.isRegularFile(target.resolve('target/classes/consumer/MavenArtifactConsumer.class'))
+
+        cleanup:
+        if (exitCode != null && exitCode != 0)
+            System.err.println(output)
     }
 
-    private void replaceTokens(Path file) {
-        def content = Files.readString(file)
-                .replace('%%REPOSITORY%%', System.getProperty('annodocimal.publication.repository'))
-                .replace('%%VERSION%%', System.getProperty('annodocimal.publication.version'))
-        Files.writeString(file, content)
-    }
-
-    private static void copyFixture(Path source, Path destination) {
-        Files.walk(source).withCloseable { files ->
-            files.forEach { path ->
-                def target = destination.resolve(source.relativize(path).toString())
-                if (Files.isDirectory(path))
-                    Files.createDirectories(target)
-                else
-                    Files.copy(path, target)
-            }
-        }
-    }
 }

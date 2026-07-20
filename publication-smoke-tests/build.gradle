@@ -18,10 +18,13 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
     dependsOn rootProject.tasks.named('stagePublicationAuditRepository')
+    dependsOn rootProject.tasks.named('extractMaven')
     dependsOn rootProject.tasks.named('verifyPublicationReleaseConfiguration')
     systemProperty 'annodocimal.publication.repository', rootProject.layout.buildDirectory
             .dir('publication-audit-repository').get().asFile.absolutePath
     systemProperty 'annodocimal.publication.version', project.version.toString()
+    systemProperty 'annodocimal.maven.executable', rootProject.layout.buildDirectory
+            .file("maven-distribution/apache-maven-${mavenVersion}/bin/mvn").get().asFile.absolutePath
 }
 
 def publicRcVersion = providers.gradleProperty('annodocimalVersion')
@@ -43,12 +46,11 @@ tasks.register('preparePublicRcFixtures', Sync) {
     }
     from('src/test/fixtures/maven') {
         into 'maven'
-        exclude 'settings.gradle'
         filter { line -> line.replace('%%VERSION%%', publicRcVersion.get()) }
     }
-    from('src/publicRc/maven-settings.gradle') {
+    from('src/publicRc/maven-settings.xml') {
         into 'maven'
-        rename { 'settings.gradle' }
+        rename { 'settings.xml' }
     }
 
     doFirst {
@@ -66,11 +68,16 @@ tasks.register('publicRcGradleSmoke', GradleBuild) {
     startParameter.gradleUserHomeDir = publicRcGradleUserHome.get().asFile
 }
 
-tasks.register('publicRcMavenSmoke', GradleBuild) {
+tasks.register('publicRcMavenSmoke', Exec) {
     dependsOn tasks.named('preparePublicRcFixtures')
-    dir publicRcFixtureDirectory.map { it.dir('maven') }
-    tasks = ['exerciseMavenConsumer']
-    startParameter.gradleUserHomeDir = publicRcMavenUserHome.get().asFile
+    dependsOn rootProject.tasks.named('extractMaven')
+    workingDir publicRcFixtureDirectory.map { it.dir('maven') }
+    executable rootProject.layout.buildDirectory
+            .file("maven-distribution/apache-maven-${mavenVersion}/bin/mvn").get().asFile
+    args '--batch-mode', '--no-transfer-progress',
+            "-Dmaven.repo.local=${publicRcMavenUserHome.get().dir('repository').asFile}",
+            '--settings', 'settings.xml',
+            "org.apache.maven.plugins:maven-compiler-plugin:${mavenCompilerPluginVersion}:compile"
 }
 
 tasks.register('publicRcSmoke') {

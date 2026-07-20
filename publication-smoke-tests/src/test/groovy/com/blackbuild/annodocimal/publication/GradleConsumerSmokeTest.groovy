@@ -32,7 +32,10 @@ import spock.lang.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 
-@Issue('#44')
+import static com.blackbuild.annodocimal.publication.ConsumerFixtureSupport.copyFixture
+import static com.blackbuild.annodocimal.publication.ConsumerFixtureSupport.replaceTokens
+
+@Issue('44')
 class GradleConsumerSmokeTest extends Specification {
 
     @TempDir Path target
@@ -42,12 +45,13 @@ class GradleConsumerSmokeTest extends Specification {
         copyFixture(Path.of('src/test/fixtures/gradle'), target)
         replaceTokens(target.resolve('settings.gradle'))
         Files.walk(target).withCloseable { files ->
-            files.filter { it.fileName.toString() == 'build.gradle' }.forEach(this::replaceTokens)
+            files.filter { it.fileName.toString() == 'build.gradle' }.forEach { replaceTokens(it) }
         }
 
         when:
         def result = GradleRunner.create()
                 .withProjectDir(target.toFile())
+                .withTestKitDir(target.resolve('.gradle-test-kit').toFile())
                 .withArguments('exerciseConsumer', '--offline', '--stacktrace')
                 .build()
 
@@ -58,22 +62,4 @@ class GradleConsumerSmokeTest extends Specification {
         result.task(':groovy-plugin:exercisePlugin').outcome == TaskOutcome.SUCCESS
     }
 
-    private void replaceTokens(Path file) {
-        def content = Files.readString(file)
-                .replace('%%REPOSITORY%%', System.getProperty('annodocimal.publication.repository'))
-                .replace('%%VERSION%%', System.getProperty('annodocimal.publication.version'))
-        Files.writeString(file, content)
-    }
-
-    private static void copyFixture(Path source, Path destination) {
-        Files.walk(source).withCloseable { files ->
-            files.forEach { path ->
-                def target = destination.resolve(source.relativize(path).toString())
-                if (Files.isDirectory(path))
-                    Files.createDirectories(target)
-                else
-                    Files.copy(path, target)
-            }
-        }
-    }
 }

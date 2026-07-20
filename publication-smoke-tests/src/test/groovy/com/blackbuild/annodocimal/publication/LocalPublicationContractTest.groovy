@@ -33,7 +33,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.jar.JarFile
 
-@Issue('#44')
+@Issue('44')
 class LocalPublicationContractTest extends Specification {
 
     private static final List<String> ARTIFACTS = [
@@ -81,26 +81,28 @@ class LocalPublicationContractTest extends Specification {
         expect:
         pomContract('anno-docimal-annotations') == [
                 description : 'Annotations for AnnoDocimal',
-                dependencies: ['org.jspecify:jspecify:compile']
+                dependencies: ['org.jspecify:jspecify:1.0.0:compile']
         ]
         pomContract('anno-docimal-apt') == [
                 description : 'Annotation Processor for AnnoDocimal',
-                dependencies: ['com.blackbuild.annodocimal:anno-docimal-annotations:compile']
+                dependencies: [
+                        "com.blackbuild.annodocimal:anno-docimal-annotations:${version}:compile"
+                ]
         ]
         pomContract('anno-docimal-ast') == [
                 description : 'Groovy AST documentation capture and helper APIs for AnnoDocimal',
                 dependencies: [
-                        'com.blackbuild.annodocimal:anno-docimal-annotations:compile',
-                        'org.jspecify:jspecify:compile'
+                        "com.blackbuild.annodocimal:anno-docimal-annotations:${version}:compile",
+                        'org.jspecify:jspecify:1.0.0:compile'
                 ]
         ]
         pomContract('anno-docimal-global-ast') == [
                 description : 'Global Groovy AST documentation capture for AnnoDocimal',
-                dependencies: ['com.blackbuild.annodocimal:anno-docimal-ast:compile']
+                dependencies: ["com.blackbuild.annodocimal:anno-docimal-ast:${version}:compile"]
         ]
         pomContract('anno-docimal-generator') == [
                 description : 'Source-projection generator for AnnoDocimal',
-                dependencies: ['org.jspecify:jspecify:compile']
+                dependencies: ['org.jspecify:jspecify:1.0.0:compile']
         ]
         pomContract('anno-docimal-gradle-plugin') == [
                 description : 'AnnoDocimal source-projection Gradle plugins',
@@ -116,12 +118,14 @@ class LocalPublicationContractTest extends Specification {
 
     def 'Gradle module metadata describes resolvable variants and files'() {
         when:
-        def contracts = ARTIFACTS.collectEntries { artifact ->
-            def metadata = new JsonSlurper().parse(moduleFile(artifact).toFile())
-            [(artifact): metadata.variants.collectEntries { variant ->
+        def metadata = ARTIFACTS.collectEntries { artifact ->
+            [(artifact): new JsonSlurper().parse(moduleFile(artifact).toFile())]
+        }
+        def contracts = metadata.collectEntries { artifact, module ->
+            [(artifact): module.variants.collectEntries { variant ->
                 [(variant.name): [
                         dependencies: (variant.dependencies ?: []).collect {
-                            "${it.group}:${it.module}"
+                            "${it.group}:${it.module}:${it.version.requires}"
                         }.sort(),
                         files       : (variant.files ?: []).collect { it.url }.sort()
                 ]]
@@ -129,22 +133,18 @@ class LocalPublicationContractTest extends Specification {
         }
 
         then:
-        contracts['anno-docimal-generator'].keySet() ==
-                ['javadocElements', 'sourcesElements', 'shadowRuntimeElements'] as Set
-        contracts['anno-docimal-generator'].shadowRuntimeElements.dependencies == ['org.jspecify:jspecify']
-        contracts['anno-docimal-gradle-plugin'].keySet() ==
-                ['javadocElements', 'sourcesElements', 'shadowRuntimeElements'] as Set
-        contracts['anno-docimal-gradle-plugin'].shadowRuntimeElements.dependencies == []
+        metadata.every { artifact, module ->
+            module.component.group == 'com.blackbuild.annodocimal' &&
+                    module.component.module == artifact &&
+                    module.component.version == version
+        }
 
         and:
-        ['anno-docimal-annotations', 'anno-docimal-apt', 'anno-docimal-global-ast'].every { artifact ->
-            contracts[artifact].keySet() ==
-                    ['apiElements', 'runtimeElements', 'javadocElements', 'sourcesElements'] as Set
-        }
-        contracts['anno-docimal-ast'].keySet() == [
-                'apiElements', 'runtimeElements', 'javadocElements', 'sourcesElements',
-                'testFixturesApiElements', 'testFixturesRuntimeElements'
-        ] as Set
+        contracts.collectEntries { artifact, variants ->
+            [(artifact): variants.collectEntries { name, contract ->
+                [(name): contract.dependencies]
+            }]
+        } == expectedVariantDependencies()
 
         and:
         contracts.values().every { variants ->
@@ -243,9 +243,43 @@ class LocalPublicationContractTest extends Specification {
         [
                 description : pom.description.text(),
                 dependencies: pom.dependencies.dependency.collect {
-                    "${it.groupId.text()}:${it.artifactId.text()}:${it.scope.text()}"
+                    "${it.groupId.text()}:${it.artifactId.text()}:${it.version.text()}:${it.scope.text()}"
                 }.sort()
         ]
+    }
+
+    private Map<String, Map<String, List<String>>> expectedVariantDependencies() {
+        def jspecify = ['org.jspecify:jspecify:1.0.0']
+        def annotations = ["com.blackbuild.annodocimal:anno-docimal-annotations:${version}"]
+        def ast = ["com.blackbuild.annodocimal:anno-docimal-ast:${version}"]
+        [
+                'anno-docimal-annotations': standardVariants(jspecify),
+                'anno-docimal-apt': standardVariants(annotations),
+                'anno-docimal-ast': standardVariants((annotations + jspecify).sort()) + [
+                        testFixturesApiElements: ast,
+                        testFixturesRuntimeElements: ast
+                ],
+                'anno-docimal-global-ast': standardVariants(ast),
+                'anno-docimal-generator': archiveVariants([
+                        shadowRuntimeElements: jspecify
+                ]),
+                'anno-docimal-gradle-plugin': archiveVariants([
+                        shadowRuntimeElements: []
+                ])
+        ]
+    }
+
+    private static Map<String, List<String>> standardVariants(List<String> dependencies) {
+        [
+                apiElements    : dependencies,
+                runtimeElements: dependencies,
+                javadocElements: [],
+                sourcesElements: []
+        ]
+    }
+
+    private static Map<String, List<String>> archiveVariants(Map<String, List<String>> runtimeVariant) {
+        [javadocElements: [], sourcesElements: []] + runtimeVariant
     }
 
     private String pluginMarkerDependency(String pluginId) {
