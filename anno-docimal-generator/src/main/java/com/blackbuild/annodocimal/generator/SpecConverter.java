@@ -26,7 +26,9 @@ package com.blackbuild.annodocimal.generator;
 import com.squareup.javapoet.ArrayTypeName;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeVariableName;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -43,6 +45,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
@@ -52,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -223,6 +227,145 @@ final class SpecConverter {
             case Type.ARRAY -> ArrayTypeName.of(toTypeName(type.getElementType()));
             default -> TypeConversion.toTypeName(type);
         };
+    }
+
+    Map<String, TypeName> inheritedTypeVariables(String internalName, String methodName, String descriptor,
+                                                 String signature) {
+        if (signature == null) return Map.of();
+        SignatureVariables methodVariables = signatureVariables(signature);
+        Set<String> unresolved = new LinkedHashSet<>(methodVariables.referenced);
+        unresolved.removeAll(methodVariables.declared);
+        unresolved.removeAll(visibleTypeParameters(internalName));
+        if (unresolved.isEmpty()) return Map.of();
+
+        Map<String, TypeName> result = new LinkedHashMap<>();
+        collectInheritedTypeVariables(classes.get(internalName).node, methodName, descriptor, Map.of(),
+                unresolved, new LinkedHashSet<>(), result);
+        if (!result.keySet().containsAll(unresolved)) {
+            Set<String> missing = new LinkedHashSet<>(unresolved);
+            missing.removeAll(result.keySet());
+            throw failure(internalName + "#" + methodName,
+                    "Cannot resolve inherited type variables " + missing + " for "
+                            + identifier(internalName) + "#" + methodName);
+        }
+        return Map.copyOf(result);
+    }
+
+    private Set<String> visibleTypeParameters(String internalName) {
+        Set<String> result = new LinkedHashSet<>();
+        ClassData current = classes.get(internalName);
+        while (current != null) {
+            result.addAll(signatureVariables(current.node.signature).declared);
+            if ((current.declarationAccess & Opcodes.ACC_STATIC) != 0) break;
+            current = classes.get(current.outerName);
+        }
+        return result;
+    }
+
+    private void collectInheritedTypeVariables(ClassNode node, String methodName, String descriptor,
+                                               Map<String, TypeName> bindings, Set<String> unresolved,
+                                               Set<String> visited, Map<String, TypeName> result) {
+        for (InheritedSupertype inherited : directSupertypes(node, bindings)) {
+            ClassNode parent = classMetadata(inherited.internalName);
+            if (parent == null) continue;
+            Map<String, TypeName> parentBindings = bindTypeParameters(parent, inherited.type);
+            String visitKey = parent.name + parentBindings;
+            if (!visited.add(visitKey)) continue;
+
+            MethodNode inheritedMethod = parent.methods.stream()
+                    .filter(method -> methodName.equals(method.name) && descriptor.equals(method.desc))
+                    .findFirst()
+                    .orElse(null);
+            if (inheritedMethod != null) {
+                Set<String> inheritedVariables = signatureVariables(inheritedMethod.signature).referenced;
+                for (String variable : unresolved) {
+                    if (!inheritedVariables.contains(variable) || !parentBindings.containsKey(variable)) continue;
+                    TypeName previous = result.putIfAbsent(variable, parentBindings.get(variable));
+                    if (previous != null && !previous.equals(parentBindings.get(variable))) {
+                        throw failure(node.name + "#" + methodName,
+                                "Inherited declarations resolve type variable " + variable + " inconsistently");
+                    }
+                }
+            }
+            collectInheritedTypeVariables(parent, methodName, descriptor, parentBindings, unresolved, visited, result);
+        }
+    }
+
+    private List<InheritedSupertype> directSupertypes(ClassNode node, Map<String, TypeName> bindings) {
+        List<String> names = new ArrayList<>();
+        if (node.superName != null) names.add(node.superName);
+        names.addAll(node.interfaces);
+
+        List<TypeName> types = new ArrayList<>();
+        if (node.signature == null) {
+            names.stream().map(this::toClassName).forEach(types::add);
+        } else {
+            Function<String, TypeName> resolver = name -> bindings.getOrDefault(name, TypeVariableName.get(name));
+            FormalParameterParser visitor = new FormalParameterParser(this::toClassName, resolver) {
+                @Override
+                public SignatureVisitor visitSuperclass() {
+                    return supertypeCollector(types, resolver);
+                }
+
+                @Override
+                public SignatureVisitor visitInterface() {
+                    return supertypeCollector(types, resolver);
+                }
+            };
+            new SignatureReader(node.signature).accept(visitor);
+        }
+        if (names.size() != types.size()) {
+            throw failure(node.name, "Could not align inherited generic signatures for " + identifier(node.name));
+        }
+
+        List<InheritedSupertype> result = new ArrayList<>(names.size());
+        for (int index = 0; index < names.size(); index++) {
+            result.add(new InheritedSupertype(names.get(index), types.get(index)));
+        }
+        return result;
+    }
+
+    private TypeSignatureParser supertypeCollector(List<TypeName> types, Function<String, TypeName> resolver) {
+        return new TypeSignatureParser(this::toClassName, resolver) {
+            @Override
+            void finished(TypeName result) {
+                types.add(result);
+            }
+        };
+    }
+
+    private ClassNode classMetadata(String internalName) {
+        ClassData local = classes.get(internalName);
+        return local == null ? readReferencedClass(internalName) : local.node;
+    }
+
+    private static Map<String, TypeName> bindTypeParameters(ClassNode node, TypeName inheritedType) {
+        List<String> parameters = List.copyOf(signatureVariables(node.signature).declared);
+        if (!(inheritedType instanceof ParameterizedTypeName parameterized) || parameters.isEmpty()) return Map.of();
+        if (parameters.size() != parameterized.typeArguments.size()) return Map.of();
+        Map<String, TypeName> result = new LinkedHashMap<>();
+        for (int index = 0; index < parameters.size(); index++) {
+            result.put(parameters.get(index), parameterized.typeArguments.get(index));
+        }
+        return result;
+    }
+
+    private static SignatureVariables signatureVariables(String signature) {
+        SignatureVariables result = new SignatureVariables();
+        if (signature == null) return result;
+        SignatureVisitor visitor = new SignatureVisitor(Opcodes.ASM9) {
+            @Override
+            public void visitFormalTypeParameter(String name) {
+                result.declared.add(name);
+            }
+
+            @Override
+            public void visitTypeVariable(String name) {
+                result.referenced.add(name);
+            }
+        };
+        new SignatureReader(signature).accept(visitor);
+        return result;
     }
 
     private ClassData readRoot(Path classFile) throws IOException {
@@ -508,6 +651,21 @@ final class SpecConverter {
     private static String simpleBinaryName(String internalName) {
         int separator = internalName.lastIndexOf('/');
         return separator < 0 ? internalName : internalName.substring(separator + 1);
+    }
+
+    private static final class InheritedSupertype {
+        private final String internalName;
+        private final TypeName type;
+
+        private InheritedSupertype(String internalName, TypeName type) {
+            this.internalName = internalName;
+            this.type = type;
+        }
+    }
+
+    private static final class SignatureVariables {
+        private final Set<String> declared = new LinkedHashSet<>();
+        private final Set<String> referenced = new LinkedHashSet<>();
     }
 
     private static final class ClassData {

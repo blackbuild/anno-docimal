@@ -39,8 +39,14 @@ abstract class TypeSignatureParser extends SignatureVisitor {
     }
 
     protected TypeSignatureParser(Function<String, ClassName> classNameResolver) {
+        this(classNameResolver, name -> TypeVariableName.get(name));
+    }
+
+    protected TypeSignatureParser(Function<String, ClassName> classNameResolver,
+                                  Function<String, TypeName> typeVariableResolver) {
         super(CompilerConfiguration.ASM_API_VERSION);
         this.classNameResolver = Objects.requireNonNull(classNameResolver, "classNameResolver");
+        this.typeVariableResolver = Objects.requireNonNull(typeVariableResolver, "typeVariableResolver");
     }
 
     abstract void finished(TypeName result);
@@ -50,10 +56,11 @@ abstract class TypeSignatureParser extends SignatureVisitor {
     private ParameterizedTypeName enclosingType;
     private final List<TypeName> arguments = new ArrayList<>();
     private final Function<String, ClassName> classNameResolver;
+    private final Function<String, TypeName> typeVariableResolver;
 
     @Override
     public void visitTypeVariable(final String name) {
-        finished(TypeVariableName.get(name));
+        finished(typeVariableResolver.apply(name));
     }
 
     @Override
@@ -64,7 +71,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
     @Override
     public SignatureVisitor visitArrayType() {
         final TypeSignatureParser outer = this;
-        return new TypeSignatureParser(classNameResolver) {
+        return new TypeSignatureParser(classNameResolver, typeVariableResolver) {
             @Override
             void finished(TypeName result) {
                 outer.finished(ArrayTypeName.of(result));
@@ -85,7 +92,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitTypeArgument(final char wildcard) {
-        return new TypeSignatureParser(classNameResolver) {
+        return new TypeSignatureParser(classNameResolver, typeVariableResolver) {
             @Override
             void finished(TypeName result) {
                 if (wildcard == INSTANCEOF) {

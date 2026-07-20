@@ -18,8 +18,9 @@
   removed; see the [source-projection guide](docs/source-projection.md) and
   [0.x-to-1.0 migration](docs/migration/0.x-to-1.0-supported-api.md).
 
-- Corrected inherited generic source projection so nested types retain their parameterized enclosing owner, including
-  bounds and wildcards, and the resulting Java compiles without unresolved generic context.
+- Corrected inherited generic source projection so inherited type variables are resolved through parameterized API
+  relationships and nested types retain their enclosing owner, including bounds and wildcards. The resulting Java now
+  compiles without unresolved generic context.
 
 - Stabilized the 1.0 transformation-authoring language around `Documentation` and `AstDocumentation`, including
   first-class code blocks, deterministic normalization, one-pass named templates, canonical links, and exact
