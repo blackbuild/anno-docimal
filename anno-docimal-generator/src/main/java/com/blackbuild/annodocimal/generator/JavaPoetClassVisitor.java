@@ -41,6 +41,7 @@ import static java.util.stream.Collectors.toSet;
 
 class JavaPoetClassVisitor extends ClassVisitor {
     static final String ANNO_DOC_CLASS = "com.blackbuild.annodocimal.annotations.AnnoDoc";
+    private static final String CONSTRUCTOR_NAME = "<init>";
     private final SpecConverter specConverter;
     private final ProjectionPolicy policy;
     private final Set<String> includedClasses;
@@ -53,7 +54,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private String packageName;
     private ClassName className;
     private TypeSpec.Kind kind;
-    private boolean record;
+    private boolean recordDeclaration;
     private final List<RecordComponentShape> recordComponents = new ArrayList<>();
     private final List<RecordShape> recordShapes = new ArrayList<>();
 
@@ -71,14 +72,14 @@ class JavaPoetClassVisitor extends ClassVisitor {
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaceNames) {
         internalName = name;
-        record = (access & Opcodes.ACC_RECORD) != 0;
+        recordDeclaration = (access & Opcodes.ACC_RECORD) != 0;
         prepareTypeBuilder(access, name);
         if (signature != null) {
             ClassSignatureParser.parseClassSignature(signature, typeBuilder,
-                    record ? TypeSpec.Kind.INTERFACE : kind,
+                    recordDeclaration ? TypeSpec.Kind.INTERFACE : kind,
                     policy.isGroovyRuntimeArtifactsIncluded() || !groovyClass, specConverter::toClassName);
         } else {
-            if (kind == TypeSpec.Kind.CLASS && !record)
+            if (kind == TypeSpec.Kind.CLASS && !recordDeclaration)
                 typeBuilder.superclass(specConverter.toClassName(superName));
             for (String interf : interfaceNames) {
                 if (groovyClass && !policy.isGroovyRuntimeArtifactsIncluded()
@@ -213,7 +214,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
         Type[] argumentTypes = methodType.getArgumentTypes();
         boolean hasImplicitOuterParameter = hasImplicitOuterParameter(name, argumentTypes);
-        boolean canonicalRecordConstructor = record && name.equals("<init>")
+        boolean canonicalRecordConstructor = recordDeclaration && name.equals(CONSTRUCTOR_NAME)
                 && desc.equals("(" + recordComponents.stream()
                 .map(RecordComponentShape::descriptor)
                 .collect(joining()) + ")V");
@@ -243,7 +244,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
                     return new TypeSignatureParser(specConverter::toClassName, variableResolver) {
                         @Override
                         void finished(TypeName result) {
-                            if (!name.equals("<init>")) {
+                            if (!name.equals(CONSTRUCTOR_NAME)) {
                                 methodBuilder.returns(result);
                             }
                         }
@@ -273,7 +274,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
                 }
             }
         } else {
-            if (!name.equals("<init>")) {
+            if (!name.equals(CONSTRUCTOR_NAME)) {
                 methodBuilder.returns(specConverter.toTypeName(methodType.getReturnType()));
             }
             int firstSourceParameter = hasImplicitOuterParameter ? 1 : 0;
@@ -341,9 +342,14 @@ class JavaPoetClassVisitor extends ClassVisitor {
             @Override
             public void visitEnd() {
                 for (int i = 0; i < parameterTypes.size(); i++) {
-                    String paramName = canonicalRecordConstructor && recordComponents.size() > i
-                            ? recordComponents.get(i).name()
-                            : argumentNames.size() > i ? argumentNames.get(i) : "param" + i;
+                    String paramName;
+                    if (canonicalRecordConstructor && recordComponents.size() > i) {
+                        paramName = recordComponents.get(i).name();
+                    } else if (argumentNames.size() > i) {
+                        paramName = argumentNames.get(i);
+                    } else {
+                        paramName = "param" + i;
+                    }
                     List<AnnotationSpec> annotations = parameterAnnotations.get(i);
                     ParameterSpec.Builder parameterBuilder = ParameterSpec.builder(parameterTypes.get(i), paramName);
                     if (annotations != null)
@@ -356,7 +362,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
                     methodBuilder.addJavadoc(filterParams(extractedJavadoc));
                 }
 
-                boolean requiresReturn = !"<init>".equals(name) && methodType.getReturnType().getSort() != Type.VOID
+                boolean requiresReturn = !CONSTRUCTOR_NAME.equals(name)
+                        && methodType.getReturnType().getSort() != Type.VOID
                         && !methodBuilder.modifiers.contains(Modifier.ABSTRACT)
                         && !methodBuilder.modifiers.contains(Modifier.NATIVE);
                 if (requiresReturn) {
@@ -397,7 +404,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     }
 
     private boolean hasImplicitOuterParameter(String methodName, Type[] argumentTypes) {
-        if (!"<init>".equals(methodName) || typeBuilder.modifiers.contains(Modifier.STATIC)
+        if (!CONSTRUCTOR_NAME.equals(methodName) || typeBuilder.modifiers.contains(Modifier.STATIC)
                 || className.enclosingClassName() == null || argumentTypes.length == 0) {
             return false;
         }
@@ -407,7 +414,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     @Override
     public void visitEnd() {
         type = typeBuilder.build();
-        if (record) {
+        if (recordDeclaration) {
             recordShapes.add(new RecordShape(className.simpleName(), List.copyOf(recordComponents)));
         }
     }
@@ -547,25 +554,13 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
         String constructorToken = shape.simpleName() + "(";
         int recordBodyStart = source.indexOf(" {", declarationStart) + 2;
-        int constructorStart = source.indexOf(constructorToken, recordBodyStart);
-        int parametersEnd = -1;
-        while (constructorStart >= 0) {
-            int candidateEnd = source.indexOf(") {", constructorStart + constructorToken.length());
-            if (candidateEnd < 0) break;
-            String candidateParameters = source.substring(
-                    constructorStart + constructorToken.length(), candidateEnd).replaceAll("\\s+", " ").trim();
-            if (candidateParameters.equals(components.replaceAll("\\s+", " ").trim())) {
-                parametersEnd = candidateEnd;
-                break;
-            }
-            constructorStart = source.indexOf(constructorToken, candidateEnd);
-        }
-        if (constructorStart < 0 || parametersEnd < 0) return source;
+        ConstructorRange constructor = findCanonicalConstructor(source, constructorToken, recordBodyStart, components);
+        if (constructor == null) return source;
 
-        int constructorBody = parametersEnd + 3;
-        int constructorLineStart = source.lastIndexOf('\n', constructorStart) + 1;
+        int constructorBody = constructor.parametersEnd() + 3;
+        int constructorLineStart = source.lastIndexOf('\n', constructor.start()) + 1;
         int indentationEnd = constructorLineStart;
-        while (indentationEnd < constructorStart && Character.isWhitespace(source.charAt(indentationEnd))) {
+        while (indentationEnd < constructor.start() && Character.isWhitespace(source.charAt(indentationEnd))) {
             indentationEnd++;
         }
         String assignmentIndent = source.substring(constructorLineStart, indentationEnd) + "  ";
@@ -574,6 +569,27 @@ class JavaPoetClassVisitor extends ClassVisitor {
                         + " = " + component.name() + ";\n")
                 .collect(joining());
         return source.substring(0, constructorBody) + "\n" + assignments + source.substring(constructorBody);
+    }
+
+    private static ConstructorRange findCanonicalConstructor(String source, String constructorToken,
+                                                              int searchStart, String components) {
+        String normalizedComponents = normalizeParameters(components);
+        int constructorStart = source.indexOf(constructorToken, searchStart);
+        while (constructorStart >= 0) {
+            int parametersEnd = source.indexOf(") {", constructorStart + constructorToken.length());
+            if (parametersEnd < 0) return null;
+            String candidateParameters = source.substring(
+                    constructorStart + constructorToken.length(), parametersEnd);
+            if (normalizeParameters(candidateParameters).equals(normalizedComponents)) {
+                return new ConstructorRange(constructorStart, parametersEnd);
+            }
+            constructorStart = source.indexOf(constructorToken, parametersEnd);
+        }
+        return null;
+    }
+
+    private static String normalizeParameters(String parameters) {
+        return parameters.replaceAll("\\s+", " ").trim();
     }
 
     private static String sourceType(TypeName type, String source) {
@@ -589,5 +605,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private record RecordComponentShape(String name, String descriptor, TypeName type) {}
 
     private record RecordShape(String simpleName, List<RecordComponentShape> components) {}
+
+    private record ConstructorRange(int start, int parametersEnd) {}
 
 }
