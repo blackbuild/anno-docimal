@@ -36,7 +36,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -251,6 +252,9 @@ final class MemberAnnotationVisitor {
     }
 
     static final class DocumentationCarrierSelection {
+        private static final Pattern SOURCE_COMMENT = Pattern.compile(
+                "^\\s*/\\*\\*(@?)(.*)\\*/\\s*$", Pattern.DOTALL);
+        private static final Pattern LINE_DECORATION = Pattern.compile("(?m)^[\\t ]*\\*[\\t ]?");
         private String canonical;
         private String interoperable;
 
@@ -276,33 +280,12 @@ final class MemberAnnotationVisitor {
         private static String normalize(String text) {
             if (text == null) return null;
             String normalized = text.replace("\r\n", "\n").replace('\r', '\n');
-            String leadingTrimmed = normalized.stripLeading();
-            if (leadingTrimmed.startsWith("/**")) {
-                int end = leadingTrimmed.lastIndexOf("*/");
-                if (end >= 3) {
-                    normalized = leadingTrimmed.substring(3, end);
-                    if (normalized.startsWith("@")) normalized = normalized.substring(1);
-                    normalized = normalized.replaceAll("(?m)^[\\t ]*\\*[\\t ]?", "");
-                }
+            Matcher sourceComment = SOURCE_COMMENT.matcher(normalized);
+            if (sourceComment.matches()) {
+                normalized = LINE_DECORATION.matcher(sourceComment.group(2)).replaceAll("");
             }
-
-            String[] lines = normalized.split("\n", -1);
-            int minIndent = Arrays.stream(lines)
-                    .filter(line -> !line.isBlank())
-                    .mapToInt(DocumentationCarrierSelection::leadingWhitespace)
-                    .min()
-                    .orElse(0);
-            normalized = Arrays.stream(lines)
-                    .map(line -> line.length() >= minIndent ? line.substring(minIndent) : "")
-                    .collect(Collectors.joining("\n"))
-                    .strip();
+            normalized = normalized.stripIndent().strip();
             return normalized.isBlank() ? null : normalized;
-        }
-
-        private static int leadingWhitespace(String line) {
-            int result = 0;
-            while (result < line.length() && Character.isWhitespace(line.charAt(result))) result++;
-            return result;
         }
     }
 }

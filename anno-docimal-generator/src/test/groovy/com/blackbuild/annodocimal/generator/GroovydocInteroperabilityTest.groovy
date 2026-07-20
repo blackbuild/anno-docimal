@@ -45,6 +45,11 @@ class GroovydocInteroperabilityTest extends ClassGeneratingTest {
             @AnnoDoc('Canonical class documentation.')
             class RuntimeGroovyDocFixture {
                 /**@
+                 * Runtime field documentation.
+                 */
+                public String value
+
+                /**@
                  * Runtime method documentation.
                  */
                 String action() { null }
@@ -72,6 +77,9 @@ class GroovydocInteroperabilityTest extends ClassGeneratingTest {
         projection.contains('''/**
  * Canonical class documentation.
  */''')
+        projection.contains('''  /**
+   * Runtime field documentation.
+   */''')
         projection.contains('''  /**
    * Runtime method documentation.
    */''')
