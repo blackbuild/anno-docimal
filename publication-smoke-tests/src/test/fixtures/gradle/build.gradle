@@ -1,0 +1,9 @@
+plugins {
+    id 'base'
+}
+
+tasks.register('exerciseConsumer') {
+    dependsOn ':artifacts:exerciseArtifacts'
+    dependsOn ':base-plugin:exercisePlugin'
+    dependsOn ':groovy-plugin:exercisePlugin'
+}

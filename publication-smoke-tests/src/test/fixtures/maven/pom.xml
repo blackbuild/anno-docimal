@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>consumer</groupId>
+  <artifactId>annodocimal-maven-publication-consumer</artifactId>
+  <version>1.0</version>
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>com.blackbuild.annodocimal</groupId>
+      <artifactId>anno-docimal-annotations</artifactId>
+      <version>%%VERSION%%</version>
+    </dependency>
+    <dependency>
+      <groupId>com.blackbuild.annodocimal</groupId>
+      <artifactId>anno-docimal-apt</artifactId>
+      <version>%%VERSION%%</version>
+    </dependency>
+    <dependency>
+      <groupId>com.blackbuild.annodocimal</groupId>
+      <artifactId>anno-docimal-ast</artifactId>
+      <version>%%VERSION%%</version>
+    </dependency>
+    <dependency>
+      <groupId>com.blackbuild.annodocimal</groupId>
+      <artifactId>anno-docimal-global-ast</artifactId>
+      <version>%%VERSION%%</version>
+    </dependency>
+    <dependency>
+      <groupId>com.blackbuild.annodocimal</groupId>
+      <artifactId>anno-docimal-generator</artifactId>
+      <version>%%VERSION%%</version>
+    </dependency>
+    <dependency>
+      <groupId>com.blackbuild.annodocimal</groupId>
+      <artifactId>anno-docimal-gradle-plugin</artifactId>
+      <version>%%VERSION%%</version>
+    </dependency>
+  </dependencies>
+</project>

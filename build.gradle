@@ -97,6 +97,26 @@ tasks.register('stagePublicationAuditRepository') {
                 }
             }
         }
+
+        def jspecify = project(':anno-docimal-annotations').configurations.compileClasspath
+                .resolvedConfiguration.resolvedArtifacts.find {
+            it.moduleVersion.id.group == 'org.jspecify' && it.name == 'jspecify'
+        }
+        def jspecifyDestination = publicationAuditRepository.get()
+                .dir("org/jspecify/jspecify/${jspecify.moduleVersion.id.version}").asFile
+        copy {
+            from jspecify.file
+            into jspecifyDestination
+        }
+        new File(jspecifyDestination, "jspecify-${jspecify.moduleVersion.id.version}.pom").text = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.jspecify</groupId>
+  <artifactId>jspecify</artifactId>
+  <version>${jspecify.moduleVersion.id.version}</version>
+</project>
+"""
     }
 }
 

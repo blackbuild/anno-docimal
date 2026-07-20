@@ -10,6 +10,7 @@ java {
 
 dependencies {
     testImplementation libs.bundles.spock.groovy.v3
+    testImplementation gradleTestKit()
     testRuntimeOnly libs.bundles.spockRuntime
     testRuntimeOnly libs.jpl
 }

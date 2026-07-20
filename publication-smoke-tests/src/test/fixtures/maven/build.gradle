@@ -1,0 +1,32 @@
+plugins {
+    id 'java'
+}
+
+def consumerPom = new XmlSlurper(false, false).parse(file('pom.xml'))
+
+configurations {
+    publicationInventory {
+        transitive = false
+    }
+}
+
+dependencies {
+    consumerPom.dependencies.dependency.each { dependency ->
+        def coordinate = "${dependency.groupId.text()}:${dependency.artifactId.text()}:${dependency.version.text()}"
+        implementation coordinate
+        publicationInventory coordinate
+    }
+}
+
+tasks.register('exerciseMavenConsumer', JavaExec) {
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'consumer.MavenArtifactConsumer'
+
+    doFirst {
+        def artifacts = configurations.publicationInventory.files*.name*.replaceFirst(/-[^-]+(?:\.[^.]+)*\.jar$/, '') as Set
+        def expected = consumerPom.dependencies.dependency.artifactId*.text() as Set
+        if (artifacts != expected)
+            throw new GradleException("Unexpected Maven publication inventory: $artifacts")
+    }
+}
