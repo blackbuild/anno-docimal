@@ -386,6 +386,48 @@ public class DeepNestedFixture {
         compilation.status() == Compilation.Status.SUCCESS
     }
 
+    def "inherited generic API projections retain their enclosing type context"() {
+        given:
+        compile('''
+            package dummy;
+            import java.util.List;
+            public class InheritedGenericFixture<T extends Comparable<? super T>> {
+                public class Nested<U> {
+                }
+
+                public interface Api<V extends Comparable<? super V>> {
+                    InheritedGenericFixture<V>.Nested<? extends V> inherited(List<? extends V> values);
+                }
+
+                public class Implementation implements Api<T> {
+                    @Override
+                    public InheritedGenericFixture<T>.Nested<? extends T> inherited(List<? extends T> values) {
+                        return null;
+                    }
+                }
+            }
+        ''')
+        SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation())
+
+        when:
+        String source = projector.projectToText(file.toPath())
+
+        then: 'the relevant projection is deterministic'
+        projector.projectToText(file.toPath()) == source
+
+        when: 'the projected declaration is compiled as the semantic validity oracle'
+        compile(source)
+
+        then:
+        compilation.status() == Compilation.Status.SUCCESS
+
+        and: 'exact assertions independently specify the required generic structure'
+        source.contains('class InheritedGenericFixture<T extends Comparable<? super T>>')
+        source.contains('class Implementation implements Api<T>')
+        source.contains('InheritedGenericFixture<V>.Nested<? extends V> inherited(List<? extends V> values)')
+        source.contains('InheritedGenericFixture<T>.Nested<? extends T> inherited(List<? extends T> values)')
+    }
+
     def "semantic top-level names retain legal dollar characters"() {
         given:
         compile('''

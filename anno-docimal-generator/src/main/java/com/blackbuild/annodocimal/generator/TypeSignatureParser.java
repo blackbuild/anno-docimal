@@ -45,7 +45,9 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     abstract void finished(TypeName result);
 
-    private String baseName;
+    private String internalName;
+    private ClassName rawType;
+    private ParameterizedTypeName enclosingType;
     private final List<TypeName> arguments = new ArrayList<>();
     private final Function<String, ClassName> classNameResolver;
 
@@ -72,7 +74,8 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public void visitClassType(final String name) {
-        baseName = name;
+        internalName = name;
+        rawType = classNameResolver.apply(name);
     }
 
     @Override
@@ -100,18 +103,24 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public void visitInnerClassType(final String name) {
-        baseName += "$" + name;
+        TypeName owner = currentType();
+        enclosingType = owner instanceof ParameterizedTypeName ? (ParameterizedTypeName) owner : null;
+        internalName += "$" + name;
+        rawType = classNameResolver.apply(internalName);
         arguments.clear();
     }
 
     @Override
     public void visitEnd() {
-        ClassName baseType = classNameResolver.apply(baseName);
-        if (arguments.isEmpty()) {
-            finished(baseType);
-        } else {
-            finished(ParameterizedTypeName.get(baseType, arguments.toArray(new TypeName[0])));
+        finished(currentType());
+    }
+
+    private TypeName currentType() {
+        if (enclosingType != null) {
+            return enclosingType.nestedClass(rawType.simpleName(), arguments);
         }
+        if (arguments.isEmpty()) return rawType;
+        return ParameterizedTypeName.get(rawType, arguments.toArray(new TypeName[0]));
     }
 
     private static TypeName toTypeName(char descriptor) {
