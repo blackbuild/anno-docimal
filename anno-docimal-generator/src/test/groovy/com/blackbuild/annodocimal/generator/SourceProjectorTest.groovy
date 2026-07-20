@@ -29,6 +29,7 @@ import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
+import spock.lang.Issue
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -389,6 +390,7 @@ public class DeepNestedFixture {
         compilation.status() == Compilation.Status.SUCCESS
     }
 
+    @Issue("32")
     def "inherited generic API projections retain their enclosing type context"() {
         given:
         compile('''
@@ -431,6 +433,7 @@ public class DeepNestedFixture {
         source.contains('InheritedGenericFixture<T>.Nested<? extends T> inherited(List<? extends T> values)')
     }
 
+    @Issue("32")
     def "inherited generic method signatures resolve their interface type variables"() {
         given:
         compile('''
