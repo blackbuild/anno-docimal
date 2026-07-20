@@ -53,6 +53,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private TypeSpec.Kind kind;
     private boolean record;
     private final List<String> recordComponents = new ArrayList<>();
+    private final List<String> recordComponentDescriptors = new ArrayList<>();
+    private final List<RecordShape> recordShapes = new ArrayList<>();
 
     JavaPoetClassVisitor(SpecConverter specConverter, ProjectionPolicy policy, Set<String> includedClasses,
                          boolean groovyClass, Set<String> groovyRuntimeMethods, Set<String> groovyRuntimeFields) {
@@ -91,6 +93,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     @Override
     public RecordComponentVisitor visitRecordComponent(String name, String descriptor, String signature) {
         recordComponents.add(name);
+        recordComponentDescriptors.add(descriptor);
         return null;
     }
 
@@ -172,6 +175,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
         JavaPoetClassVisitor innerReader = specConverter.readClass(name);
         typeBuilder.addType(innerReader.getType());
+        recordShapes.addAll(innerReader.recordShapes);
 
 
         /*
@@ -198,6 +202,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
         Type[] argumentTypes = methodType.getArgumentTypes();
         boolean hasImplicitOuterParameter = hasImplicitOuterParameter(name, argumentTypes);
+        boolean canonicalRecordConstructor = record && name.equals("<init>")
+                && desc.equals("(" + String.join("", recordComponentDescriptors) + ")V");
         List<TypeName> parameterTypes = new ArrayList<>(argumentTypes.length);
         List<String> argumentNames = new ArrayList<>(argumentTypes.length);
         Map<Integer, List<AnnotationSpec>> parameterAnnotations = new HashMap<>();
@@ -322,7 +328,9 @@ class JavaPoetClassVisitor extends ClassVisitor {
             @Override
             public void visitEnd() {
                 for (int i = 0; i < parameterTypes.size(); i++) {
-                    String paramName = argumentNames.size() > i ? argumentNames.get(i) : "param" + i;
+                    String paramName = canonicalRecordConstructor && recordComponents.size() > i
+                            ? recordComponents.get(i)
+                            : argumentNames.size() > i ? argumentNames.get(i) : "param" + i;
                     List<AnnotationSpec> annotations = parameterAnnotations.get(i);
                     ParameterSpec.Builder parameterBuilder = ParameterSpec.builder(parameterTypes.get(i), paramName);
                     if (annotations != null)
@@ -386,6 +394,9 @@ class JavaPoetClassVisitor extends ClassVisitor {
     @Override
     public void visitEnd() {
         type = typeBuilder.build();
+        if (record) {
+            recordShapes.add(new RecordShape(className.simpleName(), List.copyOf(recordComponents)));
+        }
     }
 
     @Override
@@ -492,28 +503,35 @@ class JavaPoetClassVisitor extends ClassVisitor {
     }
 
     String finishSource(String source) {
-        if (!record) return source;
+        for (RecordShape shape : recordShapes) {
+            source = finishRecordSource(source, shape);
+        }
+        return source;
+    }
 
-        String constructorPrefix = "  public " + className.simpleName() + "(";
+    private static String finishRecordSource(String source, RecordShape shape) {
+        String constructorPrefix = "public " + shape.simpleName + "(";
         int constructorStart = source.indexOf(constructorPrefix);
         if (constructorStart < 0) {
-            throw new IllegalStateException("Projected record is missing its canonical constructor: " + className);
+            throw new IllegalStateException("Projected record is missing its canonical constructor: " + shape.simpleName);
         }
         int parametersStart = constructorStart + constructorPrefix.length();
         int parametersEnd = source.indexOf(") {", parametersStart);
         if (parametersEnd < 0) {
-            throw new IllegalStateException("Projected record has an invalid canonical constructor: " + className);
+            throw new IllegalStateException("Projected record has an invalid canonical constructor: " + shape.simpleName);
         }
         String components = source.substring(parametersStart, parametersEnd);
 
-        String classDeclaration = "public final class " + className.simpleName();
-        int declarationStart = source.indexOf(classDeclaration);
+        String classDeclaration = "class " + shape.simpleName;
+        int classStart = source.indexOf(classDeclaration);
+        int declarationStart = source.lastIndexOf('\n', classStart) + 1;
         int declarationEnd = source.indexOf(" {", declarationStart);
-        if (declarationStart < 0 || declarationEnd < 0) {
-            throw new IllegalStateException("Projected record is missing its type declaration: " + className);
+        if (classStart < 0 || declarationEnd < 0) {
+            throw new IllegalStateException("Projected record is missing its type declaration: " + shape.simpleName);
         }
         String declaration = source.substring(declarationStart, declarationEnd);
-        String recordDeclaration = declaration.replace("public final class ", "public record ");
+        String recordDeclaration = declaration.replaceFirst(
+                "\\bfinal class " + Pattern.quote(shape.simpleName) + "\\b", "record " + shape.simpleName);
         int interfacesStart = recordDeclaration.indexOf(" implements ");
         int componentsPosition = interfacesStart < 0 ? recordDeclaration.length() : interfacesStart;
         recordDeclaration = recordDeclaration.substring(0, componentsPosition)
@@ -524,10 +542,14 @@ class JavaPoetClassVisitor extends ClassVisitor {
         constructorStart = source.indexOf(constructorPrefix);
         parametersEnd = source.indexOf(") {", constructorStart + constructorPrefix.length());
         int constructorBody = parametersEnd + 3;
-        String assignments = recordComponents.stream()
-                .map(component -> "    this." + component + " = " + component + ";\n")
+        int constructorLineStart = source.lastIndexOf('\n', constructorStart) + 1;
+        String assignmentIndent = source.substring(constructorLineStart, constructorStart) + "  ";
+        String assignments = shape.components.stream()
+                .map(component -> assignmentIndent + "this." + component + " = " + component + ";\n")
                 .collect(java.util.stream.Collectors.joining());
         return source.substring(0, constructorBody) + "\n" + assignments + source.substring(constructorBody);
     }
+
+    private record RecordShape(String simpleName, List<String> components) {}
 
 }

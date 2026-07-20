@@ -161,6 +161,7 @@ public class JavaDeclarationFixture<T extends Number & Comparable<T>> {
                     public record RecordFixture<T extends Comparable<? super T>>(T value, String[] aliases)
                             implements Serializable {
                         public static class Metadata {}
+                        public record NestedRecord<U>(U nestedValue) {}
                     }
                 '''
         ], 'contract.RecordFixture')
@@ -177,6 +178,7 @@ public class JavaDeclarationFixture<T extends Number & Comparable<T>> {
 
         and: 'record kind and component semantics are preserved exactly'
         projection.contains('public record RecordFixture<T extends Comparable<? super T>>(T value, String[] aliases)')
+        projection.contains('public static record NestedRecord<U>(U nestedValue)')
     }
 
     private void assertProjectionCompiles(String fixture, String qualifiedName, String projection) {
