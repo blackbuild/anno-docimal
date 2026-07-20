@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Normalized projected annotation members lexicographically by name, including primitive, enum, class, nested-annotation,
+  and array-valued members. Repeated projection is byte-identical across Groovy 3, 4, and 5 without treating incidental
+  source or bytecode declaration order as Java semantics.
+
 - Added the supported cacheable `SourceProjectionTask` and the `com.blackbuild.annodocimal.groovy-plugin` convention.
   Independently registered tasks select top-level class files with declared patterns, project deterministic managed
   source mirrors, clean stale output, and support Gradle's build and configuration caches. Gradle 7.3.3 through 8.14.5

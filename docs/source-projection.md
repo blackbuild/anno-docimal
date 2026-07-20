@@ -23,6 +23,11 @@ with the caller or Gradle task.
 the package/type-relative `.java` path beneath the supplied output directory. It creates parent directories and replaces
 only that managed file, atomically when the file system supports atomic moves. It does not clean sibling output.
 
+Annotation members are projected in lexicographic member-name order at every nesting level. This normalization applies
+equally to primitive, enum, class, nested-annotation, and array-valued members; array elements retain their declared
+sequence. The member-name rule is a source-projection determinism guarantee, not a claim that Java annotation semantics
+assign an order to members, and it deliberately does not preserve incidental source, compiler, or bytecode order.
+
 ## Documentation inclusion policy
 
 `ProjectionPolicy.documentation()` has the stable documentation-oriented defaults:
