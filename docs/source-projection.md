@@ -55,8 +55,9 @@ requires them for a valid stub. Synthetic implementation details under the docum
 and import layout are likewise not preserved.
 
 Supported Java records retain their record kind, component list, generic bounds, implemented interfaces, and named
-nested declarations. The projection emits a deterministic canonical-constructor body so both top-level and nested
-record source remains compilable without reconstructing the original constructor implementation.
+nested declarations. When the inclusion policy selects a canonical constructor, the projection emits deterministic
+component assignments; otherwise the record declaration relies on Java's implicit canonical constructor. Both forms
+remain compilable without reconstructing the original constructor implementation.
 
 Generic signatures retain the declaration context needed to resolve every type variable. In particular, a nested member
 type reached through a parameterized enclosing type keeps that owner qualification in method, field, superclass, and

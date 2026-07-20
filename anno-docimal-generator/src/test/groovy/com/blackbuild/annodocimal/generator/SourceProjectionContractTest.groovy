@@ -23,9 +23,9 @@
  */
 package com.blackbuild.annodocimal.generator
 
-import com.google.testing.compile.Compilation
-import com.google.testing.compile.JavaFileObjects
 import spock.lang.Issue
+
+import static com.blackbuild.annodocimal.generator.ProjectionContractAssertions.assertProjectionCompiles
 
 @Issue("41")
 class SourceProjectionContractTest extends JavaClassGeneratingTest {
@@ -134,7 +134,7 @@ public class JavaDeclarationFixture<T extends Number & Comparable<T>> {
 '''
 
         and:
-        assertProjectionCompiles(fixture, 'contract.JavaDeclarationFixture', projection)
+        assertProjectionCompiles(compiler, fixture, 'contract.JavaDeclarationFixture', projection)
 
         and: 'exact text checks retain semantics that compilation does not establish'
         projection.contains('/**\n * Canonical class documentation\n */')
@@ -162,6 +162,7 @@ public class JavaDeclarationFixture<T extends Number & Comparable<T>> {
                             implements Serializable {
                         public static class Metadata {}
                         public record NestedRecord<U>(U nestedValue) {}
+                        protected record ProtectedRecord<U>(U protectedValue) {}
                     }
                 '''
         ], 'contract.RecordFixture')
@@ -174,16 +175,35 @@ public class JavaDeclarationFixture<T extends Number & Comparable<T>> {
         projector.projectToText(file.toPath()) == projection
 
         and:
-        assertProjectionCompiles(fixture, 'contract.RecordFixture', projection)
+        assertProjectionCompiles(compiler, fixture, 'contract.RecordFixture', projection)
 
         and: 'record kind and component semantics are preserved exactly'
         projection.contains('public record RecordFixture<T extends Comparable<? super T>>(T value, String[] aliases)')
         projection.contains('public static record NestedRecord<U>(U nestedValue)')
+        projection.contains('protected static record ProtectedRecord<U>(U protectedValue)')
     }
 
-    private void assertProjectionCompiles(String fixture, String qualifiedName, String projection) {
-        Compilation result = compiler.compile(JavaFileObjects.forSourceString(qualifiedName, projection))
-        assert result.status() == Compilation.Status.SUCCESS:
-                "Projection fixture '$fixture' failed to compile:\n${result.diagnostics()}\n$projection"
+    def "package-private record roots remain deterministic and recompilable"() {
+        given:
+        String fixture = 'java-package-private-record'
+        compile([
+                'contract.PackageRecordFixture': '''
+                    package contract;
+                    record PackageRecordFixture(int value) {}
+                '''
+        ], 'contract.PackageRecordFixture')
+        SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation())
+
+        when:
+        String projection = projector.projectToText(file.toPath())
+
+        then:
+        projector.projectToText(file.toPath()) == projection
+
+        and:
+        assertProjectionCompiles(compiler, fixture, 'contract.PackageRecordFixture', projection)
+
+        and:
+        projection.contains('record PackageRecordFixture(int value)')
     }
 }

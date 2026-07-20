@@ -23,11 +23,10 @@
  */
 package com.blackbuild.annodocimal.generator
 
-import com.google.testing.compile.Compilation
 import com.google.testing.compile.Compiler
-import com.google.testing.compile.JavaFileObjects
 import spock.lang.Issue
 
+import static com.blackbuild.annodocimal.generator.ProjectionContractAssertions.assertProjectionCompiles
 import static com.google.testing.compile.Compiler.javac
 
 @Issue("41")
@@ -75,6 +74,7 @@ class GroovySourceProjectionContractTest extends ClassGeneratingTest {
         ''')
         def classFile = new File(outputDirectory, 'contract/GroovyDeclarationFixture.class').toPath()
         SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation())
+        Compiler projectionCompiler = javac().withOptions('-parameters')
 
         when:
         String projection = projector.projectToText(classFile)
@@ -133,7 +133,7 @@ public class GroovyDeclarationFixture<T extends Number> {
 '''
 
         and:
-        assertProjectionCompiles(fixture, 'contract.GroovyDeclarationFixture', projection)
+        assertProjectionCompiles(projectionCompiler, fixture, 'contract.GroovyDeclarationFixture', projection)
 
         and: 'exact text checks retain semantics that compilation does not establish'
         projection.contains('/**\n * Canonical Groovy class documentation\n */')
@@ -148,12 +148,5 @@ public class GroovyDeclarationFixture<T extends Number> {
         projection.contains('protected enum Mode')
         projection.contains('@interface Marker')
         projection.contains('String value() default "marker";')
-    }
-
-    private static void assertProjectionCompiles(String fixture, String qualifiedName, String projection) {
-        Compiler compiler = javac().withOptions('-parameters')
-        Compilation result = compiler.compile(JavaFileObjects.forSourceString(qualifiedName, projection))
-        assert result.status() == Compilation.Status.SUCCESS:
-                "Projection fixture '$fixture' failed to compile:\n${result.diagnostics()}\n$projection"
     }
 }
