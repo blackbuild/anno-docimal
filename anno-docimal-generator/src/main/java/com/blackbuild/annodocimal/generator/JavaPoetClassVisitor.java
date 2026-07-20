@@ -32,6 +32,7 @@ import org.objectweb.asm.signature.SignatureVisitor;
 import javax.lang.model.element.Modifier;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.toSet;
@@ -46,6 +47,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private final Set<String> groovyRuntimeFields;
     private TypeSpec.Builder typeBuilder;
     private TypeSpec type;
+    private String internalName;
     private String packageName;
     private ClassName className;
     private TypeSpec.Kind kind;
@@ -63,6 +65,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaceNames) {
+        internalName = name;
         prepareTypeBuilder(access, name);
         if (signature != null) {
             ClassSignatureParser.parseClassSignature(signature, typeBuilder, kind,
@@ -190,10 +193,14 @@ class JavaPoetClassVisitor extends ClassVisitor {
         Map<Integer, List<AnnotationSpec>> parameterAnnotations = new HashMap<>();
 
         if (signature != null) {
-            FormalParameterParser v = new FormalParameterParser(specConverter::toClassName) {
+            Map<String, TypeName> inheritedVariables = specConverter.inheritedTypeVariables(
+                    internalName, name, desc, signature);
+            Function<String, TypeName> variableResolver = variable -> inheritedVariables.getOrDefault(
+                    variable, TypeVariableName.get(variable));
+            FormalParameterParser v = new FormalParameterParser(specConverter::toClassName, variableResolver) {
                 @Override
                 public SignatureVisitor visitParameterType() {
-                    return new TypeSignatureParser(specConverter::toClassName) {
+                    return new TypeSignatureParser(specConverter::toClassName, variableResolver) {
                         @Override
                         void finished(TypeName result) {
                             parameterTypes.add(result);
@@ -203,7 +210,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
                 @Override
                 public SignatureVisitor visitReturnType() {
-                    return new TypeSignatureParser(specConverter::toClassName) {
+                    return new TypeSignatureParser(specConverter::toClassName, variableResolver) {
                         @Override
                         void finished(TypeName result) {
                             methodBuilder.returns(result);
@@ -213,7 +220,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
                 @Override
                 public SignatureVisitor visitExceptionType() {
-                    return new TypeSignatureParser(specConverter::toClassName) {
+                    return new TypeSignatureParser(specConverter::toClassName, variableResolver) {
                         @Override
                         void finished(TypeName result) {
                             methodBuilder.addException(result);

@@ -24,8 +24,12 @@
 package com.blackbuild.annodocimal.generator
 
 import com.google.testing.compile.Compilation
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
+import spock.lang.Issue
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -384,6 +388,114 @@ public class DeepNestedFixture {
 
         then:
         compilation.status() == Compilation.Status.SUCCESS
+    }
+
+    @Issue("32")
+    def "inherited generic API projections retain their enclosing type context"() {
+        given:
+        compile('''
+            package dummy;
+            import java.util.List;
+            public class InheritedGenericFixture<T extends Comparable<? super T>> {
+                public class Nested<U> {
+                }
+
+                public interface Api<V extends Comparable<? super V>> {
+                    InheritedGenericFixture<V>.Nested<? extends V> inherited(List<? extends V> values);
+                }
+
+                public class Implementation implements Api<T> {
+                    @Override
+                    public InheritedGenericFixture<T>.Nested<? extends T> inherited(List<? extends T> values) {
+                        return null;
+                    }
+                }
+            }
+        ''')
+        SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation())
+
+        when:
+        String source = projector.projectToText(file.toPath())
+
+        then: 'the relevant projection is deterministic'
+        projector.projectToText(file.toPath()) == source
+
+        when: 'the projected declaration is compiled as the semantic validity oracle'
+        compile(source)
+
+        then:
+        compilation.status() == Compilation.Status.SUCCESS
+
+        and: 'exact assertions independently specify the required generic structure'
+        source.contains('class InheritedGenericFixture<T extends Comparable<? super T>>')
+        source.contains('class Implementation implements Api<T>')
+        source.contains('InheritedGenericFixture<V>.Nested<? extends V> inherited(List<? extends V> values)')
+        source.contains('InheritedGenericFixture<T>.Nested<? extends T> inherited(List<? extends T> values)')
+    }
+
+    @Issue("32")
+    def "inherited generic method signatures resolve their interface type variables"() {
+        given:
+        compile('''
+            package dummy;
+            import java.util.List;
+            public class InheritedGenericMethodFixture {
+                public static class Owner<T extends Comparable<? super T>> {
+                    public class Nested<U> {
+                    }
+                }
+
+                public interface Api<T extends Comparable<? super T>> {
+                    Owner<T>.Nested<? extends T> inherited(List<? extends T> values);
+                }
+
+                public static final class Value implements Comparable<Value> {
+                    @Override
+                    public int compareTo(Value other) {
+                        return 0;
+                    }
+                }
+
+                public static final class Implementation implements Api<Value> {
+                    @Override
+                    public Owner<Value>.Nested<? extends Value> inherited(List<? extends Value> values) {
+                        return null;
+                    }
+                }
+            }
+        ''')
+        def implementationClass = file.toPath().resolveSibling('InheritedGenericMethodFixture$Implementation.class')
+        ClassReader reader = new ClassReader(Files.readAllBytes(implementationClass))
+        ClassWriter writer = new ClassWriter(reader, 0)
+        reader.accept(new ClassVisitor(Opcodes.ASM9, writer) {
+            @Override
+            MethodVisitor visitMethod(int access, String name, String descriptor, String signature,
+                                      String[] exceptions) {
+                if (name == 'inherited') {
+                    signature = '(Ljava/util/List<+TT;>;)Ldummy/InheritedGenericMethodFixture$Owner<TT;>.Nested<+TT;>;'
+                }
+                return super.visitMethod(access, name, descriptor, signature, exceptions)
+            }
+        }, 0)
+        Files.write(implementationClass, writer.toByteArray())
+        SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation())
+
+        when:
+        String source = projector.projectToText(file.toPath())
+
+        then: 'the relevant projection is deterministic'
+        projector.projectToText(file.toPath()) == source
+
+        when: 'the inherited type variable is resolved before the projected declaration is compiled'
+        compile(source)
+
+        then:
+        compilation.status() == Compilation.Status.SUCCESS
+
+        and: 'the inherited interface substitution retains its owner, nesting, bound, and wildcard context'
+        source.contains('interface Api<T extends Comparable<? super T>>')
+        source.contains('class Implementation implements Api<Value>')
+        source.contains('Owner<Value>.Nested<? extends Value> inherited(List<? extends Value> values)')
     }
 
     def "semantic top-level names retain legal dollar characters"() {

@@ -39,19 +39,28 @@ abstract class TypeSignatureParser extends SignatureVisitor {
     }
 
     protected TypeSignatureParser(Function<String, ClassName> classNameResolver) {
+        this(classNameResolver, TypeVariableName::get);
+    }
+
+    protected TypeSignatureParser(Function<String, ClassName> classNameResolver,
+                                  Function<String, TypeName> typeVariableResolver) {
         super(CompilerConfiguration.ASM_API_VERSION);
         this.classNameResolver = Objects.requireNonNull(classNameResolver, "classNameResolver");
+        this.typeVariableResolver = Objects.requireNonNull(typeVariableResolver, "typeVariableResolver");
     }
 
     abstract void finished(TypeName result);
 
-    private String baseName;
+    private String internalName;
+    private ClassName rawType;
+    private ParameterizedTypeName enclosingType;
     private final List<TypeName> arguments = new ArrayList<>();
     private final Function<String, ClassName> classNameResolver;
+    private final Function<String, TypeName> typeVariableResolver;
 
     @Override
     public void visitTypeVariable(final String name) {
-        finished(TypeVariableName.get(name));
+        finished(typeVariableResolver.apply(name));
     }
 
     @Override
@@ -62,7 +71,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
     @Override
     public SignatureVisitor visitArrayType() {
         final TypeSignatureParser outer = this;
-        return new TypeSignatureParser(classNameResolver) {
+        return new TypeSignatureParser(classNameResolver, typeVariableResolver) {
             @Override
             void finished(TypeName result) {
                 outer.finished(ArrayTypeName.of(result));
@@ -72,7 +81,8 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public void visitClassType(final String name) {
-        baseName = name;
+        internalName = name;
+        rawType = classNameResolver.apply(name);
     }
 
     @Override
@@ -82,7 +92,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitTypeArgument(final char wildcard) {
-        return new TypeSignatureParser(classNameResolver) {
+        return new TypeSignatureParser(classNameResolver, typeVariableResolver) {
             @Override
             void finished(TypeName result) {
                 if (wildcard == INSTANCEOF) {
@@ -100,18 +110,24 @@ abstract class TypeSignatureParser extends SignatureVisitor {
 
     @Override
     public void visitInnerClassType(final String name) {
-        baseName += "$" + name;
+        TypeName owner = currentType();
+        enclosingType = owner instanceof ParameterizedTypeName parameterized ? parameterized : null;
+        internalName += "$" + name;
+        rawType = classNameResolver.apply(internalName);
         arguments.clear();
     }
 
     @Override
     public void visitEnd() {
-        ClassName baseType = classNameResolver.apply(baseName);
-        if (arguments.isEmpty()) {
-            finished(baseType);
-        } else {
-            finished(ParameterizedTypeName.get(baseType, arguments.toArray(new TypeName[0])));
+        finished(currentType());
+    }
+
+    private TypeName currentType() {
+        if (enclosingType != null) {
+            return enclosingType.nestedClass(rawType.simpleName(), arguments);
         }
+        if (arguments.isEmpty()) return rawType;
+        return ParameterizedTypeName.get(rawType, arguments.toArray(new TypeName[0]));
     }
 
     private static TypeName toTypeName(char descriptor) {

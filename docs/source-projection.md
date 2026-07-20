@@ -49,6 +49,12 @@ not promise original bodies or initializers: deterministic default statements an
 requires them for a valid stub. Synthetic implementation details under the documentation preset, original whitespace,
 and import layout are likewise not preserved.
 
+Generic signatures retain the declaration context needed to resolve every type variable. In particular, a nested member
+type reached through a parameterized enclosing type keeps that owner qualification in method, field, superclass, and
+interface signatures, including inherited signatures with bounds and wildcards. When implementation bytecode retains a
+type variable declared by an inherited API, projection resolves it through the parameterized superclass or interface
+path before rendering the implementation signature.
+
 ## Failures
 
 Ordinary class-input and managed-output file-system failures are `IOException`. A readable class whose selected
