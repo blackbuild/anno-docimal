@@ -24,7 +24,7 @@ tasks.register('exerciseMavenConsumer', JavaExec) {
     mainClass = 'consumer.MavenArtifactConsumer'
 
     doFirst {
-        def artifacts = configurations.publicationInventory.files*.name*.replaceFirst(/-[^-]+(?:\.[^.]+)*\.jar$/, '') as Set
+        def artifacts = configurations.publicationInventory.resolvedConfiguration.resolvedArtifacts*.name as Set
         def expected = consumerPom.dependencies.dependency.artifactId*.text() as Set
         if (artifacts != expected)
             throw new GradleException("Unexpected Maven publication inventory: $artifacts")

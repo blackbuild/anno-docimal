@@ -120,6 +120,42 @@ tasks.register('stagePublicationAuditRepository') {
     }
 }
 
+tasks.register('verifyPublicationReleaseConfiguration') {
+    group = 'verification'
+    description = 'Verifies signing and remote staging configuration without publishing or signing.'
+
+    doLast {
+        publicationAuditModules.each { module ->
+            def publicationProject = project(module.project)
+            def capitalizedPublication = module.publication.capitalize()
+            def signTask = publicationProject.tasks.findByName("sign${capitalizedPublication}Publication")
+            if (signTask == null)
+                throw new GradleException("${module.project}:${module.publication} has no signing task")
+            if (signTask.signatures.empty)
+                throw new GradleException("${module.project}:${module.publication} has no configured signatures")
+        }
+
+        def sonatype = nexusPublishing.repositories.findByName('sonatype')
+        if (sonatype == null)
+            throw new GradleException('The Sonatype staging repository is not configured')
+        if (sonatype.nexusUrl.get().toString() !=
+                'https://ossrh-staging-api.central.sonatype.com/service/local/')
+            throw new GradleException("Unexpected Sonatype staging URL: ${sonatype.nexusUrl.get()}")
+        if (sonatype.snapshotRepositoryUrl.get().toString() !=
+                'https://central.sonatype.com/repository/maven-snapshots/')
+            throw new GradleException("Unexpected Sonatype snapshot URL: ${sonatype.snapshotRepositoryUrl.get()}")
+        if (project(':anno-docimal-gradle-plugin').tasks.findByName('publishPlugins') == null)
+            throw new GradleException('The Gradle Plugin Portal publication task is not configured')
+    }
+}
+
+tasks.register('publicRcSmoke') {
+    group = 'verification'
+    description = 'Runs exact-version consumer validation against public repositories only.'
+    dependsOn ':publication-smoke-tests:publicRcSmoke'
+}
+
 tasks.named('check') {
     dependsOn ':publication-smoke-tests:test'
+    dependsOn tasks.named('verifyPublicationReleaseConfiguration')
 }

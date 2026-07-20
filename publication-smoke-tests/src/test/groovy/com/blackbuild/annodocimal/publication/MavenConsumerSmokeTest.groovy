@@ -61,12 +61,14 @@ class MavenConsumerSmokeTest extends Specification {
     }
 
     private static void copyFixture(Path source, Path destination) {
-        Files.walk(source).forEach { path ->
-            def target = destination.resolve(source.relativize(path).toString())
-            if (Files.isDirectory(path))
-                Files.createDirectories(target)
-            else
-                Files.copy(path, target)
+        Files.walk(source).withCloseable { files ->
+            files.forEach { path ->
+                def target = destination.resolve(source.relativize(path).toString())
+                if (Files.isDirectory(path))
+                    Files.createDirectories(target)
+                else
+                    Files.copy(path, target)
+            }
         }
     }
 }

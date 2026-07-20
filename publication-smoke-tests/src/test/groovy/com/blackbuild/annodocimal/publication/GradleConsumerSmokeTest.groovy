@@ -41,7 +41,9 @@ class GradleConsumerSmokeTest extends Specification {
         given:
         copyFixture(Path.of('src/test/fixtures/gradle'), target)
         replaceTokens(target.resolve('settings.gradle'))
-        Files.walk(target).filter { it.fileName.toString() == 'build.gradle' }.forEach(this::replaceTokens)
+        Files.walk(target).withCloseable { files ->
+            files.filter { it.fileName.toString() == 'build.gradle' }.forEach(this::replaceTokens)
+        }
 
         when:
         def result = GradleRunner.create()
@@ -64,12 +66,14 @@ class GradleConsumerSmokeTest extends Specification {
     }
 
     private static void copyFixture(Path source, Path destination) {
-        Files.walk(source).forEach { path ->
-            def target = destination.resolve(source.relativize(path).toString())
-            if (Files.isDirectory(path))
-                Files.createDirectories(target)
-            else
-                Files.copy(path, target)
+        Files.walk(source).withCloseable { files ->
+            files.forEach { path ->
+                def target = destination.resolve(source.relativize(path).toString())
+                if (Files.isDirectory(path))
+                    Files.createDirectories(target)
+                else
+                    Files.copy(path, target)
+            }
         }
     }
 }

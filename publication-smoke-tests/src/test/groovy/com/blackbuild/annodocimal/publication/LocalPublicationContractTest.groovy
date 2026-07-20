@@ -70,6 +70,11 @@ class LocalPublicationContractTest extends Specification {
             def directory = moduleDirectory(pluginId, artifact)
             Files.isRegularFile(directory.resolve("${artifact}-${version}.pom"))
         }
+
+        and: 'local audit staging remains deliberately unsigned'
+        Files.walk(repository).withCloseable { files ->
+            files.noneMatch { it.fileName.toString().endsWith('.asc') }
+        }
     }
 
     def 'POMs expose only the intended consumer dependencies and descriptions'() {
@@ -256,7 +261,9 @@ class LocalPublicationContractTest extends Specification {
     }
 
     private Path repositoryFileFor(String fileName) {
-        Files.walk(repository).filter { it.fileName.toString() == fileName }.findFirst().orElseThrow()
+        Files.walk(repository).withCloseable { files ->
+            files.filter { it.fileName.toString() == fileName }.findFirst().orElseThrow()
+        }
     }
 
     private Set<String> jarEntries(String artifact) {

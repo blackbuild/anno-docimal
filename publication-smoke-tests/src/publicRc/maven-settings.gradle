@@ -1,0 +1,12 @@
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral {
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
+    }
+}
+
+rootProject.name = 'annodocimal-public-rc-maven-consumer'
