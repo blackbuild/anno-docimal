@@ -39,6 +39,7 @@ import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import javax.inject.Inject;
 import java.io.DataInputStream;
@@ -48,12 +49,12 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -70,6 +71,7 @@ import java.util.stream.Stream;
 public abstract class SourceProjectionTask extends DefaultTask {
 
     @Inject
+    @SuppressWarnings("java:S5993") // Gradle TestKit cannot instantiate this task when its injected constructor is protected.
     public SourceProjectionTask(ObjectFactory objects) {
         getIncludes().convention(Collections.singleton("**/*.class"));
         getExcludes().convention(Collections.emptySet());
@@ -154,7 +156,7 @@ public abstract class SourceProjectionTask extends DefaultTask {
             try (Stream<Path> files = Files.walk(inputDirectory)) {
                 files.filter(Files::isRegularFile)
                         .map(classFile -> candidate(inputDirectory, classFile, includes, excludes))
-                        .filter(candidate -> candidate != null)
+                        .filter(Objects::nonNull)
                         .sorted(Comparator.comparing(candidate -> candidate.classFile.toString()))
                         .forEach(candidate -> addCandidate(candidatesByBinaryName, candidate));
             } catch (IOException exception) {
@@ -166,6 +168,7 @@ public abstract class SourceProjectionTask extends DefaultTask {
                 .toList();
     }
 
+    @Nullable
     private static Candidate candidate(Path inputDirectory, Path classFile, List<Pattern> includes, List<Pattern> excludes) {
         String relativePath = inputDirectory.relativize(classFile).toString().replace('\\', '/');
         if (!relativePath.endsWith(".class") || !matches(relativePath, includes, excludes)) return null;
@@ -187,37 +190,55 @@ public abstract class SourceProjectionTask extends DefaultTask {
     }
 
     private static List<Pattern> patterns(Set<String> patterns) {
-        List<Pattern> result = new ArrayList<>();
-        patterns.stream().sorted().forEach(pattern -> result.add(Pattern.compile(antPattern(pattern))));
-        return result;
+        return patterns.stream().sorted().map(SourceProjectionTask::compilePattern).toList();
+    }
+
+    private static Pattern compilePattern(String pattern) {
+        return Pattern.compile(antPattern(pattern));
     }
 
     private static String antPattern(String pattern) {
         StringBuilder expression = new StringBuilder("^");
         String normalized = pattern.replace('\\', '/');
-        for (int index = 0; index < normalized.length(); index++) {
-            char character = normalized.charAt(index);
-            if (character == '*') {
-                boolean recursive = index + 1 < normalized.length() && normalized.charAt(index + 1) == '*';
-                if (recursive) {
-                    index++;
-                    if (index + 1 < normalized.length() && normalized.charAt(index + 1) == '/') {
-                        index++;
-                        expression.append("(?:.*/)?");
-                    } else {
-                        expression.append(".*");
-                    }
-                } else {
-                    expression.append("[^/]*");
-                }
-            } else if (character == '?') {
-                expression.append("[^/]");
-            } else {
-                if ("\\.[]{}()+-^$|".indexOf(character) >= 0) expression.append('\\');
-                expression.append(character);
-            }
+        int index = 0;
+        while (index < normalized.length()) {
+            index = appendPatternToken(normalized, index, expression);
         }
         return expression.append('$').toString();
+    }
+
+    private static int appendPatternToken(String pattern, int index, StringBuilder expression) {
+        char character = pattern.charAt(index);
+        if (character == '*') return appendAsterisk(pattern, index, expression);
+        if (character == '?') {
+            expression.append("[^/]");
+            return index + 1;
+        }
+        appendLiteral(character, expression);
+        return index + 1;
+    }
+
+    private static int appendAsterisk(String pattern, int index, StringBuilder expression) {
+        int nextIndex = index + 1;
+        if (nextIndex >= pattern.length() || pattern.charAt(nextIndex) != '*') {
+            expression.append("[^/]*");
+            return nextIndex;
+        }
+        return appendDoubleAsterisk(pattern, nextIndex + 1, expression);
+    }
+
+    private static int appendDoubleAsterisk(String pattern, int nextIndex, StringBuilder expression) {
+        if (nextIndex < pattern.length() && pattern.charAt(nextIndex) == '/') {
+            expression.append("(?:.*/)?");
+            return nextIndex + 1;
+        }
+        expression.append(".*");
+        return nextIndex;
+    }
+
+    private static void appendLiteral(char character, StringBuilder expression) {
+        if ("\\.[]{}()+-^$|".indexOf(character) >= 0) expression.append('\\');
+        expression.append(character);
     }
 
     private static void ensureInputsDoNotOverlapOutput(List<Path> inputDirectories, Path outputDirectory) {
@@ -287,21 +308,10 @@ public abstract class SourceProjectionTask extends DefaultTask {
             int constantPoolSize = data.readUnsignedShort();
             String[] utf8 = new String[constantPoolSize];
             int[] classNames = new int[constantPoolSize];
-            for (int index = 1; index < constantPoolSize; index++) {
+            int index = 1;
+            while (index < constantPoolSize) {
                 int tag = data.readUnsignedByte();
-                switch (tag) {
-                    case 1 -> utf8[index] = data.readUTF();
-                    case 3, 4 -> skip(data, 4);
-                    case 5, 6 -> {
-                        skip(data, 8);
-                        index++;
-                    }
-                    case 7 -> classNames[index] = data.readUnsignedShort();
-                    case 8, 16, 19, 20 -> skip(data, 2);
-                    case 9, 10, 11, 12, 17, 18 -> skip(data, 4);
-                    case 15 -> skip(data, 3);
-                    default -> throw new GradleException("Unsupported class-file constant-pool tag " + tag + " in " + classFile);
-                }
+                index += readConstantPoolEntry(data, tag, index, utf8, classNames, classFile);
             }
             data.readUnsignedShort();
             int thisClass = data.readUnsignedShort();
@@ -314,6 +324,35 @@ public abstract class SourceProjectionTask extends DefaultTask {
         } catch (IOException exception) {
             throw new GradleException("Could not read class metadata from " + classFile, exception);
         }
+    }
+
+    private static int readConstantPoolEntry(DataInputStream data, int tag, int index, String[] utf8, int[] classNames,
+                                             Path classFile) throws IOException {
+        return switch (tag) {
+            case 1 -> {
+                utf8[index] = data.readUTF();
+                yield 1;
+            }
+            case 3, 4 -> skipAndContinue(data, 4);
+            case 5, 6 -> skipAndContinue(data, 8, 2);
+            case 7 -> {
+                classNames[index] = data.readUnsignedShort();
+                yield 1;
+            }
+            case 8, 16, 19, 20 -> skipAndContinue(data, 2);
+            case 9, 10, 11, 12, 17, 18 -> skipAndContinue(data, 4);
+            case 15 -> skipAndContinue(data, 3);
+            default -> throw new GradleException("Unsupported class-file constant-pool tag " + tag + " in " + classFile);
+        };
+    }
+
+    private static int skipAndContinue(DataInputStream data, long bytes) throws IOException {
+        return skipAndContinue(data, bytes, 1);
+    }
+
+    private static int skipAndContinue(DataInputStream data, long bytes, int entries) throws IOException {
+        skip(data, bytes);
+        return entries;
     }
 
     private static void skipInterfaces(DataInputStream data) throws IOException {
