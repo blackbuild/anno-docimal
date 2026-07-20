@@ -8,6 +8,10 @@ boundary.
 AnnoDocimal 1.0 supports Java 17 and one artifact set across Groovy 3, 4, and 5. The Gradle integration supports
 Gradle 7.3.3 through the current 8.14.5 wrapper baseline; both endpoints have TestKit coverage.
 
+Groovy's runtime `Groovydoc` annotation is accepted as an interoperable input carrier. AnnoDocimal's `AnnoDoc` and
+documentation-properties protocol remains the canonical cross-language and evolution boundary; carrier precedence,
+normalization, and duplicate-avoidance behavior are documented in the [usage guide](docs/usage.md#runtime-groovydoc-interoperability).
+
 ## Quick start: transformation authors
 
 Use the annotations artifact wherever compiled declarations must carry documentation, and the AST artifact in the
