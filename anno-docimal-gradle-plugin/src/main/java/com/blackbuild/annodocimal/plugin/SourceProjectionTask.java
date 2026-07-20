@@ -310,7 +310,7 @@ public abstract class SourceProjectionTask extends DefaultTask {
             skipInterfaces(data);
             skipMembers(data);
             skipMembers(data);
-            return new ClassMetadata(binaryName, !declaresOwnInnerClass(data, thisClass, utf8));
+            return new ClassMetadata(binaryName, !isMemberOrLocalClass(data, thisClass, utf8));
         } catch (IOException exception) {
             throw new GradleException("Could not read class metadata from " + classFile, exception);
         }
@@ -329,12 +329,14 @@ public abstract class SourceProjectionTask extends DefaultTask {
         }
     }
 
-    private static boolean declaresOwnInnerClass(DataInputStream data, int thisClass, String[] utf8) throws IOException {
+    private static boolean isMemberOrLocalClass(DataInputStream data, int thisClass, String[] utf8) throws IOException {
         int attributeCount = data.readUnsignedShort();
+        boolean enclosed = false;
         for (int index = 0; index < attributeCount; index++) {
             int nameIndex = data.readUnsignedShort();
             long length = Integer.toUnsignedLong(data.readInt());
             if (!"InnerClasses".equals(utf8[nameIndex])) {
+                if ("EnclosingMethod".equals(utf8[nameIndex])) enclosed = true;
                 skip(data, length);
                 continue;
             }
@@ -342,12 +344,12 @@ public abstract class SourceProjectionTask extends DefaultTask {
             for (int classIndex = 0; classIndex < classCount; classIndex++) {
                 int innerClass = data.readUnsignedShort();
                 skip(data, 2);
-                int innerName = data.readUnsignedShort();
                 skip(data, 2);
-                if (innerClass == thisClass && innerName != 0) return true;
+                skip(data, 2);
+                if (innerClass == thisClass) enclosed = true;
             }
         }
-        return false;
+        return enclosed;
     }
 
     private static void skipAttributes(DataInputStream data) throws IOException {

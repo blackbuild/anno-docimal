@@ -73,9 +73,9 @@ class AnnoDocimalPluginTest extends Specification {
 
         then:
         def source = new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').text
-        source.contains('DSL documentation')
-        source.contains('class Nested')
+        source == getClass().getResource('/com/blackbuild/annodocimal/plugin/Widget_DSL.java.txt').text
         !new File(testProjectDir, 'build/source-mirror/example/Unrelated.java').exists()
+        !new File(testProjectDir, 'build/source-mirror/example/Widget_DSL\$1.java').exists()
     }
 
     def "source mirror removes stale output after a selected class disappears"() {
@@ -111,8 +111,8 @@ class AnnoDocimalPluginTest extends Specification {
         prepareMirrorProject()
 
         when:
-        runMirrorTask('sourceMirror', '--configuration-cache')
-        def reused = runMirrorTask('sourceMirror', '--configuration-cache')
+        runMirrorTask('sourceMirror', '--configuration-cache', '--configuration-cache-problems=fail')
+        def reused = runMirrorTask('sourceMirror', '--configuration-cache', '--configuration-cache-problems=fail')
 
         then:
         reused.output.contains('Reusing configuration cache.')
@@ -141,13 +141,74 @@ class AnnoDocimalPluginTest extends Specification {
         when:
         def result = GradleRunner.create()
                 .withProjectDir(testProjectDir)
-                .withArguments('sourceMirror', '--configuration-cache')
+                .withArguments('sourceMirror', '--configuration-cache', '--configuration-cache-problems=fail')
+                .withGradleVersion('7.3.3')
+                .withPluginClasspath()
+                .build()
+
+        def reused = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withArguments('sourceMirror', '--configuration-cache', '--configuration-cache-problems=fail')
                 .withGradleVersion('7.3.3')
                 .withPluginClasspath()
                 .build()
 
         then:
         result.output.contains('BUILD SUCCESSFUL')
+        reused.output.contains('Reusing configuration cache.')
+    }
+
+    def "source mirror leaves the previous managed output intact when projection fails"() {
+        given:
+        prepareMirrorProject()
+        runMirrorTask('sourceMirror')
+        def projectedSource = new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').text
+        new File(testProjectDir, 'build.gradle') << '''
+            tasks.named('sourceMirror') {
+                projectionPolicy.set(ProjectionPolicy.builder().includeSyntheticDeclarations(true).build())
+            }
+        '''.stripIndent()
+
+        when:
+        def result = runMirrorTaskAndFail('sourceMirror')
+
+        then:
+        result.output.contains('Selected bytecode methods cannot both be represented in Java: example.ZBridge_DSL#get')
+        new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').text == projectedSource
+    }
+
+    def "source mirror exclusions win over includes"() {
+        given:
+        prepareMirrorProject()
+        new File(testProjectDir, 'build.gradle') << '''
+            tasks.named('sourceMirror') {
+                excludes.add('**/Widget_DSL.class')
+            }
+        '''.stripIndent()
+
+        when:
+        runMirrorTask('sourceMirror')
+
+        then:
+        !new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').exists()
+    }
+
+    def "source mirror rejects duplicate selected binary names with both origins"() {
+        given:
+        prepareMirrorProject()
+        runMirrorTask('classes')
+        def original = new File(testProjectDir, 'build/classes/java/main/example/Widget_DSL.class')
+        def duplicate = new File(testProjectDir, 'build/additional-classes/example/Widget_DSL.class')
+        duplicate.parentFile.mkdirs()
+        duplicate.bytes = original.bytes
+
+        when:
+        def result = runMirrorTaskAndFail('sourceMirror', '-x', 'compileJava')
+
+        then:
+        result.output.contains('Selected class example.Widget_DSL appears in both')
+        result.output.contains('build/classes/java/main/example/Widget_DSL.class')
+        result.output.contains('build/additional-classes/example/Widget_DSL.class')
     }
 
     private BuildResult runMirrorTask(String... arguments) {
@@ -158,9 +219,20 @@ class AnnoDocimalPluginTest extends Specification {
                 .build()
     }
 
+    private BuildResult runMirrorTaskAndFail(String... arguments) {
+        GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withArguments(arguments)
+                .withPluginClasspath()
+                .buildAndFail()
+    }
+
     private void prepareMirrorProject() {
         new File(testProjectDir, 'settings.gradle').text = "rootProject.name = 'source-mirror-test'"
         new File(testProjectDir, 'build.gradle').text = """
+            import com.blackbuild.annodocimal.generator.ProjectionPolicy
+            import com.blackbuild.annodocimal.plugin.SourceProjectionTask
+
             plugins {
                 id 'java'
                 id 'com.blackbuild.annodocimal.groovy-plugin'
@@ -172,8 +244,9 @@ class AnnoDocimalPluginTest extends Specification {
                 implementation files('${System.getProperty('anno.docimal.annotations.jar')}')
             }
 
-            tasks.register('sourceMirror', com.blackbuild.annodocimal.plugin.SourceProjectionTask) {
+            tasks.register('sourceMirror', SourceProjectionTask) {
                 classesDirectories.from(sourceSets.main.output.classesDirs)
+                classesDirectories.from(layout.buildDirectory.dir('additional-classes'))
                 includes.add('**/*_DSL.class')
                 outputDirectory.set(layout.buildDirectory.dir('source-mirror'))
             }
@@ -189,12 +262,32 @@ class AnnoDocimalPluginTest extends Specification {
             public class Widget_DSL {
                 public static class Nested {
                 }
+
+                public Runnable anonymous() {
+                    return new Runnable() {
+                        @Override
+                        public void run() {
+                        }
+                    };
+                }
             }
         '''.stripIndent()
         new File(sourceDirectory, 'Unrelated.java').text = '''
             package example;
 
             public class Unrelated {
+            }
+        '''.stripIndent()
+        new File(sourceDirectory, 'ZBridge_DSL.java').text = '''
+            package example;
+
+            import java.util.function.Supplier;
+
+            public class ZBridge_DSL implements Supplier<String> {
+                @Override
+                public String get() {
+                    return "value";
+                }
             }
         '''.stripIndent()
     }
