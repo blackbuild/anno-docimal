@@ -81,6 +81,57 @@ class SourceProjectionContractTest extends JavaClassGeneratingTest {
 
         then:
         projector.projectToText(file.toPath()) == projection
+        projection == '''package contract;
+
+import java.io.IOException;
+import java.lang.Comparable;
+import java.lang.Exception;
+import java.lang.IllegalArgumentException;
+import java.lang.Number;
+import java.lang.String;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.List;
+
+/**
+ * Canonical class documentation
+ */
+public class JavaDeclarationFixture<T extends Number & Comparable<T>> {
+  /**
+   * Canonical field documentation
+   */
+  public T[] values;
+
+  /**
+   * Canonical constructor documentation
+   */
+  public JavaDeclarationFixture(T[] values) throws IllegalArgumentException {
+  }
+
+  /**
+   * Canonical method documentation
+   */
+  public <E extends Exception> List<? extends T>[] convert(List<? super T>[] input) throws
+      IOException, E {
+    return null;
+  }
+
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface Marker {
+    String value() default "marker";
+  }
+
+  protected enum Mode {
+    FAST,
+
+    SLOW
+  }
+
+  public interface NestedApi<X> {
+    X apply(X value) throws Exception;
+  }
+}
+'''
 
         and:
         assertProjectionCompiles(fixture, 'contract.JavaDeclarationFixture', projection)
