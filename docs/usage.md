@@ -101,6 +101,11 @@ documentation capability remains owned by issue [#10](https://github.com/blackbu
 documentation, compose it, and attach it to a generated declaration:
 
 ```java
+import com.blackbuild.annodocimal.ast.AstDocumentation;
+import com.blackbuild.annodocimal.ast.Documentation;
+
+import java.util.List;
+
 Documentation captured = AstDocumentation.extractExact(source).orElse(Documentation.empty());
 Documentation generated = captured.toBuilder()
         .summary("Creates {{kind}} documentation.")

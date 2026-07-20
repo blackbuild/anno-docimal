@@ -40,6 +40,11 @@ For composition, templates, links, exact extraction, and the supported API bound
 Use `anno-docimal-generator` when a build owns its class-file selection and needs source text or a managed output file:
 
 ```java
+import com.blackbuild.annodocimal.generator.ProjectionPolicy;
+import com.blackbuild.annodocimal.generator.SourceProjector;
+
+import java.nio.file.Path;
+
 SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation());
 Path sourceFile = projector.projectToDirectory(classFile, outputDirectory);
 ```
