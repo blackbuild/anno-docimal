@@ -109,7 +109,7 @@ classpath-sensitive class directories, include/exclude patterns, nested projecti
 all-or-nothing synchronized output, deterministic duplicate detection, stale cleanup, cacheability, and configuration-
 cache-safe execution. `CreateClassStubs` is replaced without a shim. IDE model wiring remains consumer-owned.
 
-Recorded in ADRs 0010 and 0055; issue #35 owns implementation and TestKit acceptance.
+Recorded in ADRs 0010 and 0055; TestKit verifies the supported task contract.
 
 ### Layered Gradle plugins
 
@@ -530,7 +530,7 @@ The completed historical `initial-release` milestone is closed rather than renam
 | `anno-docimal-ast` | Groovy source capture plus extraction and documentation-model helpers for AST authors | Local transformation, visitor, extractors, parsers, formatters, builders, templating and inheritance helpers; API dependency on annotations |
 | `anno-docimal-global-ast` | Global Groovy AST discovery adapter | Service descriptor plus API dependency on `anno-docimal-ast` |
 | `anno-docimal-generator` | Compiled class to Java source projection | Generator entry point plus public ASM/JavaPoet implementation types; shaded publication |
-| `anno-docimal-gradle-plugin` | Javadoc task integration and compiler option convention | Two plugin IDs, public `CreateClassStubs` task type, shaded generator classes |
+| `anno-docimal-gradle-plugin` | Javadoc task integration and compiler option convention | Neutral and Groovy plugin IDs, supported `SourceProjectionTask`, shaded generator classes |
 
 ## Current lifecycle map
 
@@ -539,7 +539,7 @@ The completed historical `initial-release` milestone is closed rather than renam
 3. Compiled classes retain embedded documentation and parameter metadata.
 4. The generator projects top-level class files and their public nested types into Java source.
 5. The base Gradle plugin registers `createClassStubs` and makes `javadoc` consume its output.
-6. The convention plugin also enables Groovy documentation metadata and Java/Groovy parameter names.
+6. The Groovy plugin also enables Groovy documentation metadata and Java/Groovy parameter names.
 
 IDE-only source mirrors reuse steps 3 and 4 but are not part of the default Javadoc lifecycle. Selection and IDEA model
 wiring currently belong to the consumer.

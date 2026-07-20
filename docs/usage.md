@@ -6,9 +6,8 @@ not a DSL framework and it does not own IDE model configuration in consuming bui
 ## Compatibility and coordinates
 
 AnnoDocimal supports Java 17 and one artifact set across Groovy 3, 4, and 5. The version catalog records the tested
-Groovy baselines; it does not restrict consumers to those exact patch releases. The Gradle wrapper is the current
-development baseline. The supported minimum Gradle version and reusable task contract are not yet published: issue
-[#35](https://github.com/blackbuild/anno-docimal/issues/35) owns their TestKit evidence and stabilization.
+Groovy baselines; it does not restrict consumers to those exact patch releases. The Gradle integration supports Gradle
+7.3.3 through the current 8.14.5 wrapper baseline, with TestKit coverage at both endpoints.
 
 All artifacts use group `com.blackbuild.annodocimal`:
 
@@ -161,17 +160,39 @@ types, excludes synthetic and Groovy runtime scaffolding, retains visible langua
 applies signature closure. It is not a decompiler. The full fidelity, inclusion, and failure policy is in
 [source-projection.md](source-projection.md).
 
-The current base Gradle plugin ID is `com.blackbuild.annodocimal.base-plugin`. In a Java-model project it registers the
-conventional `createClassStubs` task and makes `javadoc` use its output. This is a Javadoc convenience, not an IDE
-source-set registration. An IDE-only source mirror must be configured by the consuming build and must not be compiled,
-packaged, or published as a second API.
+The neutral `com.blackbuild.annodocimal.base-plugin` applies neither Java nor Groovy. When a Java model is present, it
+registers the conventional `createClassStubs` `SourceProjectionTask` over all main class directories and makes
+`javadoc` consume its output. This is a Javadoc convenience, not an IDE source-set registration.
 
-The current opinionated plugin ID is `com.blackbuild.annodocimal.plugin`. It applies the base implementation and adds
-Groovy/Javac compiler options intended to retain documentation and parameter metadata. Both current IDs, their task
-implementation type, and plugin implementation classes are transitional behavior rather than the supported 1.0 Gradle
-Java API. Issue [#35](https://github.com/blackbuild/anno-docimal/issues/35) owns the future `SourceProjectionTask`,
-the `com.blackbuild.annodocimal.groovy-plugin` ID, independently registered task contract, managed-tree cleanup,
-configuration-cache, and Gradle-range evidence. Do not use that future ID until it is delivered.
+For an independently managed IDE-only source mirror, register `SourceProjectionTask` directly. The task owns its
+output directory, so the mirror must not be compiled, packaged, or published as a second API:
+
+```groovy
+import com.blackbuild.annodocimal.plugin.SourceProjectionTask
+
+plugins {
+    id 'java'
+    id 'com.blackbuild.annodocimal.base-plugin'
+}
+
+tasks.register('dslSourceMirror', SourceProjectionTask) {
+    classesDirectories.from(sourceSets.main.output.classesDirs)
+    includes.add('**/*_DSL.class')
+    excludes.add('**/internal/**')
+    outputDirectory.set(layout.buildDirectory.dir('source-mirrors/dsl'))
+}
+```
+
+`classesDirectories` is documentation-sensitive classpath input. `includes` and `excludes` are declared Ant-style
+patterns over slash-normalized paths relative to every input directory, including `.class`; exclusions win. The default
+includes all top-level class files. The task rejects duplicate binary names from different inputs and input/output
+overlap, projects to a staging tree, and replaces the managed output only after every projection succeeds. It is
+cacheable and configuration-cache safe. `projectionPolicy` defaults to `ProjectionPolicy.documentation()` and can be
+set to another immutable policy value when the consuming build needs a broader documented projection.
+
+The opinionated `com.blackbuild.annodocimal.groovy-plugin` applies Gradle's Groovy plugin and the neutral base plugin,
+then configures Groovy and Java compilation to retain documentation and parameter metadata. Plugin implementation
+classes and task actions remain implementation details; `SourceProjectionTask` is the supported Gradle Java API.
 
 ## Supported versus implementation-only APIs
 

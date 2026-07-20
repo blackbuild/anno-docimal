@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added the supported cacheable `SourceProjectionTask` and the `com.blackbuild.annodocimal.groovy-plugin` convention.
+  Independently registered tasks select top-level class files with declared patterns, project deterministic managed
+  source mirrors, clean stale output, and support Gradle's build and configuration caches. Gradle 7.3.3 through 8.14.5
+  is supported with TestKit coverage at both endpoints. `CreateClassStubs` and
+  `com.blackbuild.annodocimal.plugin` are removed without shims; see [the usage guide](docs/usage.md) and
+  [0.x-to-1.0 migration](docs/migration/0.x-to-1.0-supported-api.md).
+
 - Rewrote the repository-owned landing page, usage guide, and migration guidance for the 1.0 documentation contract.
   They now describe the six artifacts, Java and Groovy capture, the supported authoring and projection APIs, automatic
   module names, Javadoc and IDE-mirror boundaries, and the current versus #35-owned Gradle integration. See
