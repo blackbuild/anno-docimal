@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added an unsigned, network-independent publication audit for all six artifacts and both Gradle plugin markers. It
+  verifies POM and Gradle metadata, sources and Javadocs, module and service packaging, shaded boundaries, signing and
+  staging configuration, and clean Gradle and Maven-POM consumers. A separate exact-version RC task is ready for
+  authorized validation from Maven Central and the Gradle Plugin Portal; see
+  [publication validation](docs/publication-validation.md).
+
 - Added a recompiling Java and Groovy source-projection contract matrix across Groovy 3, 4, and 5. Representative
   declarations now verify deterministic, compilable output for classes, interfaces, annotations, enums, top-level and
   nested records, members, generic and wildcard signatures, arrays, declared exceptions, and documentation carriers.
