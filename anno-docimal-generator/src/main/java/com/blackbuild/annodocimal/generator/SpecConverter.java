@@ -104,7 +104,8 @@ final class SpecConverter {
             JavaFile javaFile = JavaFile.builder(rootVisitor.getPackageName(), rootVisitor.getType()).build();
             StringBuilder source = new StringBuilder();
             javaFile.writeTo(source);
-            return new SourceProjector.ProjectionResult(converter.root.node.name, source.toString());
+            return new SourceProjector.ProjectionResult(
+                    converter.root.node.name, rootVisitor.finishSource(source.toString()));
         } catch (SourceProjectionException exception) {
             throw exception;
         } catch (RuntimeException exception) {

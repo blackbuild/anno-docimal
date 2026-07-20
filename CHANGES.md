@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added a recompiling Java and Groovy source-projection contract matrix across Groovy 3, 4, and 5. Representative
+  declarations now verify deterministic, compilable output for classes, interfaces, annotations, enums, top-level and
+  nested records, members, generic and wildcard signatures, arrays, declared exceptions, and documentation carriers.
+  Record projections retain record kind and components, and generic declarations no longer lose non-generic declared
+  exceptions.
+
 - Normalized projected annotation members lexicographically by name, including primitive, enum, class, nested-annotation,
   and array-valued members. Repeated projection is byte-identical across Groovy 3, 4, and 5 without treating incidental
   source or bytecode declaration order as Java semantics.
