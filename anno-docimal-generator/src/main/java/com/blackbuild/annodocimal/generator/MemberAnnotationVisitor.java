@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -247,5 +248,61 @@ final class MemberAnnotationVisitor {
         }
 
 
+    }
+
+    static final class Documentation {
+        private String canonical;
+        private String interoperable;
+
+        AnnotationVisitor visitor(Type type) {
+            boolean canonicalCarrier = type.getClassName().equals(JavaPoetClassVisitor.ANNO_DOC_CLASS);
+            boolean interoperableCarrier = type.getClassName().equals(JavaPoetClassVisitor.GROOVYDOC_CLASS);
+            if (!canonicalCarrier && !interoperableCarrier) return null;
+
+            return new Javadoc(null) {
+                @Override
+                public void visitEnd() {
+                    String normalized = normalize(javadocText);
+                    if (canonicalCarrier) canonical = normalized;
+                    else interoperable = normalized;
+                }
+            };
+        }
+
+        String selected() {
+            return canonical != null ? canonical : interoperable;
+        }
+
+        private static String normalize(String text) {
+            if (text == null) return null;
+            String normalized = text.replace("\r\n", "\n").replace('\r', '\n');
+            String leadingTrimmed = normalized.stripLeading();
+            if (leadingTrimmed.startsWith("/**")) {
+                int end = leadingTrimmed.lastIndexOf("*/");
+                if (end >= 3) {
+                    normalized = leadingTrimmed.substring(3, end);
+                    if (normalized.startsWith("@")) normalized = normalized.substring(1);
+                    normalized = normalized.replaceAll("(?m)^[\\t ]*\\*[\\t ]?", "");
+                }
+            }
+
+            String[] lines = normalized.split("\n", -1);
+            int minIndent = Arrays.stream(lines)
+                    .filter(line -> !line.isBlank())
+                    .mapToInt(Documentation::leadingWhitespace)
+                    .min()
+                    .orElse(0);
+            normalized = Arrays.stream(lines)
+                    .map(line -> line.length() >= minIndent ? line.substring(minIndent) : "")
+                    .collect(Collectors.joining("\n"))
+                    .strip();
+            return normalized.isBlank() ? null : normalized;
+        }
+
+        private static int leadingWhitespace(String line) {
+            int result = 0;
+            while (result < line.length() && Character.isWhitespace(line.charAt(result))) result++;
+            return result;
+        }
     }
 }

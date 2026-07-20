@@ -29,7 +29,7 @@ import spock.lang.Issue
 import static com.blackbuild.annodocimal.generator.ProjectionContractAssertions.assertProjectionCompiles
 import static com.google.testing.compile.Compiler.javac
 
-@Issue("41")
+@Issue(["41", "19"])
 class GroovySourceProjectionContractTest extends ClassGeneratingTest {
 
     def "representative Groovy declaration projection is deterministic and recompilable"() {
@@ -83,7 +83,6 @@ class GroovySourceProjectionContractTest extends ClassGeneratingTest {
         projector.projectToText(classFile) == projection
         projection == '''package contract;
 
-import groovy.lang.Groovydoc;
 import groovy.transform.Generated;
 import java.io.IOException;
 import java.lang.Exception;
@@ -114,7 +113,9 @@ public class GroovyDeclarationFixture<T extends Number> {
   public void setValues(T[] value) {
   }
 
-  @Groovydoc("Interoperable nested interface documentation")
+  /**
+   * Interoperable nested interface documentation
+   */
   public interface NestedApi<X> {
     X apply(X value) throws Exception;
   }
@@ -142,7 +143,10 @@ public class GroovyDeclarationFixture<T extends Number> {
         projection.contains('List<? extends T> convert(List<? super T> input) throws IOException')
         projection.contains('public T[] getValues()')
         projection.contains('public void setValues(T[] value)')
-        projection.contains('@Groovydoc("Interoperable nested interface documentation")')
+        projection.contains('''  /**
+   * Interoperable nested interface documentation
+   */''')
+        !projection.contains('@Groovydoc')
         projection.contains('public interface NestedApi<X>')
         projection.contains('X apply(X value) throws Exception;')
         projection.contains('protected enum Mode')
