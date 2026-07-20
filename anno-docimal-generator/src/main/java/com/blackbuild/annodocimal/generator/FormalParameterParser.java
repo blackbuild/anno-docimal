@@ -47,7 +47,7 @@ abstract class FormalParameterParser extends SignatureVisitor {
     }
 
     protected FormalParameterParser(Function<String, ClassName> classNameResolver) {
-        this(classNameResolver, name -> TypeVariableName.get(name));
+        this(classNameResolver, TypeVariableName::get);
     }
 
     protected FormalParameterParser(Function<String, ClassName> classNameResolver,

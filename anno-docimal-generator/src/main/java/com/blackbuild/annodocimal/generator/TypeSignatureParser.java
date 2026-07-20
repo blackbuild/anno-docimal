@@ -39,7 +39,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
     }
 
     protected TypeSignatureParser(Function<String, ClassName> classNameResolver) {
-        this(classNameResolver, name -> TypeVariableName.get(name));
+        this(classNameResolver, TypeVariableName::get);
     }
 
     protected TypeSignatureParser(Function<String, ClassName> classNameResolver,
@@ -111,7 +111,7 @@ abstract class TypeSignatureParser extends SignatureVisitor {
     @Override
     public void visitInnerClassType(final String name) {
         TypeName owner = currentType();
-        enclosingType = owner instanceof ParameterizedTypeName ? (ParameterizedTypeName) owner : null;
+        enclosingType = owner instanceof ParameterizedTypeName parameterized ? parameterized : null;
         internalName += "$" + name;
         rawType = classNameResolver.apply(internalName);
         arguments.clear();

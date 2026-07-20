@@ -266,29 +266,37 @@ final class SpecConverter {
                                                Map<String, TypeName> bindings, Set<String> unresolved,
                                                Set<String> visited, Map<String, TypeName> result) {
         for (InheritedSupertype inherited : directSupertypes(node, bindings)) {
-            ClassNode parent = classMetadata(inherited.internalName);
-            if (parent == null) continue;
-            Map<String, TypeName> parentBindings = bindTypeParameters(parent, inherited.type);
-            String visitKey = parent.name + parentBindings;
-            if (!visited.add(visitKey)) continue;
+            collectInheritedTypeVariablesFromSupertype(node, inherited, methodName, descriptor,
+                    unresolved, visited, result);
+        }
+    }
 
-            MethodNode inheritedMethod = parent.methods.stream()
-                    .filter(method -> methodName.equals(method.name) && descriptor.equals(method.desc))
-                    .findFirst()
-                    .orElse(null);
-            if (inheritedMethod != null) {
-                Set<String> inheritedVariables = signatureVariables(inheritedMethod.signature).referenced;
-                for (String variable : unresolved) {
-                    if (!inheritedVariables.contains(variable) || !parentBindings.containsKey(variable)) continue;
-                    TypeName previous = result.putIfAbsent(variable, parentBindings.get(variable));
-                    if (previous != null && !previous.equals(parentBindings.get(variable))) {
-                        throw failure(node.name + "#" + methodName,
-                                "Inherited declarations resolve type variable " + variable + " inconsistently");
-                    }
+    private void collectInheritedTypeVariablesFromSupertype(ClassNode node, InheritedSupertype inherited,
+                                                            String methodName, String descriptor,
+                                                            Set<String> unresolved, Set<String> visited,
+                                                            Map<String, TypeName> result) {
+        ClassNode parent = classMetadata(inherited.internalName);
+        if (parent == null) return;
+        Map<String, TypeName> parentBindings = bindTypeParameters(parent, inherited.type);
+        String visitKey = parent.name + parentBindings;
+        if (!visited.add(visitKey)) return;
+
+        MethodNode inheritedMethod = parent.methods.stream()
+                .filter(method -> methodName.equals(method.name) && descriptor.equals(method.desc))
+                .findFirst()
+                .orElse(null);
+        if (inheritedMethod != null) {
+            Set<String> inheritedVariables = signatureVariables(inheritedMethod.signature).referenced;
+            for (String variable : unresolved) {
+                if (!inheritedVariables.contains(variable) || !parentBindings.containsKey(variable)) continue;
+                TypeName previous = result.putIfAbsent(variable, parentBindings.get(variable));
+                if (previous != null && !previous.equals(parentBindings.get(variable))) {
+                    throw failure(node.name + "#" + methodName,
+                            "Inherited declarations resolve type variable " + variable + " inconsistently");
                 }
             }
-            collectInheritedTypeVariables(parent, methodName, descriptor, parentBindings, unresolved, visited, result);
         }
+        collectInheritedTypeVariables(parent, methodName, descriptor, parentBindings, unresolved, visited, result);
     }
 
     private List<InheritedSupertype> directSupertypes(ClassNode node, Map<String, TypeName> bindings) {
