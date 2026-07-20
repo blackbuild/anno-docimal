@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.plugin
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import spock.lang.Issue
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
@@ -39,6 +40,7 @@ class AnnoDocimalPluginTest extends Specification {
     @TempDir
     File testProjectDir
 
+    @Issue("35")
     def "test scenario #name"(String name) {
         given:
         scenario = new TestScenario(name, scenarioRoot, target).prepareScenario()
@@ -64,6 +66,7 @@ class AnnoDocimalPluginTest extends Specification {
                 .build()
     }
 
+    @Issue("35")
     def "separately registered source mirror selects documented top-level classes"() {
         given:
         prepareMirrorProject()
@@ -78,6 +81,7 @@ class AnnoDocimalPluginTest extends Specification {
         !new File(testProjectDir, 'build/source-mirror/example/Widget_DSL\$1.java').exists()
     }
 
+    @Issue("35")
     def "source mirror removes stale output after a selected class disappears"() {
         given:
         prepareMirrorProject()
@@ -91,6 +95,7 @@ class AnnoDocimalPluginTest extends Specification {
         !new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').exists()
     }
 
+    @Issue("35")
     def "source mirror is up-to-date and restores its managed directory from the build cache"() {
         given:
         prepareMirrorProject()
@@ -106,6 +111,7 @@ class AnnoDocimalPluginTest extends Specification {
         restored.output.contains(':sourceMirror FROM-CACHE')
     }
 
+    @Issue("35")
     def "source mirror stores and reuses the strict configuration cache"() {
         given:
         prepareMirrorProject()
@@ -118,6 +124,7 @@ class AnnoDocimalPluginTest extends Specification {
         reused.output.contains('Reusing configuration cache.')
     }
 
+    @Issue("35")
     def "AnnoDoc-only class content changes invalidate the source mirror"() {
         given:
         prepareMirrorProject()
@@ -134,6 +141,7 @@ class AnnoDocimalPluginTest extends Specification {
         new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').text.contains('Changed DSL documentation')
     }
 
+    @Issue("35")
     def "the documented Gradle minimum supports the reusable task and configuration cache"() {
         given:
         prepareMirrorProject()
@@ -158,6 +166,7 @@ class AnnoDocimalPluginTest extends Specification {
         reused.output.contains('Reusing configuration cache.')
     }
 
+    @Issue("35")
     def "source mirror leaves the previous managed output intact when projection fails"() {
         given:
         prepareMirrorProject()
@@ -177,6 +186,7 @@ class AnnoDocimalPluginTest extends Specification {
         new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').text == projectedSource
     }
 
+    @Issue("35")
     def "source mirror exclusions win over includes"() {
         given:
         prepareMirrorProject()
@@ -193,6 +203,7 @@ class AnnoDocimalPluginTest extends Specification {
         !new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').exists()
     }
 
+    @Issue("35")
     def "source mirror rejects duplicate selected binary names with both origins"() {
         given:
         prepareMirrorProject()

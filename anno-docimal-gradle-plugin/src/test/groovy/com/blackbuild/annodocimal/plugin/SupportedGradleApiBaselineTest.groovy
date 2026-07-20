@@ -23,10 +23,12 @@
  */
 package com.blackbuild.annodocimal.plugin
 
+import spock.lang.Issue
 import spock.lang.Specification
 
 import java.lang.reflect.Modifier
 
+@Issue("35")
 class SupportedGradleApiBaselineTest extends Specification {
 
     def "the supported Gradle task API matches its checked-in compatibility baseline"() {
