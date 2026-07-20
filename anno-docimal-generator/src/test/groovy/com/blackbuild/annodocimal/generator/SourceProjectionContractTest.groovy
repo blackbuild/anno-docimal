@@ -30,6 +30,74 @@ import spock.lang.Issue
 @Issue("41")
 class SourceProjectionContractTest extends JavaClassGeneratingTest {
 
+    def "representative Java declaration projection is deterministic and recompilable"() {
+        given:
+        String fixture = 'java-declaration-matrix'
+        compile([
+                'contract.JavaDeclarationFixture': '''
+                    package contract;
+
+                    import com.blackbuild.annodocimal.annotations.AnnoDoc;
+                    import java.io.IOException;
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+                    import java.util.List;
+
+                    @AnnoDoc("Canonical class documentation")
+                    public class JavaDeclarationFixture<T extends Number & Comparable<T>> {
+                        @AnnoDoc("Canonical field documentation")
+                        public T[] values;
+
+                        @AnnoDoc("Canonical constructor documentation")
+                        public JavaDeclarationFixture(T[] values) throws IllegalArgumentException {
+                            this.values = values;
+                        }
+
+                        @AnnoDoc("Canonical method documentation")
+                        public <E extends Exception> List<? extends T>[] convert(List<? super T>[] input)
+                                throws IOException, E {
+                            return null;
+                        }
+
+                        public interface NestedApi<X> {
+                            X apply(X value) throws Exception;
+                        }
+
+                        protected enum Mode {
+                            FAST, SLOW
+                        }
+
+                        @Retention(RetentionPolicy.RUNTIME)
+                        public @interface Marker {
+                            String value() default "marker";
+                        }
+                    }
+                '''
+        ], 'contract.JavaDeclarationFixture')
+        SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation())
+
+        when:
+        String projection = projector.projectToText(file.toPath())
+
+        then:
+        projector.projectToText(file.toPath()) == projection
+
+        and:
+        assertProjectionCompiles(fixture, 'contract.JavaDeclarationFixture', projection)
+
+        and: 'exact text checks retain semantics that compilation does not establish'
+        projection.contains('/**\n * Canonical class documentation\n */')
+        projection.contains('class JavaDeclarationFixture<T extends Number & Comparable<T>>')
+        projection.contains('public T[] values;')
+        projection.contains('public JavaDeclarationFixture(T[] values) throws IllegalArgumentException')
+        projection.contains('public <E extends Exception> List<? extends T>[] convert(List<? super T>[] input) throws\n      IOException, E')
+        projection.contains('public interface NestedApi<X>')
+        projection.contains('X apply(X value) throws Exception;')
+        projection.contains('protected enum Mode')
+        projection.contains('public @interface Marker')
+        projection.contains('String value() default "marker";')
+    }
+
     def "supported Java record projections are deterministic and recompilable"() {
         given:
         String fixture = 'java-record'

@@ -201,6 +201,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
         List<TypeName> parameterTypes = new ArrayList<>(argumentTypes.length);
         List<String> argumentNames = new ArrayList<>(argumentTypes.length);
         Map<Integer, List<AnnotationSpec>> parameterAnnotations = new HashMap<>();
+        List<TypeName> exceptionTypes = new ArrayList<>();
 
         if (signature != null) {
             Map<String, TypeName> inheritedVariables = specConverter.inheritedTypeVariables(
@@ -235,7 +236,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
                     return new TypeSignatureParser(specConverter::toClassName, variableResolver) {
                         @Override
                         void finished(TypeName result) {
-                            methodBuilder.addException(result);
+                            exceptionTypes.add(result);
                         }
                     };
                 }
@@ -247,6 +248,11 @@ class JavaPoetClassVisitor extends ClassVisitor {
             v.getTypeParameters().entrySet().stream()
                     .map(ClassSignatureParser::toTypeVariable)
                     .forEach(methodBuilder::addTypeVariable);
+            if (exceptionTypes.isEmpty() && exceptions != null) {
+                for (String exception : exceptions) {
+                    exceptionTypes.add(specConverter.toClassName(exception));
+                }
+            }
         } else {
             if (!name.equals("<init>")) {
                 methodBuilder.returns(specConverter.toTypeName(methodType.getReturnType()));
@@ -257,9 +263,10 @@ class JavaPoetClassVisitor extends ClassVisitor {
             }
             if (exceptions != null)
                 for (String exception : exceptions) {
-                    methodBuilder.addException(specConverter.toClassName(exception));
+                    exceptionTypes.add(specConverter.toClassName(exception));
                 }
         }
+        exceptionTypes.forEach(methodBuilder::addException);
 
         return new MethodVisitor(api) {
             String extractedJavadoc = null;
