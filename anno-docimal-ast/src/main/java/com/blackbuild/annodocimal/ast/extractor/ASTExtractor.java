@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.ast.extractor;
 
+import com.blackbuild.annodocimal.ast.formatting.AnnoDocUtil;
 import com.blackbuild.annodocimal.ast.formatting.DocText;
 import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.ast.expr.ConstantExpression;
@@ -93,7 +94,7 @@ public class ASTExtractor {
     }
 
     private static String extractDocumentationFromElement(AnnotatedNode element) {
-        String result = getAnnoDocValue(element);
+        String result = AnnoDocUtil.getDocumentationCarrierValue(element);
         if (result != null) return result;
 
         return ClassDocExtractor.extractDocumentation(element);
