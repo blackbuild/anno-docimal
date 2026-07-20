@@ -32,7 +32,7 @@ AstDocumentation.attachText(generatedMethod, 'Creates the generated value.')
 ```
 
 For composition, templates, links, exact extraction, and the supported API boundary, see the
-[authoring guide](docs/usage.md#transformation-author-api) and
+[authoring guide](docs/usage.md#ast-transformation-author-api) and
 [supported API record](docs/api/1.0-supported-api.md).
 
 ## Quick start: source projection

@@ -95,28 +95,57 @@ transformation. Its provider class name is a packaging detail, not a consumer Ja
 assumption that documentation will be inherited: capture stores exact documentation; a separately named resolved
 documentation capability remains owned by issue [#10](https://github.com/blackbuild/anno-docimal/issues/10).
 
-## Transformation-author API
+## AST-transformation-author API
 
-`AstDocumentation` and immutable `Documentation` values are the supported transformation-author surface. Extract exact
-documentation, compose it, and attach it to a generated declaration:
+The AST-transformation-author API is for developers writing Groovy AST transformations that generate classes or members
+and want those generated APIs to carry useful documentation. `AstDocumentation` and immutable `Documentation` values
+are its supported surface: read exact documentation from a source or helper declaration, adapt it to the generated
+member, and attach the result without depending on AnnoDocimal's extractors, metadata, or annotations directly.
+
+For example, a KlumAST-style transformation can delegate a generated method to a Java helper. The helper keeps its
+templated Javadoc beside its implementation, and Java APT preserves it during compilation:
+
+```java
+import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+
+@InlineJavadocs
+final class WidgetHelper {
+    /**
+     * Creates a {{kind}} from the supplied source.
+     *
+     * @param source source data
+     */
+    static Widget create(String source) {
+        // Helper implementation omitted.
+        return null;
+    }
+}
+```
+
+When the transformation creates a method that delegates to `WidgetHelper.create`, it reads the helper method's exact
+documentation from its compiler model and attaches a template-specialized copy to the generated method:
 
 ```java
 import com.blackbuild.annodocimal.ast.AstDocumentation;
 import com.blackbuild.annodocimal.ast.Documentation;
 
-import java.util.List;
+import org.codehaus.groovy.ast.MethodNode;
 
-Documentation captured = AstDocumentation.extractExact(source).orElse(Documentation.empty());
-Documentation generated = captured.toBuilder()
-        .summary("Creates {{kind}} documentation.")
-        .template("kind", "builder")
-        .paragraph("The generated builder preserves model semantics.")
-        .codeBlock("owner.copyBuilder(source)")
-        .filterParameters(List.of("source"))
-        .see(AstDocumentation.referenceTo(source))
+MethodNode helperMethod = /* resolved WidgetHelper.create compiler-model method */;
+MethodNode generatedMethod = /* newly created delegation method */;
+
+Documentation helperDocumentation = AstDocumentation.extractExact(helperMethod)
+        .orElse(Documentation.empty());
+Documentation generatedDocumentation = helperDocumentation.toBuilder()
+        .template("kind", "widget")
         .build();
-AstDocumentation.attach(target, generated);
+AstDocumentation.attach(generatedMethod, generatedDocumentation);
 ```
+
+`extractExact` hides the capture carrier. It reads an `@AnnoDoc` carrier when one is attached to the compiler model and
+also reads Java APT documentation properties for Java helper classes; transformations should not inspect either format
+directly. The transformation can further use `summary`, `paragraph`, `codeBlock`, `filterParameters`, and
+`AstDocumentation.referenceTo` before attachment.
 
 `extractExact` does not search supertypes. `attach` replaces AnnoDocimal's carrier, keeps third-party carriers, filters
 parameter descriptions to the target signature, and removes AnnoDocimal documentation for an empty value. Values are
