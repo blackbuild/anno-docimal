@@ -54,6 +54,10 @@ not promise original bodies or initializers: deterministic default statements an
 requires them for a valid stub. Synthetic implementation details under the documentation preset, original whitespace,
 and import layout are likewise not preserved.
 
+Supported Java records retain their record kind, component list, generic bounds, implemented interfaces, and named
+nested declarations. The projection emits a deterministic canonical-constructor body so both top-level and nested
+record source remains compilable without reconstructing the original constructor implementation.
+
 Generic signatures retain the declaration context needed to resolve every type variable. In particular, a nested member
 type reached through a parameterized enclosing type keeps that owner qualification in method, field, superclass, and
 interface signatures, including inherited signatures with bounds and wildcards. When implementation bytecode retains a
