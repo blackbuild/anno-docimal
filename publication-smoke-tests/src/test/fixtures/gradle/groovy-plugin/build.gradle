@@ -1,0 +1,12 @@
+plugins {
+    id 'com.blackbuild.annodocimal.groovy-plugin' version '%%VERSION%%'
+}
+
+tasks.register('exercisePlugin') {
+    doLast {
+        if (!plugins.hasPlugin('groovy'))
+            throw new GradleException('The Groovy plugin marker did not apply Gradle Groovy support')
+        if (!plugins.hasPlugin('com.blackbuild.annodocimal.base-plugin'))
+            throw new GradleException('The Groovy plugin did not compose the base plugin')
+    }
+}

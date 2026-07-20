@@ -1,0 +1,88 @@
+plugins {
+    id 'groovy'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+dependencies {
+    testImplementation libs.bundles.spock.groovy.v3
+    testImplementation gradleTestKit()
+    testRuntimeOnly libs.bundles.spockRuntime
+    testRuntimeOnly libs.jpl
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    dependsOn rootProject.tasks.named('stagePublicationAuditRepository')
+    dependsOn rootProject.tasks.named('extractMaven')
+    dependsOn rootProject.tasks.named('verifyPublicationReleaseConfiguration')
+    systemProperty 'annodocimal.publication.repository', rootProject.layout.buildDirectory
+            .dir('publication-audit-repository').get().asFile.absolutePath
+    systemProperty 'annodocimal.publication.version', project.version.toString()
+    systemProperty 'annodocimal.maven.executable', rootProject.layout.buildDirectory
+            .file("maven-distribution/apache-maven-${mavenVersion}/bin/mvn").get().asFile.absolutePath
+}
+
+def publicRcVersion = providers.gradleProperty('annodocimalVersion')
+def publicRcFixtureDirectory = layout.buildDirectory.dir('public-rc-fixtures')
+def publicRcGradleUserHome = layout.buildDirectory.dir('public-rc-gradle-user-home')
+def publicRcMavenUserHome = layout.buildDirectory.dir('public-rc-maven-user-home')
+
+tasks.register('preparePublicRcFixtures', Sync) {
+    into publicRcFixtureDirectory
+
+    from('src/test/fixtures/gradle') {
+        into 'gradle'
+        exclude 'settings.gradle'
+        filter { line -> line.replace('%%VERSION%%', publicRcVersion.get()) }
+    }
+    from('src/publicRc/gradle-settings.gradle') {
+        into 'gradle'
+        rename { 'settings.gradle' }
+    }
+    from('src/test/fixtures/maven') {
+        into 'maven'
+        filter { line -> line.replace('%%VERSION%%', publicRcVersion.get()) }
+    }
+    from('src/publicRc/maven-settings.xml') {
+        into 'maven'
+        rename { 'settings.xml' }
+    }
+
+    doFirst {
+        if (!publicRcVersion.present || !(publicRcVersion.get() ==~ /\d+\.\d+\.\d+-rc\.\d+/))
+            throw new GradleException(
+                    'Set -PannodocimalVersion to one exact immutable RC version such as 1.0.0-rc.1')
+        delete publicRcGradleUserHome, publicRcMavenUserHome
+    }
+}
+
+tasks.register('publicRcGradleSmoke', GradleBuild) {
+    dependsOn tasks.named('preparePublicRcFixtures')
+    dir publicRcFixtureDirectory.map { it.dir('gradle') }
+    tasks = ['exerciseConsumer']
+    startParameter.gradleUserHomeDir = publicRcGradleUserHome.get().asFile
+}
+
+tasks.register('publicRcMavenSmoke', Exec) {
+    dependsOn tasks.named('preparePublicRcFixtures')
+    dependsOn rootProject.tasks.named('extractMaven')
+    workingDir publicRcFixtureDirectory.map { it.dir('maven') }
+    executable rootProject.layout.buildDirectory
+            .file("maven-distribution/apache-maven-${mavenVersion}/bin/mvn").get().asFile
+    args '--batch-mode', '--no-transfer-progress',
+            "-Dmaven.repo.local=${publicRcMavenUserHome.get().dir('repository').asFile}",
+            '--settings', 'settings.xml',
+            "org.apache.maven.plugins:maven-compiler-plugin:${mavenCompilerPluginVersion}:compile"
+}
+
+tasks.register('publicRcSmoke') {
+    group = 'verification'
+    description = 'Validates all six artifacts and both plugin IDs at one exact RC from public repositories.'
+    dependsOn tasks.named('publicRcGradleSmoke')
+    dependsOn tasks.named('publicRcMavenSmoke')
+}
