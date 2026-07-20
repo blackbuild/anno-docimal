@@ -36,6 +36,19 @@ Source-projection changes require exact generated-source assertions for affected
 The Gradle integration must document and verify a supported Gradle range. Use the wrapper as the primary development
 baseline and test the documented minimum separately. Raising that minimum is a breaking compatibility change.
 
+## Issue traceability
+
+Every newly added test must carry Spock's `@Issue` annotation with the number of its driving GitHub issue. When one issue
+owns a complete specification or test class, put `@Issue` on the class; that annotation is sufficient for every test in
+the class driven by that issue. Put `@Issue` on an individual test when a later or different issue drives that test.
+
+When a change affects an existing test, add or amend its `@Issue` annotation only if the test change is significant. A
+change is significant when it materially changes the tested behavior, scenario, or expected contract. Mechanical edits,
+renames, formatting, and adjustments to shared setup do not require issue-annotation churn.
+
+This policy applies prospectively. Do not expand the current work by retrofitting unrelated parts of the existing test
+suite.
+
 Every ignored, conditionally ignored, or pending test must state an actionable reason and, where possible, the condition
 for removing the suppression.
 

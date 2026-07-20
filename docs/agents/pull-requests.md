@@ -15,6 +15,10 @@ or documentation semantics.
 - Inspect all required CI and SonarCloud findings for the current revision. A green job proves the tested state, not that
   an architectural decision has been made.
 - Run focused tests first, then all affected Groovy lanes; use root `check` for final repository verification.
+- Verify that every newly added test carries its driving GitHub issue number in Spock's `@Issue`. A class-level annotation
+  is sufficient while one issue owns the class; use method-level annotations for tests driven by later or different
+  issues. Add or amend `@Issue` on changed existing tests only for significant behavioral changes, and do not retrofit
+  unrelated tests.
 
 ## Review feedback
 
