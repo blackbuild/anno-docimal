@@ -38,6 +38,12 @@ names unless a conflict or generated-source constraint requires qualification. S
 
 Groovy 3 is the baseline `test` lane. Groovy 4 and Groovy 5 compatibility use `groovy4Tests` and `groovy5Tests`; root
 `check` includes the compatibility suites for projects using the multi-Groovy convention. See `docs/agents/testing.md`.
+Documentation-only changes that cannot affect compilation, test execution, generated output, or runtime behavior do not
+require Gradle checks; run the applicable documentation and diff checks instead.
+Every newly added test must carry its driving GitHub issue number in Spock's `@Issue`; a class-level annotation is
+sufficient while one issue owns the class, and individual methods identify tests driven by later or different issues.
+Add or amend `@Issue` on changed existing tests only for significant behavioral changes. Apply this rule prospectively;
+do not retrofit unrelated tests.
 
 ### Issue implementation and commits
 
