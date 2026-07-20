@@ -1,0 +1,23 @@
+plugins {
+    id 'groovy'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+dependencies {
+    testImplementation libs.spock.g3
+    testRuntimeOnly libs.bundles.spockRuntime
+    testRuntimeOnly libs.jpl
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    dependsOn rootProject.tasks.named('stagePublicationAuditRepository')
+    systemProperty 'annodocimal.publication.repository', rootProject.layout.buildDirectory
+            .dir('publication-audit-repository').get().asFile.absolutePath
+    systemProperty 'annodocimal.publication.version', project.version.toString()
+}

@@ -41,3 +41,65 @@ sonar {
         property "sonar.gradle.skipCompile", "true"
     }
 }
+
+def publicationAuditRepository = layout.buildDirectory.dir('publication-audit-repository')
+def cleanPublicationAuditRepository = tasks.register('cleanPublicationAuditRepository', Delete) {
+    delete publicationAuditRepository
+}
+
+def publicationAuditModules = [
+        [project: ':anno-docimal-annotations', publication: 'mavenJava', metadata: true],
+        [project: ':anno-docimal-apt', publication: 'mavenJava', metadata: true],
+        [project: ':anno-docimal-ast', publication: 'mavenJava', metadata: true],
+        [project: ':anno-docimal-global-ast', publication: 'mavenJava', metadata: true],
+        [project: ':anno-docimal-generator', publication: 'shadow', metadata: true],
+        [project: ':anno-docimal-gradle-plugin', publication: 'pluginMaven', metadata: true],
+        [project: ':anno-docimal-gradle-plugin', publication: 'annoDocimalBasePluginPluginMarkerMaven', metadata: false],
+        [project: ':anno-docimal-gradle-plugin', publication: 'annoDocimalGroovyPluginPluginMarkerMaven', metadata: false]
+]
+
+tasks.register('stagePublicationAuditRepository') {
+    group = 'verification'
+    description = 'Stages unsigned publication artifacts in an isolated repository for consumer smoke tests.'
+    dependsOn cleanPublicationAuditRepository
+    publicationAuditModules.each { module ->
+        def capitalizedPublication = module.publication.capitalize()
+        dependsOn "${module.project}:generatePomFileFor${capitalizedPublication}Publication"
+        if (module.metadata)
+            dependsOn "${module.project}:generateMetadataFileFor${capitalizedPublication}Publication"
+    }
+
+    doLast {
+        publicationAuditModules.each { module ->
+            def publicationProject = project(module.project)
+            def publication = publicationProject.publishing.publications.getByName(module.publication)
+            def destination = publicationAuditRepository.get().dir(
+                    "${publication.groupId.replace('.', '/')}/${publication.artifactId}/${publication.version}").asFile
+
+            copy {
+                from publication.artifacts.collect { it.file }.findAll {
+                    it.isFile() && !it.name.endsWith('.asc')
+                }
+                into destination
+            }
+            copy {
+                from publicationProject.layout.buildDirectory.file(
+                        "publications/${module.publication}/pom-default.xml")
+                into destination
+                rename { "${publication.artifactId}-${publication.version}.pom" }
+            }
+            if (module.metadata) {
+                copy {
+                    from publicationProject.layout.buildDirectory.file(
+                            "publications/${module.publication}/module.json")
+                    into destination
+                    rename { "${publication.artifactId}-${publication.version}.module" }
+                }
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn ':publication-smoke-tests:test'
+}

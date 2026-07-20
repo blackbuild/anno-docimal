@@ -13,7 +13,7 @@ tasks.withType(Jar).configureEach {
 
 dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
-    api libs.jspecify
+    shadow libs.jspecify
     compileOnly gradleApi()
     implementation "com.squareup:javapoet:1.13.0"
     implementation "org.ow2.asm:asm-tree:9.10.1"
@@ -22,26 +22,33 @@ dependencies {
     sharedTests "com.squareup:javapoet:1.13.0"
 }
 
+tasks.named('jar', Jar) {
+    archiveClassifier.set('main')
+}
+
 tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    archiveClassifier.set('')
     relocate 'com.squareup.javapoet', 'shadow.javapoet'
     relocate 'org.objectweb.asm', 'shadow.asm'
-    dependencies {
-        exclude(dependency('org.jspecify:jspecify:.*'))
-    }
+}
+
+components.java.withVariantsFromConfiguration(configurations.apiElements) {
+    skip()
+}
+components.java.withVariantsFromConfiguration(configurations.runtimeElements) {
+    skip()
 }
 
 publishing {
     publications {
         shadow(MavenPublication) {
-            components.shadow
+            from(components.java)
             pom.withXml {
                 def jspecify = libs.jspecify.get()
-                def dependenciesNode = asNode().appendNode('dependencies')
-                def dependencyNode = dependenciesNode.appendNode('dependency')
-                dependencyNode.appendNode('groupId', jspecify.module.group)
-                dependencyNode.appendNode('artifactId', jspecify.module.name)
-                dependencyNode.appendNode('version', jspecify.versionConstraint.requiredVersion)
-                dependencyNode.appendNode('scope', 'compile')
+                def dependencyNode = asNode().dependencies.dependency.find {
+                    it.groupId.text() == jspecify.module.group && it.artifactId.text() == jspecify.module.name
+                }
+                dependencyNode.children().removeAll { it.name() == 'optional' }
             }
         }
     }
