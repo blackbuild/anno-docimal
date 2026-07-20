@@ -23,12 +23,15 @@
  */
 package com.blackbuild.annodocimal.publication
 
+import groovy.json.JsonSlurper
+import groovy.xml.XmlSlurper
 import spock.lang.Issue
 import spock.lang.Shared
 import spock.lang.Specification
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.jar.JarFile
 
 @Issue('#44')
 class LocalPublicationContractTest extends Specification {
@@ -67,6 +70,222 @@ class LocalPublicationContractTest extends Specification {
             def directory = moduleDirectory(pluginId, artifact)
             Files.isRegularFile(directory.resolve("${artifact}-${version}.pom"))
         }
+    }
+
+    def 'POMs expose only the intended consumer dependencies and descriptions'() {
+        expect:
+        pomContract('anno-docimal-annotations') == [
+                description : 'Annotations for AnnoDocimal',
+                dependencies: ['org.jspecify:jspecify:compile']
+        ]
+        pomContract('anno-docimal-apt') == [
+                description : 'Annotation Processor for AnnoDocimal',
+                dependencies: ['com.blackbuild.annodocimal:anno-docimal-annotations:compile']
+        ]
+        pomContract('anno-docimal-ast') == [
+                description : 'Groovy AST documentation capture and helper APIs for AnnoDocimal',
+                dependencies: [
+                        'com.blackbuild.annodocimal:anno-docimal-annotations:compile',
+                        'org.jspecify:jspecify:compile'
+                ]
+        ]
+        pomContract('anno-docimal-global-ast') == [
+                description : 'Global Groovy AST documentation capture for AnnoDocimal',
+                dependencies: ['com.blackbuild.annodocimal:anno-docimal-ast:compile']
+        ]
+        pomContract('anno-docimal-generator') == [
+                description : 'Source-projection generator for AnnoDocimal',
+                dependencies: ['org.jspecify:jspecify:compile']
+        ]
+        pomContract('anno-docimal-gradle-plugin') == [
+                description : 'AnnoDocimal source-projection Gradle plugins',
+                dependencies: []
+        ]
+
+        and:
+        pluginMarkerDependency('com.blackbuild.annodocimal.base-plugin') ==
+                "com.blackbuild.annodocimal:anno-docimal-gradle-plugin:${version}"
+        pluginMarkerDependency('com.blackbuild.annodocimal.groovy-plugin') ==
+                "com.blackbuild.annodocimal:anno-docimal-gradle-plugin:${version}"
+    }
+
+    def 'Gradle module metadata describes resolvable variants and files'() {
+        when:
+        def contracts = ARTIFACTS.collectEntries { artifact ->
+            def metadata = new JsonSlurper().parse(moduleFile(artifact).toFile())
+            [(artifact): metadata.variants.collectEntries { variant ->
+                [(variant.name): [
+                        dependencies: (variant.dependencies ?: []).collect {
+                            "${it.group}:${it.module}"
+                        }.sort(),
+                        files       : (variant.files ?: []).collect { it.url }.sort()
+                ]]
+            }]
+        }
+
+        then:
+        contracts['anno-docimal-generator'].keySet() ==
+                ['javadocElements', 'sourcesElements', 'shadowRuntimeElements'] as Set
+        contracts['anno-docimal-generator'].shadowRuntimeElements.dependencies == ['org.jspecify:jspecify']
+        contracts['anno-docimal-gradle-plugin'].keySet() ==
+                ['javadocElements', 'sourcesElements', 'shadowRuntimeElements'] as Set
+        contracts['anno-docimal-gradle-plugin'].shadowRuntimeElements.dependencies == []
+
+        and:
+        ['anno-docimal-annotations', 'anno-docimal-apt', 'anno-docimal-global-ast'].every { artifact ->
+            contracts[artifact].keySet() ==
+                    ['apiElements', 'runtimeElements', 'javadocElements', 'sourcesElements'] as Set
+        }
+        contracts['anno-docimal-ast'].keySet() == [
+                'apiElements', 'runtimeElements', 'javadocElements', 'sourcesElements',
+                'testFixturesApiElements', 'testFixturesRuntimeElements'
+        ] as Set
+
+        and:
+        contracts.values().every { variants ->
+            variants.values().every { variant ->
+                variant.files.every { fileName ->
+                    Files.isRegularFile(repositoryFileFor(fileName))
+                }
+            }
+        }
+    }
+
+    def 'published JARs preserve module services plugins and shaded boundaries'() {
+        expect:
+        [
+                'anno-docimal-annotations': 'com.blackbuild.annodocimal.annotations',
+                'anno-docimal-apt': 'com.blackbuild.annodocimal.apt',
+                'anno-docimal-ast': 'com.blackbuild.annodocimal.ast',
+                'anno-docimal-global-ast': 'com.blackbuild.annodocimal.global.ast',
+                'anno-docimal-generator': 'com.blackbuild.annodocimal.generator'
+        ].every { artifact, moduleName ->
+            withJar(artifact) { jar ->
+                jar.manifest.mainAttributes.getValue('Automatic-Module-Name') == moduleName
+            }
+        }
+
+        and:
+        jarEntryText('anno-docimal-apt', 'META-INF/services/javax.annotation.processing.Processor') ==
+                'com.blackbuild.annodocimal.ast.AnnoDocimalAnnotationProcessor'
+        jarEntries('anno-docimal-apt').contains(
+                'com/blackbuild/annodocimal/ast/AnnoDocimalAnnotationProcessor.class')
+        jarEntryText('anno-docimal-global-ast',
+                'META-INF/services/org.codehaus.groovy.transform.ASTTransformation') ==
+                'com.blackbuild.annodocimal.global.ast.InlineJavadocsGlobalTransformation'
+        jarEntries('anno-docimal-global-ast').contains(
+                'com/blackbuild/annodocimal/global/ast/InlineJavadocsGlobalTransformation.class')
+
+        and:
+        jarEntryText('anno-docimal-gradle-plugin',
+                'META-INF/gradle-plugins/com.blackbuild.annodocimal.base-plugin.properties') ==
+                'implementation-class=com.blackbuild.annodocimal.plugin.AnnoDocimalBasePlugin'
+        jarEntryText('anno-docimal-gradle-plugin',
+                'META-INF/gradle-plugins/com.blackbuild.annodocimal.groovy-plugin.properties') ==
+                'implementation-class=com.blackbuild.annodocimal.plugin.AnnoDocimalGroovyPlugin'
+        jarEntries('anno-docimal-gradle-plugin').containsAll([
+                'com/blackbuild/annodocimal/plugin/AnnoDocimalBasePlugin.class',
+                'com/blackbuild/annodocimal/plugin/AnnoDocimalGroovyPlugin.class'
+        ])
+
+        and:
+        ['anno-docimal-generator', 'anno-docimal-gradle-plugin'].every { artifact ->
+            def entries = jarEntries(artifact)
+            entries.contains('com/blackbuild/annodocimal/generator/SourceProjector.class') &&
+                    entries.contains('shadow/asm/ClassReader.class') &&
+                    entries.contains('shadow/javapoet/JavaFile.class') &&
+                    entries.every { entry ->
+                        !entry.startsWith('org/objectweb/asm/') &&
+                                !entry.startsWith('com/squareup/javapoet/') &&
+                                !entry.startsWith('org/jspecify/') &&
+                                !entry.startsWith('org/gradle/') &&
+                                !entry.startsWith('org/codehaus/groovy/') &&
+                                !entry.startsWith('org/apache/groovy/')
+                    }
+        }
+    }
+
+    def 'sources and Javadocs describe every user-facing Java artifact'() {
+        expect:
+        [
+                'anno-docimal-annotations': 'com/blackbuild/annodocimal/annotations/AnnoDoc.java',
+                'anno-docimal-apt': 'com/blackbuild/annodocimal/ast/AnnoDocimalAnnotationProcessor.java',
+                'anno-docimal-ast': 'com/blackbuild/annodocimal/ast/AstDocumentation.java',
+                'anno-docimal-global-ast':
+                        'com/blackbuild/annodocimal/global/ast/InlineJavadocsGlobalTransformation.java',
+                'anno-docimal-generator': 'com/blackbuild/annodocimal/generator/SourceProjector.java',
+                'anno-docimal-gradle-plugin': 'com/blackbuild/annodocimal/plugin/SourceProjectionTask.java'
+        ].every { artifact, sourceEntry ->
+            archiveEntries(artifactFile(artifact, 'sources')).contains(sourceEntry)
+        }
+
+        and:
+        [
+                'anno-docimal-annotations': 'com/blackbuild/annodocimal/annotations/AnnoDoc.html',
+                'anno-docimal-apt': 'com/blackbuild/annodocimal/ast/AnnoDocimalAnnotationProcessor.html',
+                'anno-docimal-ast': 'com/blackbuild/annodocimal/ast/AstDocumentation.html',
+                'anno-docimal-global-ast':
+                        'com/blackbuild/annodocimal/global/ast/InlineJavadocsGlobalTransformation.html',
+                'anno-docimal-generator': 'com/blackbuild/annodocimal/generator/SourceProjector.html',
+                'anno-docimal-gradle-plugin': 'com/blackbuild/annodocimal/plugin/SourceProjectionTask.html'
+        ].every { artifact, javadocEntry ->
+            archiveEntries(artifactFile(artifact, 'javadoc')).contains(javadocEntry)
+        }
+    }
+
+    private Map<String, ?> pomContract(String artifact) {
+        def pom = new XmlSlurper(false, false).parse(artifactFile(artifact, null, 'pom').toFile())
+        [
+                description : pom.description.text(),
+                dependencies: pom.dependencies.dependency.collect {
+                    "${it.groupId.text()}:${it.artifactId.text()}:${it.scope.text()}"
+                }.sort()
+        ]
+    }
+
+    private String pluginMarkerDependency(String pluginId) {
+        def artifact = "${pluginId}.gradle.plugin"
+        def pom = new XmlSlurper(false, false).parse(
+                artifactFile(pluginId, artifact, null, 'pom').toFile())
+        def dependency = pom.dependencies.dependency[0]
+        "${dependency.groupId.text()}:${dependency.artifactId.text()}:${dependency.version.text()}"
+    }
+
+    private Path moduleFile(String artifact) {
+        artifactFile(artifact, null, 'module')
+    }
+
+    private Path repositoryFileFor(String fileName) {
+        Files.walk(repository).filter { it.fileName.toString() == fileName }.findFirst().orElseThrow()
+    }
+
+    private Set<String> jarEntries(String artifact) {
+        archiveEntries(artifactFile(artifact))
+    }
+
+    private Set<String> archiveEntries(Path archive) {
+        new JarFile(archive.toFile()).withCloseable { jar ->
+            jar.entries().collect { it.name } as Set
+        }
+    }
+
+    private String jarEntryText(String artifact, String entry) {
+        withJar(artifact) { jar ->
+            jar.getInputStream(jar.getJarEntry(entry)).getText('UTF-8').trim()
+        }
+    }
+
+    private <T> T withJar(String artifact, Closure<T> action) {
+        new JarFile(artifactFile(artifact).toFile()).withCloseable(action)
+    }
+
+    private Path artifactFile(String artifact, String classifier = null, String extension = 'jar') {
+        artifactFile('com.blackbuild.annodocimal', artifact, classifier, extension)
+    }
+
+    private Path artifactFile(String group, String artifact, String classifier, String extension) {
+        def suffix = classifier == null ? '' : "-${classifier}"
+        moduleDirectory(group, artifact).resolve("${artifact}-${version}${suffix}.${extension}")
     }
 
     private Path moduleDirectory(String group, String artifact) {

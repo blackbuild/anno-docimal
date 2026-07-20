@@ -9,7 +9,7 @@ java {
 }
 
 dependencies {
-    testImplementation libs.spock.g3
+    testImplementation libs.bundles.spock.groovy.v3
     testRuntimeOnly libs.bundles.spockRuntime
     testRuntimeOnly libs.jpl
 }
