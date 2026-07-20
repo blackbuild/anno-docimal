@@ -20,6 +20,12 @@ Start with the narrowest relevant test. Run Groovy 4 and 5 during development wh
 behavior, Groovy syntax, bytecode shape, dependency compatibility, or known output differences. Run root `./gradlew check`
 before final handoff.
 
+A documentation-only change does not require the Gradle test lanes or root `check` when its changes cannot affect
+compilation, test execution, generated output, or runtime behavior. Run `git diff --check` plus any applicable Markdown,
+link, rendering, or documentation-generation checks instead, and report the omitted Gradle validation. Treat changes to
+build configuration, executable or compiled examples, generated-source inputs, and test fixtures as code changes rather
+than documentation-only changes.
+
 Projects using the multi-Groovy convention share `src/test/groovy`, `src/test/java`, and `src/test/resources` as source
 inputs, then compile and process those inputs into separate output directories for every lane. Groovy 4 and 5 therefore
 reuse neither Groovy 3 test classes nor Groovy 3 test resources. Across compiled and runtime inputs, sharing is limited to
