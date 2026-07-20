@@ -295,9 +295,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
                     @Override
                     public void visitEnd() {
-                        if (this.builder.members.size() != 1)
-                            throw new IllegalStateException("Expected exactly one member in default value");
-                        this.builder.members.values().stream().map(l -> l.get(0)).forEach(methodBuilder::defaultValue);
+                        methodBuilder.defaultValue(singleMember());
                     }
                 };
             }

@@ -424,7 +424,7 @@ public interface Dummy {
         generatedSource.contains("public void publicMethod()")
     }
 
-    @IgnoreIf({ GroovySystem.version ==~ /^4\..*$/ })
+    @Issue("33")
     def "method conversion with annotations"() {
         given:
         createClass("""
@@ -454,19 +454,20 @@ public interface Dummy {
                   '@WithPrimitives(stringValue = "bla")',
                   '@WithPrimitives(intArray = [1, 2])',
                   '@WithPrimitives(classValue = ArrayList.class)',
-                  "@WithPrimitives(intValue = 1, booleanValue = true)",
+                  "@WithPrimitives(booleanValue = true, intValue = 1)",
                   "@WithEnum(RetentionPolicy.RUNTIME)",
                   "@Nested(primitiveValue = @WithPrimitives)",
                   "@Nested(primitiveValue = @WithPrimitives(intValue = 1))",
-                  "@Nested(primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
+                  "@Nested(primitiveValue = @WithPrimitives(booleanValue = true, intValue = 1))",
                   "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME))",
                   "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1))",
-                  "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(intValue = 1, booleanValue = true))",
+                  "@Nested(enumValue = @WithEnum(RetentionPolicy.RUNTIME), primitiveValue = @WithPrimitives(booleanValue = true, intValue = 1))",
                   "@Nested(primitivesArray = [@WithPrimitives(intValue = 1), @WithPrimitives(intValue = 2)])",
         ]
     }
 
     @Requires({ GroovySystem.version ==~ /^4\..*$/ })
+    @Issue("33")
     def "method conversion with annotations G4: #description "() {
         given:
         createClass("""
@@ -765,8 +766,8 @@ import java.lang.annotation.RetentionPolicy
         generated.getBlock("public void setField(String param0)") || generated.getBlock("public void setField(String value)")
     }
 
-    @Requires({ GroovySystem.version ==~ /^3\..*$/ })
-    def "basic annotation conversion G3"() {
+    @Issue("33")
+    def "basic annotation conversion"() {
         given:
         parseClass '''
 package bummy
@@ -829,187 +830,21 @@ import java.lang.annotation.Target
         then:
         noExceptionThrown()
         generatedSource.contains('''@MyAnnotation(
-    charValue = '\\u0000',
-    intValue = 1,
-    name = "Test",
-    floatValue = 3.0f,
-    booleanValue = true,
-    shortValue = 32767,
-    doubleValue = 4.0,
-    type = String.class,
-    longValue = 2L,
-    byteValue = 127,
-    retention = RetentionPolicy.RUNTIME,
-    anno = @Target({ElementType.FIELD}),
-    names = {"a", "b"},
-    targets = {ElementType.FIELD, ElementType.METHOD},
-    annos = {@Target({ElementType.FIELD}), @Target({ElementType.METHOD})}
-)''')
-    }
-
-    @Requires({ GroovySystem.version ==~ /^4\..*$/ })
-    // groovy 4 compiler sorts annotation members alphabetically, so the order is different
-    def "basic annotation conversion G4"() {
-        given:
-        println "Groovy version: ${GroovySystem.version}"
-        parseClass '''
-package bummy
-
-import java.lang.annotation.ElementType
-import java.lang.annotation.Retention
-import java.lang.annotation.RetentionPolicy
-import java.lang.annotation.Target
-
-@Retention(RetentionPolicy.RUNTIME)
-@interface MyAnnotation {
-    String name()
-    Class<?> type()
-    RetentionPolicy retention()
-    ElementType[] targets()
-    String[] names()
-    Target anno()
-    Target[] annos()
-    int intValue()
-    long longValue()
-    float floatValue()
-    double doubleValue()
-    char charValue()
-    boolean booleanValue()
-    byte byteValue()
-    short shortValue()
-}
-'''
-        // since there is no way to specify a literal short/char/byte in groovy, we use MAX/MIN_VALUE
-        createClass("""
-            package dummy
-
-import java.lang.annotation.ElementType
-import java.lang.annotation.RetentionPolicy
-import java.lang.annotation.Target
-            
-            @bummy.MyAnnotation(
-                name = "Test",
-                type = String.class,
-                retention = RetentionPolicy.RUNTIME,
-                targets = [ElementType.FIELD, ElementType.METHOD],
-                names = ["a", "b"],
-                anno = @Target(ElementType.FIELD),
-                annos = [@Target(ElementType.FIELD), @Target(ElementType.METHOD)],
-                intValue = 1,
-                longValue = 2L,
-                floatValue = 3.0f,
-                doubleValue = 4.0d,
-                charValue = Character.MIN_VALUE,
-                booleanValue = true,
-                byteValue = Byte.MAX_VALUE,
-                shortValue = Short.MAX_VALUE
-            )
-            class TestClass {}
-        """)
-
-        when:
-        generateSourceText()
-
-        then:
-        noExceptionThrown()
-        generatedSource.contains('''@MyAnnotation(
-    booleanValue = true,
-    byteValue = 127,
-    charValue = '\\u0000',
-    doubleValue = 4.0,
-    floatValue = 3.0f,
-    intValue = 1,
-    longValue = 2L,
-    name = "Test",
-    shortValue = 32767,
-    type = String.class,
-    retention = RetentionPolicy.RUNTIME,
     anno = @Target({ElementType.FIELD}),
     annos = {@Target({ElementType.FIELD}), @Target({ElementType.METHOD})},
-    names = {"a", "b"},
-    targets = {ElementType.FIELD, ElementType.METHOD}
-)''')
-    }
-
-    @Requires({ GroovySystem.version ==~ /^5\..*$/ })
-    def "basic annotation conversion G5"() {
-        given:
-        parseClass '''
-package bummy
-
-import java.lang.annotation.ElementType
-import java.lang.annotation.Retention
-import java.lang.annotation.RetentionPolicy
-import java.lang.annotation.Target
-
-@Retention(RetentionPolicy.RUNTIME)
-@interface MyAnnotation {
-    String name()
-    Class<?> type()
-    RetentionPolicy retention()
-    ElementType[] targets()
-    String[] names()
-    Target anno()
-    Target[] annos()
-    int intValue()
-    long longValue()
-    float floatValue()
-    double doubleValue()
-    char charValue()
-    boolean booleanValue()
-    byte byteValue()
-    short shortValue()
-}
-'''
-        // since there is no way to specify a literal short/char/byte in groovy, we use MAX/MIN_VALUE
-        createClass("""
-            package dummy
-
-import java.lang.annotation.ElementType
-import java.lang.annotation.RetentionPolicy
-import java.lang.annotation.Target
-            
-            @bummy.MyAnnotation(
-                name = "Test",
-                type = String.class,
-                retention = RetentionPolicy.RUNTIME,
-                targets = [ElementType.FIELD, ElementType.METHOD],
-                names = ["a", "b"],
-                anno = @Target(ElementType.FIELD),
-                annos = [@Target(ElementType.FIELD), @Target(ElementType.METHOD)],
-                intValue = 1,
-                longValue = 2L,
-                floatValue = 3.0f,
-                doubleValue = 4.0d,
-                charValue = Character.MIN_VALUE,
-                booleanValue = true,
-                byteValue = Byte.MAX_VALUE,
-                shortValue = Short.MAX_VALUE
-            )
-            class TestClass {}
-        """)
-
-        when:
-        generateSourceText()
-
-        then:
-        noExceptionThrown()
-        generatedSource.contains('''@MyAnnotation(
-    name = "Test",
-    type = String.class,
-    retention = RetentionPolicy.RUNTIME,
-    targets = {ElementType.FIELD, ElementType.METHOD},
-    names = {"a", "b"},
-    anno = @Target({ElementType.FIELD}),
-    annos = {@Target({ElementType.FIELD}), @Target({ElementType.METHOD})},
-    intValue = 1,
-    longValue = 2L,
-    floatValue = 3.0f,
-    doubleValue = 4.0,
-    charValue = '\\u0000',
     booleanValue = true,
     byteValue = 127,
-    shortValue = 32767
+    charValue = '\\u0000',
+    doubleValue = 4.0,
+    floatValue = 3.0f,
+    intValue = 1,
+    longValue = 2L,
+    name = "Test",
+    names = {"a", "b"},
+    retention = RetentionPolicy.RUNTIME,
+    shortValue = 32767,
+    targets = {ElementType.FIELD, ElementType.METHOD},
+    type = String.class
 )''')
     }
 
