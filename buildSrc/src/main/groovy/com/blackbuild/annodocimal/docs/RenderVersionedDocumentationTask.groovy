@@ -32,6 +32,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -41,6 +42,9 @@ abstract class RenderVersionedDocumentationTask extends DefaultTask {
     @Input abstract Property<String> getRendererRevision()
     @Input abstract Property<String> getDocumentationVersion()
     @Input abstract Property<String> getStage()
+    @Input @Optional abstract Property<String> getBrandingManifestPath()
+    @Input @Optional abstract Property<String> getCurrentBrandingManifestPath()
+    @Input @Optional abstract Property<String> getSuccessorOf()
     @InputDirectory abstract DirectoryProperty getObjectDirectory()
     @Input abstract MapProperty<String, String> getJavadocInputDirectories()
     @InputFiles @PathSensitive(PathSensitivity.RELATIVE) abstract ConfigurableFileCollection getJavadocInputs()
@@ -51,6 +55,8 @@ abstract class RenderVersionedDocumentationTask extends DefaultTask {
         VersionedDocumentationRenderer.render(
                 objectDirectory: objectDirectory.get().asFile, outputDirectory: outputDirectory.get().asFile,
                 revision: revision.get(), rendererRevision: rendererRevision.get(), version: documentationVersion.get(),
-                stage: stage.get(), javadocInputDirectories: javadocInputDirectories.get())
+                stage: stage.get(), brandingManifestPath: brandingManifestPath.orNull,
+                currentBrandingManifestPath: currentBrandingManifestPath.orNull, successorOf: successorOf.orNull,
+                javadocInputDirectories: javadocInputDirectories.get())
     }
 }

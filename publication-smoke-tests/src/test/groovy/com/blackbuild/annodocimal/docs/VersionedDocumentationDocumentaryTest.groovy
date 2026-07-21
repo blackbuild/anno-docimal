@@ -29,6 +29,7 @@ import spock.lang.Specification
 import spock.lang.Tag
 
 import java.nio.file.Files
+import java.security.MessageDigest
 
 @Issue('71')
 @Tag('documentary')
@@ -45,6 +46,19 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         new File(checkout, 'README.md').text = '# AnnoDocimal\n'
         new File(checkout, 'CHANGES.md').text = '# Changes\n'
         new File(checkout, 'docs/usage.md').text = '# Usage\n'
+        new File(checkout, 'img').mkdirs()
+        byte[] logo = 'documentary-logo'.bytes
+        new File(checkout, 'img/annodocimallogo.png').bytes = logo
+        new File(checkout, 'docs/branding').mkdirs()
+        new File(checkout, 'docs/branding/annodocimal-current.json').text = """{
+  \"identity\": \"AnnoDocimal\",
+  \"season\": \"Current identity\",
+  \"logo\": \"img/annodocimallogo.png\",
+  \"altText\": \"AnnoDocimal logo\",
+  \"sha256\": \"${MessageDigest.getInstance('SHA-256').digest(logo).encodeHex()}\",
+  \"approval\": \"documentary fixture\"
+}
+"""
         git(checkout, ['add', '.'])
         git(checkout, ['commit', '-m', 'fixture documentation'])
         String revision = git(checkout, ['rev-parse', 'HEAD']).trim()
@@ -60,12 +74,15 @@ class VersionedDocumentationDocumentaryTest extends Specification {
                 rendererRevision: revision,
                 version: '1.0.0-rc.1',
                 stage: 'public-rc',
+                brandingManifestPath: 'docs/branding/annodocimal-current.json',
+                currentBrandingManifestPath: 'docs/branding/annodocimal-current.json',
                 javadocInputDirectories: ['anno-docimal-annotations': javadocs])
 
         then: 'the output makes its immutable source, stage, and public API visible'
         new File(output, '1.0.0-rc.1/index.md').text.contains('1.0.0-rc.1 — public-rc')
         new File(output, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file
         new File(output, '1.0.0-rc.1/source-manifest.json').text.contains(revision)
+        new File(output, '1.0.0-rc.1/index.md').text.contains('successor status record')
     }
 
     private static String git(File directory, List<String> arguments) {

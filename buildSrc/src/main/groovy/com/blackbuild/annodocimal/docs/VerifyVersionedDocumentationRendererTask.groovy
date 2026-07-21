@@ -39,6 +39,13 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         new File(fixture, 'README.md').text = '# AnnoDocimal\n'
         new File(fixture, 'CHANGES.md').text = '# Changes\n'
         new File(fixture, 'docs/usage.md').text = '# Usage\n'
+        new File(fixture, 'img').mkdirs()
+        byte[] logo = 'fixture-logo'.getBytes('UTF-8')
+        new File(fixture, 'img/annodocimallogo.png').bytes = logo
+        String logoDigest = MessageDigest.getInstance('SHA-256').digest(logo).encodeHex().toString()
+        new File(fixture, 'docs/branding').mkdirs()
+        new File(fixture, 'docs/branding/annodocimal-current.json').text = branding('AnnoDocimal', 'Current identity', logoDigest)
+        new File(fixture, 'docs/branding/candidate.json').text = branding('AnnoDocimal candidate', 'Candidate identity', logoDigest)
         git(fixture, ['add', '.']); git(fixture, ['commit', '-m', 'fixture documentation'])
         String revision = git(fixture, ['rev-parse', 'HEAD']).trim()
         File javadoc = new File(temporaryDir, 'javadoc'); javadoc.mkdirs()
@@ -47,20 +54,50 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         project.delete(one, two)
         render(fixture, one, revision, javadoc); render(fixture, two, revision, javadoc)
         assertTrue(new File(one, '1.0.0-rc.1/index.md').text.contains('immutable documentation snapshot'), 'renderer-owned Markdown chrome')
+        assertTrue(new File(one, '1.0.0-rc.1/index.md').text.contains('successor status record'), 'fixed RC successor-status link')
         assertTrue(new File(one, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file, 'module Javadoc landing')
         assertTrue(new File(one, '1.0.0-rc.1/source-manifest.json').text.contains(revision), 'exact source evidence')
         assertTrue(digest(one) == digest(two), 'repeat rendering is deterministic')
-        expectFailure { VersionedDocumentationRenderer.render(objectDirectory: fixture, outputDirectory: new File(temporaryDir, 'bad'), revision: '0' * 40, rendererRevision: revision, version: '1.0.0-rc.1', stage: 'public-rc', javadocInputDirectories: ['api': javadoc]) }
+        File archive = new File(temporaryDir, 'archive')
+        project.delete(archive)
+        render(fixture, archive, revision, javadoc, [version: '0.9.0', stage: 'archived', javadocInputDirectories: [:]])
+        assertTrue(new File(archive, 'archive/0.9.0/index.md').text.contains('Archived (legacy)'), 'legacy archive chrome')
+        assertTrue(!new File(archive, 'archive/0.9.0/api/index.md').file, 'archives do not fabricate current Javadocs')
+        File finalRelease = new File(temporaryDir, 'final-release')
+        project.delete(finalRelease)
+        render(fixture, finalRelease, revision, javadoc, [version: '1.0.0', stage: 'release', successorOf: '1.0.0-rc.1'])
+        assertTrue(new File(finalRelease, 'status/1.0.0-rc.1.json').text.contains('"successor": "1.0.0"'), 'separate RC successor record')
+        File candidate = new File(temporaryDir, 'candidate')
+        project.delete(candidate)
+        render(fixture, candidate, revision, javadoc, [brandingManifestPath: 'docs/branding/candidate.json'])
+        assertTrue(new File(candidate, '1.0.0-rc.1/source-manifest.json').text.contains('Candidate identity'), 'candidate branding is allowed for public RCs')
+        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'candidate-final'), revision, javadoc, [version: '1.0.0', stage: 'release', brandingManifestPath: 'docs/branding/candidate.json', currentBrandingManifestPath: 'docs/branding/candidate.json']) }
+        expectFailure { VersionedDocumentationRenderer.render(objectDirectory: fixture, outputDirectory: new File(temporaryDir, 'bad'), revision: '0' * 40, rendererRevision: revision, version: '1.0.0-rc.1', stage: 'public-rc', brandingManifestPath: 'docs/branding/annodocimal-current.json', currentBrandingManifestPath: 'docs/branding/annodocimal-current.json', javadocInputDirectories: ['api': javadoc]) }
         new File(javadoc, 'index.html').text = '<a href="missing.html">broken API link</a>'
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'broken-javadocs'), revision, javadoc) }
         new File(fixture, 'dirty').text = 'dirty'
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'dirty-output'), revision, javadoc) }
     }
 
-    private static void render(File fixture, File output, String revision, File javadoc) {
-        VersionedDocumentationRenderer.render(objectDirectory: fixture, outputDirectory: output, revision: revision,
-                rendererRevision: revision, version: '1.0.0-rc.1', stage: 'public-rc',
-                javadocInputDirectories: ['anno-docimal-annotations': javadoc])
+    private static void render(File fixture, File output, String revision, File javadoc, Map<String, ?> overrides = [:]) {
+        Map<String, ?> inputs = [objectDirectory: fixture, outputDirectory: output, revision: revision,
+                                 rendererRevision: revision, version: '1.0.0-rc.1', stage: 'public-rc',
+                                 brandingManifestPath: 'docs/branding/annodocimal-current.json',
+                                 currentBrandingManifestPath: 'docs/branding/annodocimal-current.json',
+                                 javadocInputDirectories: ['anno-docimal-annotations': javadoc]]
+        inputs.putAll(overrides)
+        VersionedDocumentationRenderer.render(inputs)
+    }
+    private static String branding(String identity, String season, String digest) {
+        """{
+  \"identity\": \"$identity\",
+  \"season\": \"$season\",
+  \"logo\": \"img/annodocimallogo.png\",
+  \"altText\": \"AnnoDocimal logo\",
+  \"sha256\": \"$digest\",
+  \"approval\": \"fixture\"
+}
+"""
     }
     private static String digest(File root) {
         MessageDigest value = MessageDigest.getInstance('SHA-256')

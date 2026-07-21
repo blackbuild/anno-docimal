@@ -30,5 +30,7 @@ jobs:
             -PdocumentationRendererRevision="$revision" \
             -PdocumentationVersion=0.0.0-rc.1 \
             -PdocumentationStage=public-rc \
+            -PdocumentationBrandingManifest=docs/branding/annodocimal-current.json \
+            -PdocumentationCurrentBrandingManifest=docs/branding/annodocimal-current.json \
             -PdocumentationObjectDirectory="$GITHUB_WORKSPACE" \
             -PdocumentationOutputDirectory="$GITHUB_WORKSPACE/build/versioned-documentation"
