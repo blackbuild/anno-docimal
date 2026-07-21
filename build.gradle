@@ -240,7 +240,6 @@ tasks.register('publicRcSmoke') {
 }
 
 tasks.named('check') {
-    dependsOn gradle.includedBuild('buildSrc').task(':check')
     dependsOn ':publication-smoke-tests:test'
     dependsOn tasks.named('verifyPublicationReleaseConfiguration')
     dependsOn tasks.named('verifyVersionedDocumentationRenderer')

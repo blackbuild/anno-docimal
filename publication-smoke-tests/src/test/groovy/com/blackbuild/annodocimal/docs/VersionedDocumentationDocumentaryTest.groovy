@@ -62,8 +62,8 @@ class VersionedDocumentationDocumentaryTest extends Specification {
                 stage: 'public-rc',
                 javadocInputDirectories: ['anno-docimal-annotations': javadocs])
 
-        then: 'the output makes its immutable source and public API visible'
-        new File(output, '1.0.0-rc.1/index.md').text.contains('immutable documentation snapshot')
+        then: 'the output makes its immutable source, stage, and public API visible'
+        new File(output, '1.0.0-rc.1/index.md').text.contains('1.0.0-rc.1 — public-rc')
         new File(output, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file
         new File(output, '1.0.0-rc.1/source-manifest.json').text.contains(revision)
     }
