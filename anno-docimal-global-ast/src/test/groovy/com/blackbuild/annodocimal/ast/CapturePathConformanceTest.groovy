@@ -50,47 +50,47 @@ class CapturePathConformanceTest extends Specification {
     private static final String GLOBAL_SERVICE = 'META-INF/services/org.codehaus.groovy.transform.ASTTransformation'
 
     private static final Map<String, String> EXPECTED_PROPERTY_VALUES = [
-            "$FIXTURE_CLASS#classDoc"                         : '''Shared capture fixture.
+            (FIXTURE_CLASS + '#classDoc')                         : '''Shared capture fixture.
 Second normalized line.
 @since 1.0''',
-            "$FIXTURE_CLASS#field.title"                     : 'Documented field or property.',
-            "$FIXTURE_CLASS#method.<init>(java.lang.String)" : '''Creates the fixture.
+            (FIXTURE_CLASS + '#field.title')                     : 'Documented field or property.',
+            (FIXTURE_CLASS + '#method.<init>(java.lang.String)') : '''Creates the fixture.
 @param title initial title''',
-            "$FIXTURE_CLASS#method.describe(java.lang.String)": '''Describes a value across
+            (FIXTURE_CLASS + '#method.describe(java.lang.String)'): '''Describes a value across
 multiple normalized lines.
 @param value value to describe
 @return the description
 @since 1.0''',
-            "$FIXTURE_CLASS\$Nested#classDoc"                 : 'Nested declaration documentation.',
-            "$FIXTURE_CLASS\$Nested#method.nested()"          : 'Nested method documentation.'
+            (FIXTURE_CLASS + '$Nested#classDoc')                 : 'Nested declaration documentation.',
+            (FIXTURE_CLASS + '$Nested#method.nested()')          : 'Nested method documentation.'
     ].asImmutable()
 
     private static final Map<String, String> EXPECTED_DOCUMENTATION = [
-            "$FIXTURE_CLASS#classDoc"                         : '''Shared capture fixture.
+            (FIXTURE_CLASS + '#classDoc')                         : '''Shared capture fixture.
 Second normalized line.
 
 @since 1.0''',
-            "$FIXTURE_CLASS#field.title"                     : 'Documented field or property.',
-            "$FIXTURE_CLASS#method.<init>(java.lang.String)" : '''Creates the fixture.
+            (FIXTURE_CLASS + '#field.title')                     : 'Documented field or property.',
+            (FIXTURE_CLASS + '#method.<init>(java.lang.String)') : '''Creates the fixture.
 
 @param title initial title''',
-            "$FIXTURE_CLASS#method.describe(java.lang.String)": '''Describes a value across
+            (FIXTURE_CLASS + '#method.describe(java.lang.String)'): '''Describes a value across
 multiple normalized lines.
 
 @param value value to describe
 @return the description
 @since 1.0''',
-            "$FIXTURE_CLASS\$Nested#classDoc"                 : 'Nested declaration documentation.',
-            "$FIXTURE_CLASS\$Nested#method.nested()"          : 'Nested method documentation.'
+            (FIXTURE_CLASS + '$Nested#classDoc')                 : 'Nested declaration documentation.',
+            (FIXTURE_CLASS + '$Nested#method.nested()')          : 'Nested method documentation.'
     ].asImmutable()
 
     private static final Set<String> EXPECTED_ABSENT_KEYS = [
-            "$FIXTURE_CLASS#method.empty()"
+            FIXTURE_CLASS + '#method.empty()'
     ].asImmutable()
 
     private static final Map<String, String> EXPECTED_CARRIER_DOCUMENTATION = [
-            "$CARRIER_FIXTURE_CLASS#method.runtimeOnly()": 'Runtime GroovyDoc documentation.',
-            "$CARRIER_FIXTURE_CLASS#method.both()"       : 'Canonical AnnoDoc documentation.'
+            (CARRIER_FIXTURE_CLASS + '#method.runtimeOnly()'): 'Runtime GroovyDoc documentation.',
+            (CARRIER_FIXTURE_CLASS + '#method.both()')       : 'Canonical AnnoDoc documentation.'
     ].asImmutable()
 
     private static final String JAVA_SOURCE = '''
@@ -266,7 +266,7 @@ class CarrierFixture {
         assert Files.isRegularFile(resource): "java-apt-properties missing declaration resource $className"
         def properties = new Properties()
         Files.newInputStream(resource).withCloseable { properties.load(it) }
-        properties.each { key, value -> target["$className#$key"] = value }
+        properties.each { key, value -> target[className + '#' + key] = value }
     }
 
     private CaptureObservation captureGroovy(GroovyCapturePath path,
@@ -373,7 +373,9 @@ class CarrierFixture {
 
         @Override
         void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
-            if (!classNode.name.startsWith(fixtureClass)) return
+            if (!classNode.name.startsWith(fixtureClass)) {
+                return
+            }
             collect(classNode, "$classNode.name#classDoc")
             classNode.fields.each { field -> collect(field, "$classNode.name#field.$field.name") }
             classNode.declaredConstructors.each { constructor -> collect(constructor, methodKey(classNode, constructor)) }
@@ -382,7 +384,9 @@ class CarrierFixture {
 
         private void collect(AnnotatedNode node, String key) {
             def extracted = AstDocumentation.extractExact(node)
-            if (extracted.present) observation.documentation[key] = extracted.get().render()
+            if (extracted.present) {
+                observation.documentation[key] = extracted.get().render()
+            }
             observation.carriers[key] = [
                     annoDoc  : carrierCount(node, 'com.blackbuild.annodocimal.annotations.AnnoDoc'),
                     groovydoc: carrierCount(node, 'groovy.lang.Groovydoc')
@@ -407,7 +411,9 @@ class CarrierFixture {
 
         @Override
         protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-            if (name == GLOBAL_PROVIDER) throw new ClassNotFoundException(name)
+            if (name == GLOBAL_PROVIDER) {
+                throw new ClassNotFoundException(name)
+            }
             super.loadClass(name, resolve)
         }
 
