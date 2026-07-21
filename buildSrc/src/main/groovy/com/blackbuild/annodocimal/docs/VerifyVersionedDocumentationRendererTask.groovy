@@ -51,6 +51,8 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         assertTrue(new File(one, '1.0.0-rc.1/source-manifest.json').text.contains(revision), 'exact source evidence')
         assertTrue(digest(one) == digest(two), 'repeat rendering is deterministic')
         expectFailure { VersionedDocumentationRenderer.render(objectDirectory: fixture, outputDirectory: new File(temporaryDir, 'bad'), revision: '0' * 40, rendererRevision: revision, version: '1.0.0-rc.1', stage: 'public-rc', javadocInputDirectories: ['api': javadoc]) }
+        new File(javadoc, 'index.html').text = '<a href="missing.html">broken API link</a>'
+        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'broken-javadocs'), revision, javadoc) }
         new File(fixture, 'dirty').text = 'dirty'
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'dirty-output'), revision, javadoc) }
     }

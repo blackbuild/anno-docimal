@@ -16,6 +16,11 @@ on:
         required: true
         type: choice
         options: [public-rc, release]
+      deploy:
+        description: Publish the validated artifact after protected-environment approval
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -68,6 +73,7 @@ jobs:
           if-no-files-found: error
 
   deploy-immutable-snapshot:
+    if: inputs.deploy
     needs: validate-and-render
     runs-on: ubuntu-latest
     environment:

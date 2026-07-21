@@ -29,6 +29,10 @@ After the protected snapshot is live, the release record must link to its immuta
 `https://blackbuild.github.io/anno-docimal/<version>/`. A real link is intentionally added only by the authorized
 release record for that version; no unreleased version is advertised from this repository landing page.
 
+The protected workflow defaults to a non-publishing rehearsal: it verifies a tagged exact source/version/stage tuple and
+uploads the complete site artifact, but skips the protected deployment job. A release authority must explicitly select
+deployment after that rehearsal evidence is accepted.
+
 Before the first authorized deployment, a maintainer must create the otherwise empty `gh-pages` branch, configure GitHub
 Pages to serve that branch, and protect the `github-pages` environment with the release approvers. Those remote settings
 are intentionally not created by this repository build.

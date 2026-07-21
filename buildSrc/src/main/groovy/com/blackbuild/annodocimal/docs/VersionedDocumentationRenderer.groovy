@@ -139,6 +139,15 @@ class VersionedDocumentationRenderer {
         ['index.html', 'allclasses-index.html', 'stylesheet.css'].each { name ->
             if (!new File(directory, name).file) fail("Javadoc input for $module has no $name: $directory")
         }
+        ['index.html', 'allclasses-index.html'].each { name ->
+            File page = new File(directory, name)
+            Matcher matcher = (page.getText(StandardCharsets.UTF_8.name()) =~ /(?:href|src)="([^"#?]+)[^\"]*"/)
+            matcher.each { match ->
+                String destination = match[1]
+                if (!(destination ==~ /(?i)(https?|mailto|javascript):.*/) && !new File(page.parentFile, destination).file)
+                    fail("Javadoc navigation is unresolved for $module: $name -> $destination")
+            }
+        }
     }
 
     private static String versionStatus(String version, String stage) {
