@@ -95,6 +95,29 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         new File(output, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file
         new File(output, '1.0.0-rc.1/source-manifest.json').text.contains(revision)
         new File(output, '1.0.0-rc.1/index.md').text.contains('successor status record')
+
+        when: 'a README-only historical revision is rendered without branding or current Javadocs'
+        javadocs.deleteDir()
+        git(checkout, ['rm', '-r', 'docs', 'CHANGES.md'])
+        git(checkout, ['commit', '-m', 'historic README-only documentation'])
+        String archiveRevision = git(checkout, ['rev-parse', 'HEAD']).trim()
+        File archiveOutput = Files.createTempDirectory('documentation-archive-output-').toFile()
+        def archiveResult = GradleRunner.create()
+                .withProjectDir(checkout)
+                .withArguments(
+                        'renderVersionedDocumentation',
+                        "-PdocumentationRevision=$archiveRevision",
+                        "-PdocumentationRendererRevision=$archiveRevision",
+                        '-PdocumentationVersion=0.9.0',
+                        '-PdocumentationStatus=archived',
+                        "-PdocumentationOutputDirectory=${archiveOutput.absolutePath}")
+                .build()
+
+        then: 'the Gradle seam preserves the explicit legacy archive contract'
+        archiveResult.task(':renderVersionedDocumentation').outcome == TaskOutcome.SUCCESS
+        new File(archiveOutput, 'archive/0.9.0/index.md').text.contains('Archived (legacy)')
+        !new File(archiveOutput, 'archive/0.9.0/api').exists()
+        !new File(archiveOutput, 'archive/0.9.0/assets/branding').exists()
     }
 
     private static String rehearsalBuild(File buildLogic, File javadocs) {
@@ -109,18 +132,22 @@ class VersionedDocumentationDocumentaryTest extends Specification {
 import com.blackbuild.annodocimal.docs.RenderVersionedDocumentationTask
 
 tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask) {
+    def documentationStatus = providers.gradleProperty('documentationStatus')
+    def documentationJavadocs = documentationStatus.map { value ->
+        value == 'archived' ? [:] : ['anno-docimal-annotations': '$javadocPath']
+    }
     revision.set(providers.gradleProperty('documentationRevision'))
     rendererRevision.set(providers.gradleProperty('documentationRendererRevision'))
     documentationVersion.set(providers.gradleProperty('documentationVersion'))
-    status.set(providers.gradleProperty('documentationStatus'))
+    status.set(documentationStatus)
     releaseStage.set(providers.gradleProperty('documentationReleaseStage'))
     brandingManifestPath.set(providers.gradleProperty('documentationBrandingManifest'))
     currentBrandingManifestPath.set(providers.gradleProperty('documentationCurrentBrandingManifest'))
     successorOf.set(providers.gradleProperty('documentationSuccessorOf'))
     objectDirectory.set(layout.projectDirectory)
     outputDirectory.set(layout.dir(providers.gradleProperty('documentationOutputDirectory').map { file(it) }))
-    javadocInputDirectories.set(['anno-docimal-annotations': '$javadocPath'])
-    javadocInputs.from('$javadocPath')
+    javadocInputDirectories.set(documentationJavadocs)
+    javadocInputs.from(documentationJavadocs.map { it.values() })
 }
 """
     }

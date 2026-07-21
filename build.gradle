@@ -70,24 +70,25 @@ sonar {
 
 def documentationJavadocProjects = subprojects.findAll { it.name != 'publication-smoke-tests' }
 def documentationObjectDirectory = providers.gradleProperty('documentationObjectDirectory').map { file(it) }
-def documentationJavadocDirectories = documentationObjectDirectory.map { sourceRoot ->
+def documentationStatus = providers.gradleProperty('documentationStatus')
+def documentationJavadocDirectories = providers.provider {
+    if (documentationStatus.orNull == 'archived') return [:]
+    File sourceRoot = documentationObjectDirectory.get()
     documentationJavadocProjects.collectEntries { project ->
         [(project.name): new File(sourceRoot, "${project.name}/build/docs/javadoc").absolutePath]
     }
-}
-def documentationJavadocDependencies = documentationObjectDirectory.map { sourceRoot ->
-    sourceRoot.canonicalFile == rootDir.canonicalFile ?
-            documentationJavadocProjects.collect { it.tasks.named('javadoc') } : []
 }
 
 tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask) {
     group = 'documentation'
     description = 'Renders one immutable AnnoDocimal documentation and Javadoc site from explicit exact inputs.'
-    dependsOn documentationJavadocDependencies
+    if (documentationStatus.orNull != 'archived' &&
+            documentationObjectDirectory.orNull?.canonicalFile == rootDir.canonicalFile)
+        dependsOn documentationJavadocProjects.collect { it.tasks.named('javadoc') }
     revision.set(providers.gradleProperty('documentationRevision'))
     rendererRevision.set(providers.gradleProperty('documentationRendererRevision'))
     documentationVersion.set(providers.gradleProperty('documentationVersion'))
-    status.set(providers.gradleProperty('documentationStatus'))
+    status.set(documentationStatus)
     releaseStage.set(providers.gradleProperty('documentationReleaseStage'))
     brandingManifestPath.set(providers.gradleProperty('documentationBrandingManifest'))
     currentBrandingManifestPath.set(providers.gradleProperty('documentationCurrentBrandingManifest'))
