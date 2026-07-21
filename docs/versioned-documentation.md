@@ -25,6 +25,10 @@ It never rewrites an existing snapshot and creates no mutable development, stabl
 owned by [issue #45](https://github.com/blackbuild/anno-docimal/issues/45) authorizes the release, decides any release
 metadata links, and records recovery or supersession; this renderer has no artifact-publication authority.
 
+After the protected snapshot is live, the release record must link to its immutable Pages URL,
+`https://blackbuild.github.io/anno-docimal/<version>/`. A real link is intentionally added only by the authorized
+release record for that version; no unreleased version is advertised from this repository landing page.
+
 Before the first authorized deployment, a maintainer must create the otherwise empty `gh-pages` branch, configure GitHub
 Pages to serve that branch, and protect the `github-pages` environment with the release approvers. Those remote settings
 are intentionally not created by this repository build.

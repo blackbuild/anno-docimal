@@ -43,7 +43,9 @@ jobs:
           fetch-depth: 0
       - name: Confirm exact source commit
         shell: bash
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.revision }}"
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ inputs.revision }}"
+          test "$(git tag --points-at HEAD "v${{ inputs.version }}")" = "v${{ inputs.version }}"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

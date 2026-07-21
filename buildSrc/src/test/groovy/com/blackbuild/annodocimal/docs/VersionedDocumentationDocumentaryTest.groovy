@@ -49,7 +49,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         git(checkout, ['commit', '-m', 'fixture documentation'])
         String revision = git(checkout, ['rev-parse', 'HEAD']).trim()
         File javadocs = Files.createTempDirectory('documentation-javadocs-').toFile()
-        new File(javadocs, 'index.html').text = '<title>Annotations API</title>'
+        ['index.html', 'allclasses-index.html', 'stylesheet.css'].each { new File(javadocs, it).text = '<title>Annotations API</title>' }
         File output = Files.createTempDirectory('documentation-output-').toFile()
 
         when: 'the exact release candidate is rendered without publishing'

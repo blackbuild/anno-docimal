@@ -41,7 +41,8 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         new File(fixture, 'docs/usage.md').text = '# Usage\n'
         git(fixture, ['add', '.']); git(fixture, ['commit', '-m', 'fixture documentation'])
         String revision = git(fixture, ['rev-parse', 'HEAD']).trim()
-        File javadoc = new File(temporaryDir, 'javadoc'); javadoc.mkdirs(); new File(javadoc, 'index.html').text = '<title>API</title>'
+        File javadoc = new File(temporaryDir, 'javadoc'); javadoc.mkdirs()
+        ['index.html', 'allclasses-index.html', 'stylesheet.css'].each { new File(javadoc, it).text = '<title>API</title>' }
         File one = new File(temporaryDir, 'one'); File two = new File(temporaryDir, 'two')
         project.delete(one, two)
         render(fixture, one, revision, javadoc); render(fixture, two, revision, javadoc)
