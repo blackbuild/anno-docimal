@@ -108,8 +108,8 @@ Keep the feature issue, documentary test, and user documentation mutually tracea
 - The feature issue identifies the documentary test class and feature method, and the relevant documentation section.
 - The documentary test carries the driving `@Issue` number, the `documentary` tag, and an `@See` link to the relevant
   documentation file or section.
-- The documentation shows an abbreviated example aligned with the executable test where practical, and identifies the
-  documentary test class and feature method that exercise it.
+- The documentation shows an abbreviated example aligned with the executable test, and identifies the documentary test
+  class and feature method that exercise it.
 
 This policy applies prospectively. Do not expand unrelated work into a suite-wide documentary-test, naming, or
 traceability audit, and do not rename existing tests merely to conform to the new convention.
@@ -123,5 +123,4 @@ Once accepted, use it as the seed for the documentary happy path and the abbrevi
 - For a public Java client API, show Java first and Groovy second when the Groovy view is meaningful.
 - For Groovy-facing AST authoring, show the natural Groovy source surface.
 - For Gradle or plugin behavior, show the natural Groovy or Gradle DSL surface and omit unrelated build setup.
-- An internal-only change or a discussion without a meaningful usage surface may omit the example, but state the reason
-  briefly rather than skipping it silently.
+- An internal-only change may omit the example, but state the reason briefly rather than skipping it silently.
