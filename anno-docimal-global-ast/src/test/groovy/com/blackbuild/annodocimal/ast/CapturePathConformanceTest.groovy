@@ -44,6 +44,7 @@ import java.nio.file.Path
 class CapturePathConformanceTest extends Specification {
 
     private static final String FIXTURE_CLASS = 'conformance.CaptureFixture'
+    private static final String CARRIER_FIXTURE_CLASS = 'conformance.CarrierFixture'
     private static final String GLOBAL_PROVIDER =
             'com.blackbuild.annodocimal.global.ast.InlineJavadocsGlobalTransformation'
     private static final String GLOBAL_SERVICE = 'META-INF/services/org.codehaus.groovy.transform.ASTTransformation'
@@ -85,6 +86,11 @@ multiple normalized lines.
 
     private static final Set<String> EXPECTED_ABSENT_KEYS = [
             "$FIXTURE_CLASS#method.empty()"
+    ].asImmutable()
+
+    private static final Map<String, String> EXPECTED_CARRIER_DOCUMENTATION = [
+            "$CARRIER_FIXTURE_CLASS#method.runtimeOnly()": 'Runtime GroovyDoc documentation.',
+            "$CARRIER_FIXTURE_CLASS#method.both()"       : 'Canonical AnnoDoc documentation.'
     ].asImmutable()
 
     private static final String JAVA_SOURCE = '''
@@ -180,6 +186,28 @@ class CaptureFixture {
 }
 '''
 
+    private static final String CARRIER_GROOVY_SOURCE = '''
+package conformance
+
+import com.blackbuild.annodocimal.annotations.AnnoDoc
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+class CarrierFixture {
+    /**@
+     * Runtime GroovyDoc documentation.
+     */
+    void runtimeOnly() {
+    }
+
+    /**@
+     * Lower-precedence runtime documentation.
+     */
+    @AnnoDoc('Canonical AnnoDoc documentation.')
+    void both() {
+    }
+}
+'''
+
     @TempDir
     Path temporaryDirectory
 
@@ -189,14 +217,26 @@ class CaptureFixture {
         def javaDocumentation = javaProperties.collectEntries { key, value ->
             [key, Documentation.parse(value).render()]
         }
-        def localDocumentation = captureGroovy('groovy-local', true, false)
-        def globalDocumentation = captureGroovy('groovy-global-packaged', false, true)
+        def localDocumentation = captureGroovy('groovy-local', true, false).documentation
+        def globalDocumentation = captureGroovy('groovy-global-packaged', false, true).documentation
 
         then: 'properties and annotations are intentionally different storage with the same declaration semantics'
         assertCapturePath('java-apt-properties', javaProperties, EXPECTED_PROPERTY_VALUES)
         assertCapturePath('java-apt-semantics', javaDocumentation, EXPECTED_DOCUMENTATION)
         assertCapturePath('groovy-local-extraction', localDocumentation)
         assertCapturePath('groovy-global-packaged-extraction', globalDocumentation)
+    }
+
+    def "local and packaged-global capture preserve carrier precedence without duplicate emission"() {
+        when:
+        def local = captureGroovy('carrier-local', true, false,
+                CARRIER_FIXTURE_CLASS, CARRIER_GROOVY_SOURCE, true)
+        def global = captureGroovy('carrier-global-packaged', false, true,
+                CARRIER_FIXTURE_CLASS, CARRIER_GROOVY_SOURCE, true)
+
+        then:
+        assertCarrierPath('groovy-local-carriers', local)
+        assertCarrierPath('groovy-global-packaged-carriers', global)
     }
 
     private Map<String, String> captureJavaProperties() {
@@ -229,18 +269,23 @@ class CaptureFixture {
         properties.each { key, value -> target["$className#$key"] = value }
     }
 
-    private Map<String, String> captureGroovy(String path, boolean local, boolean packagedGlobal) {
-        Path source = temporaryDirectory.resolve("$path/src/conformance/CaptureFixture.groovy")
+    private CaptureObservation captureGroovy(String path, boolean local, boolean packagedGlobal,
+                                             String fixtureClass = FIXTURE_CLASS,
+                                             String sourceText = GROOVY_SOURCE,
+                                             boolean runtimeGroovydoc = false) {
+        String simpleName = fixtureClass.substring(fixtureClass.lastIndexOf('.') + 1)
+        Path source = temporaryDirectory.resolve("$path/src/conformance/${simpleName}.groovy")
         Path classes = temporaryDirectory.resolve("$path/classes")
         Files.createDirectories(source.parent)
         Files.createDirectories(classes)
         String marker = local ? '@InlineJavadocs\n' : ''
-        Files.writeString(source, GROOVY_SOURCE.replace('class CaptureFixture', marker + 'class CaptureFixture'))
+        Files.writeString(source, sourceText.replace("class $simpleName", marker + "class $simpleName"))
 
-        def documentation = [:]
+        def observation = new CaptureObservation()
         def configuration = new CompilerConfiguration(targetDirectory: classes.toFile(), parameters: true)
         configuration.optimizationOptions.groovydoc = Boolean.TRUE
-        configuration.addCompilationCustomizers(new DocumentationCollector(documentation))
+        configuration.optimizationOptions.runtimeGroovydoc = runtimeGroovydoc
+        configuration.addCompilationCustomizers(new DocumentationCollector(fixtureClass, observation))
 
         def parent = new GlobalAstFilteringClassLoader(getClass().classLoader)
         def loader = new GroovyClassLoader(parent, configuration)
@@ -257,7 +302,7 @@ class CaptureFixture {
         } finally {
             loader.close()
         }
-        documentation
+        observation
     }
 
     private static File moduleArtifact(String name) {
@@ -282,17 +327,35 @@ class CaptureFixture {
         true
     }
 
-    private static final class DocumentationCollector extends CompilationCustomizer {
-        private final Map<String, String> documentation
+    private static boolean assertCarrierPath(String path, CaptureObservation observation) {
+        assertCapturePath(path, observation.documentation, EXPECTED_CARRIER_DOCUMENTATION)
+        String runtimeKey = "$CARRIER_FIXTURE_CLASS#method.runtimeOnly()"
+        assert observation.carriers[runtimeKey] == [annoDoc: 0, groovydoc: 1]:
+                "$path duplicate-avoidance mismatch for declaration key $runtimeKey: ${observation.carriers[runtimeKey]}"
+        String precedenceKey = "$CARRIER_FIXTURE_CLASS#method.both()"
+        assert observation.carriers[precedenceKey] == [annoDoc: 1, groovydoc: 1]:
+                "$path precedence fixture mismatch for declaration key $precedenceKey: ${observation.carriers[precedenceKey]}"
+        true
+    }
 
-        private DocumentationCollector(Map<String, String> documentation) {
+    private static final class CaptureObservation {
+        final Map<String, String> documentation = [:]
+        final Map<String, Map<String, Integer>> carriers = [:]
+    }
+
+    private static final class DocumentationCollector extends CompilationCustomizer {
+        private final String fixtureClass
+        private final CaptureObservation observation
+
+        private DocumentationCollector(String fixtureClass, CaptureObservation observation) {
             super(CompilePhase.CANONICALIZATION)
-            this.documentation = documentation
+            this.fixtureClass = fixtureClass
+            this.observation = observation
         }
 
         @Override
         void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
-            if (!classNode.name.startsWith(FIXTURE_CLASS)) return
+            if (!classNode.name.startsWith(fixtureClass)) return
             collect(classNode, "$classNode.name#classDoc")
             classNode.fields.each { field -> collect(field, "$classNode.name#field.$field.name") }
             classNode.declaredConstructors.each { constructor -> collect(constructor, methodKey(classNode, constructor)) }
@@ -301,7 +364,15 @@ class CaptureFixture {
 
         private void collect(AnnotatedNode node, String key) {
             def extracted = AstDocumentation.extractExact(node)
-            if (extracted.present) documentation[key] = extracted.get().render()
+            if (extracted.present) observation.documentation[key] = extracted.get().render()
+            observation.carriers[key] = [
+                    annoDoc  : carrierCount(node, 'com.blackbuild.annodocimal.annotations.AnnoDoc'),
+                    groovydoc: carrierCount(node, 'groovy.lang.Groovydoc')
+            ]
+        }
+
+        private static int carrierCount(AnnotatedNode node, String annotationName) {
+            node.annotations.count { it.classNode.name == annotationName }
         }
 
         private static String methodKey(ClassNode owner, MethodNode method) {
