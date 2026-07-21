@@ -101,7 +101,7 @@ class VersionedDocumentationRenderer {
         if (successorOf) write(outputDirectory, "status/${successorOf}.json", canonicalJson(statusRecord(successorOf, 'public-rc', version)).getBytes(StandardCharsets.UTF_8))
         verifyLocalMarkdownLinks(exactDirectory)
 
-        Map<String, String> hashes = hashes(outputDirectory)
+        Map<String, String> hashes = hashes(exactDirectory).collectEntries { path, hash -> [("$snapshotPath/$path"): hash] }
         hashes.remove("$snapshotPath/source-manifest.json")
         Map<String, ?> manifest = [
                 schemaVersion: 1,
