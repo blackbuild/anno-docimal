@@ -23,6 +23,8 @@
  */
 package com.blackbuild.annodocimal.docs
 
+import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import spock.lang.Issue
 import spock.lang.See
 import spock.lang.Specification
@@ -59,30 +61,72 @@ class VersionedDocumentationDocumentaryTest extends Specification {
   \"approval\": \"documentary fixture\"
 }
 """
+        new File(checkout, '.gitignore').text = '.gradle/\nbuild/\n'
+        new File(checkout, 'settings.gradle').text = "rootProject.name = 'documentation-rehearsal'\n"
         git(checkout, ['add', '.'])
         git(checkout, ['commit', '-m', 'fixture documentation'])
         String revision = git(checkout, ['rev-parse', 'HEAD']).trim()
         File javadocs = Files.createTempDirectory('documentation-javadocs-').toFile()
         ['index.html', 'allclasses-index.html', 'stylesheet.css'].each { new File(javadocs, it).text = '<title>Annotations API</title>' }
         File output = Files.createTempDirectory('documentation-output-').toFile()
+        File buildLogic = new File(RenderVersionedDocumentationTask.protectionDomain.codeSource.location.toURI())
+        new File(checkout, 'build.gradle').text = rehearsalBuild(buildLogic, javadocs)
+        git(checkout, ['add', 'build.gradle'])
+        git(checkout, ['commit', '-m', 'configure documentation rehearsal'])
+        revision = git(checkout, ['rev-parse', 'HEAD']).trim()
 
-        when: 'the exact release candidate is rendered without publishing'
-        VersionedDocumentationRenderer.render(
-                objectDirectory: checkout,
-                outputDirectory: output,
-                revision: revision,
-                rendererRevision: revision,
-                version: '1.0.0-rc.1',
-                status: 'public-rc',
-                brandingManifestPath: 'docs/branding/annodocimal-current.json',
-                currentBrandingManifestPath: 'docs/branding/annodocimal-current.json',
-                javadocInputDirectories: ['anno-docimal-annotations': javadocs])
+        when: 'the exact release candidate is rendered through the documented Gradle task without publishing'
+        def result = GradleRunner.create()
+                .withProjectDir(checkout)
+                .withArguments(
+                        'renderVersionedDocumentation',
+                        "-PdocumentationRevision=$revision",
+                        "-PdocumentationRendererRevision=$revision",
+                        '-PdocumentationVersion=1.0.0-rc.1',
+                        '-PdocumentationStatus=public-rc',
+                        '-PdocumentationBrandingManifest=docs/branding/annodocimal-current.json',
+                        '-PdocumentationCurrentBrandingManifest=docs/branding/annodocimal-current.json',
+                        "-PdocumentationOutputDirectory=${output.absolutePath}")
+                .build()
 
         then: 'the output makes its immutable source, status, and public API visible'
+        result.task(':renderVersionedDocumentation').outcome == TaskOutcome.SUCCESS
         new File(output, '1.0.0-rc.1/index.md').text.contains('1.0.0-rc.1 — public-rc')
         new File(output, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file
         new File(output, '1.0.0-rc.1/source-manifest.json').text.contains(revision)
         new File(output, '1.0.0-rc.1/index.md').text.contains('successor status record')
+    }
+
+    private static String rehearsalBuild(File buildLogic, File javadocs) {
+        String buildLogicPath = gradleString(buildLogic)
+        String javadocPath = gradleString(javadocs)
+        """buildscript {
+    dependencies {
+        classpath files('$buildLogicPath')
+    }
+}
+
+import com.blackbuild.annodocimal.docs.RenderVersionedDocumentationTask
+
+tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask) {
+    revision.set(providers.gradleProperty('documentationRevision'))
+    rendererRevision.set(providers.gradleProperty('documentationRendererRevision'))
+    documentationVersion.set(providers.gradleProperty('documentationVersion'))
+    status.set(providers.gradleProperty('documentationStatus'))
+    releaseStage.set(providers.gradleProperty('documentationReleaseStage'))
+    brandingManifestPath.set(providers.gradleProperty('documentationBrandingManifest'))
+    currentBrandingManifestPath.set(providers.gradleProperty('documentationCurrentBrandingManifest'))
+    successorOf.set(providers.gradleProperty('documentationSuccessorOf'))
+    objectDirectory.set(layout.projectDirectory)
+    outputDirectory.set(layout.dir(providers.gradleProperty('documentationOutputDirectory').map { file(it) }))
+    javadocInputDirectories.set(['anno-docimal-annotations': '$javadocPath'])
+    javadocInputs.from('$javadocPath')
+}
+"""
+    }
+
+    private static String gradleString(File file) {
+        file.absolutePath.replace('\\', '\\\\').replace("'", "\\'")
     }
 
     private static String git(File directory, List<String> arguments) {

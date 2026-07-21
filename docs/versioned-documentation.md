@@ -10,7 +10,8 @@ The release workflow accepts only a full lowercase Git commit SHA, an exact `MAJ
 `MAJOR.MINOR.PATCH-rc.N` version, and the matching `pending`, `public-rc`, `current`, or `archived` status. A `pending`
 render additionally requires `documentationReleaseStage=candidate|final`; that property is rejected for every other
 status. It renders the exact source object with the reviewed renderer revision. Product snapshots generate all six
-supported Java API Javadocs and record the following in `/<version>/source-manifest.json`:
+supported Java API Javadocs from that same exact source checkout and record the following in
+`/<version>/source-manifest.json`:
 
 - the exact source and renderer commits;
 - the version, lifecycle status, and conditional release stage;
@@ -55,7 +56,8 @@ release record for that version; no unreleased version is advertised from this r
 The protected workflow defaults to a non-publishing rehearsal: it verifies an exact source/version/status tuple and
 uploads the complete site artifact, but skips the protected deployment job. Public statuses additionally require the
 matching version tag; pending proof precedes publication and therefore does not. A release authority must explicitly
-select deployment after that rehearsal evidence is accepted.
+select deployment after that rehearsal evidence is accepted. The validation job has read-only repository access;
+repository write permission exists only inside the protected deployment job.
 
 Before the first authorized deployment, a maintainer must create the otherwise empty `gh-pages` branch, configure GitHub
 Pages to serve that branch, and protect the `github-pages` environment with the release approvers. Those remote settings

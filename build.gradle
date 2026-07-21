@@ -69,14 +69,21 @@ sonar {
 }
 
 def documentationJavadocProjects = subprojects.findAll { it.name != 'publication-smoke-tests' }
-def documentationJavadocDirectories = documentationJavadocProjects.collectEntries { project ->
-    [(project.name): project.layout.buildDirectory.dir('docs/javadoc').get().asFile.absolutePath]
+def documentationObjectDirectory = providers.gradleProperty('documentationObjectDirectory').map { file(it) }
+def documentationJavadocDirectories = documentationObjectDirectory.map { sourceRoot ->
+    documentationJavadocProjects.collectEntries { project ->
+        [(project.name): new File(sourceRoot, "${project.name}/build/docs/javadoc").absolutePath]
+    }
+}
+def documentationJavadocDependencies = documentationObjectDirectory.map { sourceRoot ->
+    sourceRoot.canonicalFile == rootDir.canonicalFile ?
+            documentationJavadocProjects.collect { it.tasks.named('javadoc') } : []
 }
 
 tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask) {
     group = 'documentation'
     description = 'Renders one immutable AnnoDocimal documentation and Javadoc site from explicit exact inputs.'
-    dependsOn documentationJavadocProjects.collect { it.tasks.named('javadoc') }
+    dependsOn documentationJavadocDependencies
     revision.set(providers.gradleProperty('documentationRevision'))
     rendererRevision.set(providers.gradleProperty('documentationRendererRevision'))
     documentationVersion.set(providers.gradleProperty('documentationVersion'))
@@ -85,10 +92,10 @@ tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask)
     brandingManifestPath.set(providers.gradleProperty('documentationBrandingManifest'))
     currentBrandingManifestPath.set(providers.gradleProperty('documentationCurrentBrandingManifest'))
     successorOf.set(providers.gradleProperty('documentationSuccessorOf'))
-    objectDirectory.set(layout.dir(providers.gradleProperty('documentationObjectDirectory').map { file(it) }))
+    objectDirectory.set(layout.dir(documentationObjectDirectory))
     outputDirectory.set(layout.dir(providers.gradleProperty('documentationOutputDirectory').map { file(it) }))
     javadocInputDirectories.set(documentationJavadocDirectories)
-    javadocInputs.from(documentationJavadocDirectories.values())
+    javadocInputs.from(documentationJavadocDirectories.map { it.values() })
 }
 
 tasks.register('verifyVersionedDocumentationRenderer', VerifyVersionedDocumentationRendererTask) {
