@@ -74,7 +74,8 @@ public class JavadocPropertiesBuilder {
         if (text == null) return null;
         return text.lines()
                 .map(line -> line.startsWith(" ") ? line.substring(1) : line)
-                .collect(Collectors.joining("\n"));
+                .collect(Collectors.joining("\n"))
+                .strip();
     }
 
     private String getElementKey(Element element) {
