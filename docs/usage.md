@@ -94,6 +94,32 @@ transformation. Its provider class name is a packaging detail, not a consumer Ja
 assumption that documentation will be inherited: capture stores exact documentation; a separately named resolved
 documentation capability remains owned by issue [#10](https://github.com/blackbuild/anno-docimal/issues/10).
 
+### Runtime GroovyDoc interoperability
+
+AnnoDocimal accepts Groovy's runtime `groovy.lang.Groovydoc` annotation as an interoperable carrier across Groovy 3, 4,
+and 5. It does not replace AnnoDocimal's protocol: `@AnnoDoc` and documentation properties remain the canonical
+cross-language representation and the boundary for future protocol evolution.
+
+Exact extraction uses deterministic precedence: a non-blank `@AnnoDoc` value wins, followed by a non-blank runtime
+`@Groovydoc` value, followed by the declaration's documentation-properties entry. Runtime GroovyDoc values are
+normalized on read: `/** */` delimiters, Groovy's `/**@` runtime marker, leading `*` decoration, shared indentation, and
+surrounding blank space are not part of the resulting documentation content.
+
+Groovy can generate the runtime carrier from `/**@ ... */` comments when its `runtimeGroovydoc` optimization is enabled.
+If AnnoDocimal local or global capture sees that carrier, it does not emit a duplicate `@AnnoDoc` annotation. Builds that
+want both compiler-model Groovydoc and runtime GroovyDoc can enable both options explicitly:
+
+```groovy
+tasks.withType(GroovyCompile).configureEach {
+    groovyOptions.optimizationOptions.groovydoc = true
+    groovyOptions.optimizationOptions.runtimeGroovydoc = true
+}
+```
+
+Source projection applies the same annotation-carrier precedence, renders the selected normalized content as Javadoc,
+and omits both carrier annotations from the projected Java. Documentation properties remain an extraction carrier for
+resolved compiler-model classes; a projector given only a class file does not discover adjacent properties resources.
+
 ## AST-transformation-author API
 
 The AST-transformation-author API is for developers writing Groovy AST transformations that generate classes or members
@@ -141,9 +167,9 @@ Documentation generatedDocumentation = helperDocumentation.toBuilder()
 AstDocumentation.attach(generatedMethod, generatedDocumentation);
 ```
 
-`extractExact` hides the capture carrier. It reads an `@AnnoDoc` carrier when one is attached to the compiler model and
-also reads Java APT documentation properties for Java helper classes; transformations should not inspect either format
-directly. The transformation can further use `summary`, `paragraph`, `codeBlock`, `filterParameters`, and
+`extractExact` hides the capture carrier. It applies the documented canonical/runtime/properties precedence without
+requiring transformations to inspect any representation directly. The transformation can further use `summary`,
+`paragraph`, `codeBlock`, `filterParameters`, and
 `AstDocumentation.referenceTo` before attachment.
 
 `extractExact` does not search supertypes. `attach` replaces AnnoDocimal's carrier, keeps third-party carriers, filters

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added runtime GroovyDoc interoperability across Groovy 3, 4, and 5. Exact extraction now selects non-blank carriers in
+  deterministic `@AnnoDoc`, runtime `@Groovydoc`, documentation-properties order; local and global Groovy capture avoid
+  duplicate `@AnnoDoc` emission when Groovy supplies its runtime carrier. Source projection normalizes and renders the
+  selected carrier as Javadoc without copying carrier annotations. AnnoDocimal's protocol remains the canonical
+  cross-language and future-evolution boundary; see the [usage guide](docs/usage.md#runtime-groovydoc-interoperability).
+
 - Added an unsigned, network-independent publication audit for all six artifacts and both Gradle plugin markers. It
   verifies POM and Gradle metadata, sources and Javadocs, module and service packaging, shaded boundaries, signing and
   staging configuration, and clean Gradle and Apache Maven consumers. A separate exact-version RC task is ready for

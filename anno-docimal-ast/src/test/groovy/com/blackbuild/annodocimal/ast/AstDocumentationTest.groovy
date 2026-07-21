@@ -23,6 +23,10 @@
  */
 package com.blackbuild.annodocimal.ast
 
+import com.blackbuild.annodocimal.annotations.AnnoDoc
+import com.blackbuild.annodocimal.ast.extractor.mock.AClass
+import groovy.lang.Groovydoc
+import org.codehaus.groovy.ast.AnnotationNode
 import org.codehaus.groovy.ast.ClassHelper
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.ConstructorNode
@@ -30,9 +34,41 @@ import org.codehaus.groovy.ast.FieldNode
 import org.codehaus.groovy.ast.MethodNode
 import org.codehaus.groovy.ast.Parameter
 import org.codehaus.groovy.ast.expr.ConstantExpression
+import spock.lang.Issue
 import spock.lang.Specification
 
 class AstDocumentationTest extends Specification {
+
+    @Issue("19")
+    def "exact extraction uses canonical runtime and properties carrier precedence"() {
+        given:
+        def provider = ClassHelper.make(AClass)
+
+        expect: 'documentation properties are the fallback carrier'
+        AstDocumentation.extractExact(provider).orElseThrow().render() == 'A class for testing.'
+
+        when: 'an interoperable runtime GroovyDoc carrier is present'
+        provider.addAnnotation(carrier(Groovydoc, '''/**@
+            * Runtime GroovyDoc documentation.
+            */'''))
+
+        then:
+        AstDocumentation.extractExact(provider).orElseThrow().render() == 'Runtime GroovyDoc documentation.'
+
+        when: 'a higher-precedence carrier is empty after normalization'
+        def blankCanonical = carrier(AnnoDoc, '/** */')
+        provider.addAnnotation(blankCanonical)
+
+        then: 'it does not mask usable runtime documentation'
+        AstDocumentation.extractExact(provider).orElseThrow().render() == 'Runtime GroovyDoc documentation.'
+
+        when: 'the canonical carrier is also present'
+        provider.annotations.remove(blankCanonical)
+        provider.addAnnotation(carrier(AnnoDoc, 'Canonical AnnoDoc documentation.'))
+
+        then:
+        AstDocumentation.extractExact(provider).orElseThrow().render() == 'Canonical AnnoDoc documentation.'
+    }
 
     def "attaches exact documentation with final-signature parameter filtering"() {
         given:
@@ -187,5 +223,11 @@ class AstDocumentationTest extends Specification {
                 parameterNames.collect { new Parameter(ClassHelper.STRING_TYPE, it) } as Parameter[], ClassNode.EMPTY_ARRAY, null)
         owner.addMethod(method)
         method
+    }
+
+    private static AnnotationNode carrier(Class<?> type, String value) {
+        def annotation = new AnnotationNode(ClassHelper.make(type))
+        annotation.addMember('value', new ConstantExpression(value))
+        annotation
     }
 }

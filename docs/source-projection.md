@@ -28,6 +28,13 @@ equally to primitive, enum, class, nested-annotation, and array-valued members; 
 sequence. The member-name rule is a source-projection determinism guarantee, not a claim that Java annotation semantics
 assign an order to members, and it deliberately does not preserve incidental source, compiler, or bytecode order.
 
+Embedded documentation is selected independently of classfile annotation order. Canonical `@AnnoDoc` content wins over
+runtime `groovy.lang.Groovydoc`; blank values do not mask a usable lower-precedence carrier. Runtime values are normalized
+without source-comment delimiters, Groovy's `/**@` marker, leading line decoration, or shared indentation. The selected
+content is rendered as Javadoc, and neither carrier annotation is copied into the projected Java. Documentation
+properties are compiler-model extraction resources rather than classfile annotations and are therefore outside a
+single-class-file projection input.
+
 ## Documentation inclusion policy
 
 `ProjectionPolicy.documentation()` has the stable documentation-oriented defaults:

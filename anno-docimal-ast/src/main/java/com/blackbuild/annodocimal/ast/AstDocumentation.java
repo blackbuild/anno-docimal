@@ -34,7 +34,6 @@ import org.codehaus.groovy.ast.ConstructorNode;
 import org.codehaus.groovy.ast.FieldNode;
 import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.Parameter;
-import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -64,7 +63,7 @@ public final class AstDocumentation {
      */
     public static Optional<Documentation> extractExact(AnnotatedNode node) {
         Objects.requireNonNull(node, "node");
-        String text = annotationText(node);
+        String text = AnnoDocUtil.getDocumentationCarrierValue(node);
         if (text == null) text = ClassDocExtractor.extractDocumentation(node);
         return text == null || text.isBlank() ? Optional.empty() : Optional.of(Documentation.parse(text));
     }
@@ -128,20 +127,6 @@ public final class AstDocumentation {
             return Documentation.Link.text(className(requireDeclaringClass(methodNode)) + "#" + methodNode.getName() + "(" + parameterTypes(methodNode.getParameters()) + ")");
         }
         throw new IllegalArgumentException("Cannot create a documentation reference for " + node.getClass().getName());
-    }
-
-    private static @Nullable String annotationText(AnnotatedNode node) {
-        return node.getAnnotations().stream()
-                .filter(annotation -> annotation.getClassNode().getName().equals(AnnoDoc.class.getName()))
-                .findFirst()
-                .map(annotation -> annotation.getMember("value"))
-                .filter(ConstantExpression.class::isInstance)
-                .map(ConstantExpression.class::cast)
-                .map(ConstantExpression::getValue)
-                .filter(String.class::isInstance)
-                .map(String.class::cast)
-                .filter(value -> !value.isBlank())
-                .orElse(null);
     }
 
     private static void removeAnnoDoc(AnnotatedNode node) {

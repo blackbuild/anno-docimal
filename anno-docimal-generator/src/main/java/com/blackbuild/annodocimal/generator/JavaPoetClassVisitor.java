@@ -32,6 +32,7 @@ import org.objectweb.asm.signature.SignatureVisitor;
 import javax.lang.model.element.Modifier;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,6 +42,7 @@ import static java.util.stream.Collectors.toSet;
 
 class JavaPoetClassVisitor extends ClassVisitor {
     static final String ANNO_DOC_CLASS = "com.blackbuild.annodocimal.annotations.AnnoDoc";
+    static final String GROOVYDOC_CLASS = "groovy.lang.Groovydoc";
     private static final String CONSTRUCTOR_NAME = "<init>";
     private final SpecConverter specConverter;
     private final ProjectionPolicy policy;
@@ -49,6 +51,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private final Set<String> groovyRuntimeMethods;
     private final Set<String> groovyRuntimeFields;
     private TypeSpec.Builder typeBuilder;
+    private final MemberAnnotationVisitor.DocumentationCarrierSelection typeDocumentation =
+            new MemberAnnotationVisitor.DocumentationCarrierSelection();
     private TypeSpec type;
     private String internalName;
     private String packageName;
@@ -289,7 +293,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
         exceptionTypes.forEach(methodBuilder::addException);
 
         return new MethodVisitor(api) {
-            String extractedJavadoc = null;
+            final MemberAnnotationVisitor.DocumentationCarrierSelection documentation =
+                    new MemberAnnotationVisitor.DocumentationCarrierSelection();
             int visitedParameters;
 
             @Override
@@ -300,14 +305,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
                     methodBuilder.addModifiers(Modifier.DEFAULT);
                     return null;
                 }
-                if (annotationType.getClassName().equals(ANNO_DOC_CLASS)) {
-                    return new MemberAnnotationVisitor.Javadoc(null) {
-                        @Override
-                        public void visitEnd() {
-                            extractedJavadoc = javadocText;
-                        }
-                    };
-                }
+                AnnotationVisitor documentationVisitor = documentation.visitor(annotationType);
+                if (documentationVisitor != null) return documentationVisitor;
                 return new MemberAnnotationVisitor.Regular(annotationType, methodBuilder, specConverter::toClassName);
             }
 
@@ -358,8 +357,9 @@ class JavaPoetClassVisitor extends ClassVisitor {
                     methodBuilder.addParameter(parameterBuilder.build());
                 }
 
-                if (extractedJavadoc != null) {
-                    methodBuilder.addJavadoc(filterParams(extractedJavadoc));
+                String selectedDocumentation = documentation.selected();
+                if (selectedDocumentation != null) {
+                    methodBuilder.addJavadoc(filterParams(selectedDocumentation));
                 }
 
                 boolean requiresReturn = !CONSTRUCTOR_NAME.equals(name)
@@ -413,6 +413,8 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public void visitEnd() {
+        String selectedDocumentation = typeDocumentation.selected();
+        if (selectedDocumentation != null) typeBuilder.addJavadoc(selectedDocumentation);
         type = typeBuilder.build();
         if (recordDeclaration) {
             recordShapes.add(new RecordShape(className.simpleName(), List.copyOf(recordComponents)));
@@ -421,7 +423,11 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-        return MemberAnnotationVisitor.create(Type.getType(desc), typeBuilder, specConverter::toClassName);
+        Type annotationType = Type.getType(desc);
+        AnnotationVisitor documentationVisitor = typeDocumentation.visitor(annotationType);
+        return documentationVisitor != null
+                ? documentationVisitor
+                : new MemberAnnotationVisitor.Regular(annotationType, typeBuilder, specConverter::toClassName);
     }
 
     @Override
@@ -429,8 +435,13 @@ class JavaPoetClassVisitor extends ClassVisitor {
         if (!ProjectionSelection.includesField(policy, access, name, typeAccess(),
                 groovyRuntimeFields.contains(ProjectionSelection.memberKey(name, desc)))) return null;
 
-        final TypeName[] fieldType = {null}; // Array to allow write access from inner class
+        TypeName fieldType = fieldType(desc, signature);
+        if ((access & Opcodes.ACC_ENUM) != 0) return enumConstantVisitor(name);
+        return ordinaryFieldVisitor(access, name, desc, value, fieldType);
+    }
 
+    private TypeName fieldType(String descriptor, String signature) {
+        final TypeName[] fieldType = {null}; // Array to allow write access from inner class
         if (signature != null) {
             TypeSignatureParser signatureParser = new TypeSignatureParser(specConverter::toClassName) {
                 @Override
@@ -440,45 +451,74 @@ class JavaPoetClassVisitor extends ClassVisitor {
             };
             new SignatureReader(signature).accept(signatureParser);
         } else {
-            fieldType[0] = specConverter.toTypeName(Type.getType(desc));
+            fieldType[0] = specConverter.toTypeName(Type.getType(descriptor));
         }
+        return fieldType[0];
+    }
 
-        if ((access & Opcodes.ACC_ENUM) != 0) {
-            return new FieldVisitor(api) {
-                private TypeSpec.Builder enumClass = TypeSpec.anonymousClassBuilder(CodeBlock.builder().build());
+    private FieldVisitor enumConstantVisitor(String name) {
+        return new FieldVisitor(api) {
+            private final TypeSpec.Builder enumClass = TypeSpec.anonymousClassBuilder(CodeBlock.builder().build());
+            private final MemberAnnotationVisitor.DocumentationCarrierSelection documentation =
+                    new MemberAnnotationVisitor.DocumentationCarrierSelection();
 
-                @Override
-                public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                    return MemberAnnotationVisitor.create(Type.getType(desc), enumClass, specConverter::toClassName);
+            @Override
+            public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                return fieldAnnotationVisitor(descriptor, documentation, enumClass);
+            }
+
+            @Override
+            public void visitEnd() {
+                addSelectedDocumentation(documentation, enumClass::addJavadoc);
+                typeBuilder.addEnumConstant(name, enumClass.build());
+            }
+        };
+    }
+
+    private FieldVisitor ordinaryFieldVisitor(int access, String name, String descriptor,
+                                              Object value, TypeName fieldType) {
+        return new FieldVisitor(api) {
+            private final FieldSpec.Builder field = createField();
+            private final MemberAnnotationVisitor.DocumentationCarrierSelection documentation =
+                    new MemberAnnotationVisitor.DocumentationCarrierSelection();
+
+            private FieldSpec.Builder createField() {
+                FieldSpec.Builder result = FieldSpec.builder(fieldType, name, TypeConversion.decodeModifiers(access));
+                if ((access & Opcodes.ACC_FINAL) != 0) {
+                    result.initializer("$L", fieldInitializer(Type.getType(descriptor), value));
                 }
+                return result;
+            }
 
-                @Override
-                public void visitEnd() {
-                    typeBuilder.addEnumConstant(name, enumClass.build());
-                }
-            };
-        } else {
-            return new FieldVisitor(api) {
-                private FieldSpec.Builder field = FieldSpec.builder(fieldType[0], name, TypeConversion.decodeModifiers(access));
+            @Override
+            public AnnotationVisitor visitAnnotation(String annotationDescriptor, boolean visible) {
+                return fieldAnnotationVisitor(annotationDescriptor, documentation, field);
+            }
 
-                {
-                    if ((access & Opcodes.ACC_FINAL) != 0) {
-                        field.initializer("$L", fieldInitializer(Type.getType(desc), value));
-                    }
-                }
+            @Override
+            public void visitEnd() {
+                addSelectedDocumentation(documentation, field::addJavadoc);
+                typeBuilder.addField(field.build());
+            }
+        };
+    }
 
-                @Override
-                public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                    return MemberAnnotationVisitor.create(Type.getType(desc), field, specConverter::toClassName);
-                }
+    private AnnotationVisitor fieldAnnotationVisitor(
+            String descriptor,
+            MemberAnnotationVisitor.DocumentationCarrierSelection documentation,
+            Object target) {
+        Type annotationType = Type.getType(descriptor);
+        AnnotationVisitor documentationVisitor = documentation.visitor(annotationType);
+        return documentationVisitor != null
+                ? documentationVisitor
+                : new MemberAnnotationVisitor.Regular(annotationType, target, specConverter::toClassName);
+    }
 
-                @Override
-                public void visitEnd() {
-                    typeBuilder.addField(field.build());
-                }
-            };
-        }
-
+    private static void addSelectedDocumentation(
+            MemberAnnotationVisitor.DocumentationCarrierSelection documentation,
+            Consumer<String> target) {
+        String selectedDocumentation = documentation.selected();
+        if (selectedDocumentation != null) target.accept(selectedDocumentation);
     }
 
     private int typeAccess() {

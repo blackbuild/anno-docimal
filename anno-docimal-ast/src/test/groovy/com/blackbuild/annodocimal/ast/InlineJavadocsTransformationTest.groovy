@@ -25,7 +25,9 @@
 package com.blackbuild.annodocimal.ast
 
 import com.blackbuild.annodocimal.annotations.AnnoDoc
+import groovy.lang.Groovydoc
 import org.intellij.lang.annotations.Language
+import spock.lang.Issue
 
 class InlineJavadocsTransformationTest extends ClassGeneratingSpecification {
 
@@ -86,6 +88,7 @@ class TestClass {
          */
         void innerMethod() {}
     }
+
 }
 '''
 
@@ -107,6 +110,36 @@ Second paragraph.
         then:
         innerClass.getAnnotation(AnnoDoc).value() == 'Inner class'
         innerClass.getMethod("innerMethod").getAnnotation(AnnoDoc).value() == 'Inner class method'
+    }
+
+    @Issue("19")
+    def "runtime GroovyDoc capture does not emit a duplicate AnnoDoc carrier"() {
+        given:
+        compilerConfiguration.optimizationOptions.runtimeGroovydoc = Boolean.TRUE
+
+        when:
+        createClass "dummy/RuntimeGroovyDoc.groovy", '''
+package dummy
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+/**@
+ * Runtime class documentation.
+ */
+@InlineJavadocs
+class RuntimeGroovyDoc {
+    /**@
+     * Runtime method documentation.
+     */
+    void action() {}
+}
+'''
+
+        then:
+        clazz.getAnnotation(Groovydoc).value().contains('Runtime class documentation.')
+        clazz.getAnnotation(AnnoDoc) == null
+        clazz.getDeclaredMethod('action').getAnnotation(Groovydoc).value().contains('Runtime method documentation.')
+        clazz.getDeclaredMethod('action').getAnnotation(AnnoDoc) == null
     }
 
     def "Bug: Groovy 3 parser ignores second class in file"() {
