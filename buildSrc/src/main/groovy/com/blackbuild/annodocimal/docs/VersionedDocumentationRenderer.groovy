@@ -35,7 +35,8 @@ import java.util.regex.Matcher
 class VersionedDocumentationRenderer {
 
     static final String RENDERER_ID = 'annodocimal-buildsrc-vd-1'
-    private static final Set<String> STAGES = ['archived', 'public-rc', 'release'] as Set
+    private static final Set<String> STATUSES = ['pending', 'public-rc', 'current', 'archived'] as Set
+    private static final Set<String> RELEASE_STAGES = ['candidate', 'final'] as Set
     private static final String VERSION_PATTERN = /\d+\.\d+\.\d+(?:-rc\.[1-9]\d*)?/
     private static final String CURRENT_BRANDING_MANIFEST = 'docs/branding/annodocimal-current.json'
     private static final Set<String> RESERVED_PATHS = ['source-manifest.json', 'version-status.md'] as Set
@@ -46,45 +47,59 @@ class VersionedDocumentationRenderer {
         String revision = string(inputs, 'revision')
         String rendererRevision = string(inputs, 'rendererRevision')
         String version = string(inputs, 'version')
-        String stage = string(inputs, 'stage')
+        String status = string(inputs, 'status')
+        String releaseStage = optionalString(inputs, 'releaseStage')
         String brandingManifestPath = optionalString(inputs, 'brandingManifestPath')
         String currentBrandingManifestPath = optionalString(inputs, 'currentBrandingManifestPath')
         String successorOf = optionalString(inputs, 'successorOf')
-        Map<String, File> javadocs = javadocs(inputs.javadocInputDirectories ?: [:], stage != 'archived')
+        Map<String, File> javadocs = javadocs(inputs.javadocInputDirectories ?: [:], status != 'archived')
 
         requireFullSha(revision, 'revision')
         requireFullSha(rendererRevision, 'rendererRevision')
         if (!(version ==~ VERSION_PATTERN)) fail("Documentation version must be exact: $version")
-        if (!STAGES.contains(stage)) fail("Documentation stage must be one of $STAGES: $stage")
-        if (stage == 'public-rc' != version.contains('-rc.'))
-            fail("$stage must agree with exact RC/final version $version")
-        if (stage == 'archived' && version.contains('-rc.'))
-            fail("Archived documentation must name an exact final version: $version")
-        if (stage == 'archived' && successorOf) fail('Archived documentation cannot update an RC successor record')
-        if (successorOf && (stage != 'release' || !(successorOf ==~ /\d+\.\d+\.\d+-rc\.[1-9]\d*/)))
-            fail('An RC successor record requires a final release and an exact RC predecessor')
+        if (!STATUSES.contains(status)) fail("Documentation status must be one of $STATUSES: $status")
+        if (status == 'pending') {
+            if (!RELEASE_STAGES.contains(releaseStage))
+                fail("Pending documentation requires documentationReleaseStage to be one of $RELEASE_STAGES")
+            if (releaseStage == 'candidate' && !version.contains('-rc.') ||
+                    releaseStage == 'final' && version.contains('-rc.'))
+                fail("Pending $releaseStage must agree with exact RC/final version $version")
+        } else if (releaseStage) {
+            fail('documentationReleaseStage is valid only with pending documentation')
+        }
+        if (status == 'public-rc' && !version.contains('-rc.'))
+            fail("Public RC documentation must name an exact RC version: $version")
+        if (status in ['current', 'archived'] && version.contains('-rc.'))
+            fail("$status documentation must name an exact final version: $version")
+        if (successorOf && (status != 'current' || !(successorOf ==~ /\d+\.\d+\.\d+-rc\.[1-9]\d*/)))
+            fail('An RC successor record requires current final documentation and an exact RC predecessor')
         if (git(objectDirectory, ['status', '--porcelain']).trim())
             fail('Documentation input worktree is dirty; render a checked-out immutable revision.')
         if (git(objectDirectory, ['rev-parse', '--verify', "${revision}^{commit}"]).trim() != revision)
             fail("Revision must resolve to the supplied full SHA: $revision")
-        boolean hasApi = stage != 'archived' && !javadocs.empty
+        boolean hasApi = status != 'archived' && !javadocs.empty
 
-        Map<String, ?> branding = stage == 'archived' ? null : readBrandingManifest(objectDirectory, revision, brandingManifestPath)
-        if (stage == 'release' && (brandingManifestPath != currentBrandingManifestPath || brandingManifestPath != CURRENT_BRANDING_MANIFEST))
+        Map<String, ?> branding = status == 'archived' ? null :
+                readBrandingManifest(objectDirectory, revision, brandingManifestPath)
+        boolean finalProduct = status == 'current' || status == 'pending' && releaseStage == 'final'
+        if (finalProduct && (brandingManifestPath != currentBrandingManifestPath || brandingManifestPath != CURRENT_BRANDING_MANIFEST))
             fail('A final documentation snapshot must use the current AnnoDocimal branding manifest')
-        if (stage != 'archived' && !hasApi)
-            fail('RC and final snapshots require Javadocs for every supported public Java API artifact')
+        if (status != 'archived' && !hasApi)
+            fail('Product documentation snapshots require Javadocs for every supported public Java API artifact')
 
         if (outputDirectory.exists() && outputDirectory.listFiles()?.length)
             fail("Output directory must be empty so an immutable snapshot cannot be overwritten: $outputDirectory")
         outputDirectory.mkdirs()
-        String snapshotPath = stage == 'archived' ? "archive/$version" : version
+        String snapshotPath = status == 'archived' ? "archive/$version" : version
         File exactDirectory = new File(outputDirectory, snapshotPath)
         Set<String> outputPaths = new TreeSet<>()
-        copyGitTree(objectDirectory, revision, version, stage, snapshotPath, branding, hasApi, 'docs', exactDirectory, outputPaths, stage != 'archived')
-        copyGitFile(objectDirectory, revision, version, stage, snapshotPath, branding, hasApi, 'README.md', exactDirectory, 'index.md', outputPaths)
+        copyGitTree(objectDirectory, revision, version, status, releaseStage, snapshotPath, branding, hasApi,
+                'docs', exactDirectory, outputPaths, status != 'archived')
+        copyGitFile(objectDirectory, revision, version, status, releaseStage, snapshotPath, branding, hasApi,
+                'README.md', exactDirectory, 'index.md', outputPaths)
         if (hasGitPath(objectDirectory, revision, 'CHANGES.md'))
-            copyGitFile(objectDirectory, revision, version, stage, snapshotPath, branding, hasApi, 'CHANGES.md', exactDirectory, 'CHANGES.md', outputPaths)
+            copyGitFile(objectDirectory, revision, version, status, releaseStage, snapshotPath, branding, hasApi,
+                    'CHANGES.md', exactDirectory, 'CHANGES.md', outputPaths)
 
         if (hasApi) {
             javadocs.each { module, directory ->
@@ -96,9 +111,14 @@ class VersionedDocumentationRenderer {
         }
         if (branding != null) copyBrandingAsset(objectDirectory, revision, branding, exactDirectory, outputPaths)
         outputPaths.add('version-status.md')
-        write(exactDirectory, 'version-status.md', versionStatus(version, stage, snapshotPath).getBytes(StandardCharsets.UTF_8))
-        write(outputDirectory, "status/${version}.json", canonicalJson(statusRecord(version, stage, null)).getBytes(StandardCharsets.UTF_8))
-        if (successorOf) write(outputDirectory, "status/${successorOf}.json", canonicalJson(statusRecord(successorOf, 'public-rc', version)).getBytes(StandardCharsets.UTF_8))
+        write(exactDirectory, 'version-status.md',
+                versionStatus(version, status, releaseStage, snapshotPath).getBytes(StandardCharsets.UTF_8))
+        if (status != 'pending')
+            write(outputDirectory, "status/${version}.json",
+                    canonicalJson(statusRecord(version, status, null)).getBytes(StandardCharsets.UTF_8))
+        if (successorOf)
+            write(outputDirectory, "status/${successorOf}.json",
+                    canonicalJson(statusRecord(successorOf, 'public-rc', version)).getBytes(StandardCharsets.UTF_8))
         verifyLocalMarkdownLinks(exactDirectory)
 
         Map<String, String> hashes = hashes(exactDirectory).collectEntries { path, hash -> [("$snapshotPath/$path"): hash] }
@@ -107,7 +127,8 @@ class VersionedDocumentationRenderer {
                 schemaVersion: 1,
                 renderer     : [id: RENDERER_ID, revision: rendererRevision],
                 source       : [revision: revision, documentationRoot: 'docs', readme: 'README.md', changes: 'CHANGES.md'],
-                documentation: [version: version, stage: stage],
+                documentation: [version: version, status: status] +
+                        (releaseStage ? [releaseStage: releaseStage] : [:]),
                 branding     : branding == null ? null : [manifest: brandingManifestPath, identity: branding.identity, season: branding.season,
                                                          altText: branding.altText, approval: branding.approval, sourceAsset: branding.logo,
                                                          outputAsset: "assets/branding/${branding.logo.tokenize('/').last()}", sha256: branding.sha256],
@@ -118,21 +139,27 @@ class VersionedDocumentationRenderer {
         write(exactDirectory, 'source-manifest.json', (JsonOutput.prettyPrint(JsonOutput.toJson(manifest)) + '\n').getBytes(StandardCharsets.UTF_8))
     }
 
-    private static void copyGitTree(File repository, String revision, String version, String stage, String snapshotPath, Map<String, ?> branding, boolean hasApi, String root, File output, Set<String> paths, boolean required) {
+    private static void copyGitTree(File repository, String revision, String version, String status,
+                                    String releaseStage, String snapshotPath, Map<String, ?> branding, boolean hasApi,
+                                    String root, File output, Set<String> paths, boolean required) {
         List<String> files = git(repository, ['ls-tree', '-r', '--name-only', revision, '--', root]).readLines().findAll { it }
         if (files.empty && required) fail("Revision $revision does not contain canonical documentation under $root/")
         files.each { source ->
             String target = source.substring(root.length() + 1)
-            copyGitFile(repository, revision, version, stage, snapshotPath, branding, hasApi, source, output, "docs/$target", paths)
+            copyGitFile(repository, revision, version, status, releaseStage, snapshotPath, branding, hasApi, source, output, "docs/$target", paths)
         }
     }
 
-    private static void copyGitFile(File repository, String revision, String version, String stage, String snapshotPath, Map<String, ?> branding, boolean hasApi, String source, File output, String target, Set<String> paths) {
+    private static void copyGitFile(File repository, String revision, String version, String status,
+                                    String releaseStage, String snapshotPath, Map<String, ?> branding, boolean hasApi,
+                                    String source, File output, String target, Set<String> paths) {
         safePath(target)
         if (RESERVED_PATHS.contains(target)) fail("Source path collides with renderer-owned output: $target")
         if (!paths.add(target)) fail("Duplicate rendered path: $target")
         byte[] content = gitBytes(repository, ['show', "$revision:$source"])
-        if (target.endsWith('.md')) content = (chrome(version, stage, revision, snapshotPath, branding, hasApi, source, target) + new String(content, StandardCharsets.UTF_8)).bytes
+        if (target.endsWith('.md'))
+            content = (chrome(version, status, releaseStage, revision, snapshotPath, branding, hasApi, source, target) +
+                    new String(content, StandardCharsets.UTF_8)).bytes
         write(output, target, content)
     }
 
@@ -147,14 +174,18 @@ class VersionedDocumentationRenderer {
         }
     }
 
-    private static String chrome(String version, String stage, String revision, String snapshotPath, Map<String, ?> branding, boolean hasApi, String path, String target) {
-        String archived = stage == 'archived' ? '> **Archived (legacy).** This historical documentation is retained for compatibility.\n' : ''
-        String prerelease = stage == 'public-rc' ? "> **Prerelease warning.** This release candidate is not stable; see its [successor status record](${siteRootReference(snapshotPath, target, "status/${version}.json")}).\n" : ''
+    private static String chrome(String version, String status, String releaseStage, String revision,
+                                 String snapshotPath, Map<String, ?> branding, boolean hasApi, String path, String target) {
+        String archived = status == 'archived' ? '> **Archived (legacy).** This historical documentation is retained for compatibility.\n' : ''
+        String prerelease = status == 'public-rc' ? "> **Prerelease warning.** This release candidate is not stable; see its [successor status record](${siteRootReference(snapshotPath, target, "status/${version}.json")}).\n" : ''
+        String pending = status == 'pending' ?
+                "> **Pending release evidence.** This immutable $releaseStage proof is deployed but unlisted. " +
+                        'It is not a public release and advances no alias.\n' : ''
         String navigation = hasApi ? "[API reference](${apiReference(target)}) · " : ''
         String identity = branding == null ? '' : "Identity: **${branding.identity} — ${branding.season}** · [logo](${brandingReference(target, branding.logo.tokenize('/').last())}) · "
         "<!-- Generated by $RENDERER_ID. Do not edit this rendered copy. -->\n" +
-                "> **AnnoDocimal $version — $stage immutable documentation snapshot.** $navigation$identity" +
-                "Source: [$revision](https://github.com/blackbuild/anno-docimal/tree/$revision/$path).\n" + archived + prerelease + '\n'
+                "> **AnnoDocimal $version — $status immutable documentation snapshot.** $navigation$identity" +
+                "Source: [$revision](https://github.com/blackbuild/anno-docimal/tree/$revision/$path).\n" + archived + prerelease + pending + '\n'
     }
 
     private static String apiIndex(String version, Set<String> modules) {
@@ -188,16 +219,19 @@ class VersionedDocumentationRenderer {
         }
     }
 
-    private static String versionStatus(String version, String stage, String snapshotPath) {
+    private static String versionStatus(String version, String status, String releaseStage, String snapshotPath) {
         "# AnnoDocimal $version version status\n\n" +
-                "Stage: **$stage**.\n\n" +
-                (stage == 'archived' ? 'This archived legacy snapshot is immutable.\n' : stage == 'public-rc'
+                "Status: **$status**.\n\n" +
+                (releaseStage ? "Release stage: **$releaseStage**.\n\n" : '') +
+                (status == 'archived' ? 'This archived legacy snapshot is immutable.\n' : status == 'public-rc'
                         ? "This public release candidate is a prerelease and is not stable. See the [successor status record](${siteRootReference(snapshotPath, 'version-status.md', "status/${version}.json")}).\n"
-                        : 'This is an immutable final release snapshot.\n')
+                        : status == 'pending'
+                            ? 'This immutable proof is deployed but unlisted. It is not a public release and advances no alias.\n'
+                            : 'This is an immutable exact published final release snapshot. Its presence does not advance stable or line aliases.\n')
     }
 
-    private static Map<String, ?> statusRecord(String version, String stage, String successor) {
-        [schemaVersion: 1, version: version, stage: stage, successor: successor]
+    private static Map<String, ?> statusRecord(String version, String status, String successor) {
+        [schemaVersion: 1, version: version, status: status, successor: successor]
     }
 
     private static String canonicalJson(Map<String, ?> value) {
@@ -205,7 +239,7 @@ class VersionedDocumentationRenderer {
     }
 
     private static Map<String, ?> readBrandingManifest(File repository, String revision, String path) {
-        if (!path) fail('RC and final documentation require a versioned branding manifest')
+        if (!path) fail('Product documentation requires a versioned branding manifest')
         safePath(path)
         Object parsed
         try {

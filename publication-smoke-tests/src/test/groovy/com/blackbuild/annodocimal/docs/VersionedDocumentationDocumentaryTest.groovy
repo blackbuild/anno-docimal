@@ -73,12 +73,12 @@ class VersionedDocumentationDocumentaryTest extends Specification {
                 revision: revision,
                 rendererRevision: revision,
                 version: '1.0.0-rc.1',
-                stage: 'public-rc',
+                status: 'public-rc',
                 brandingManifestPath: 'docs/branding/annodocimal-current.json',
                 currentBrandingManifestPath: 'docs/branding/annodocimal-current.json',
                 javadocInputDirectories: ['anno-docimal-annotations': javadocs])
 
-        then: 'the output makes its immutable source, stage, and public API visible'
+        then: 'the output makes its immutable source, status, and public API visible'
         new File(output, '1.0.0-rc.1/index.md').text.contains('1.0.0-rc.1 — public-rc')
         new File(output, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file
         new File(output, '1.0.0-rc.1/source-manifest.json').text.contains(revision)

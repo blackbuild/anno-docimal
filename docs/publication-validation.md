@@ -58,4 +58,5 @@ Preparing this task does not authorize an RC or a release. Until an authorized R
 resolution remains an external delivery condition. Issue #45 owns the release runbook, protected authorization,
 publication order, and recovery procedure. Its documentation-site handoff must retain proof before a final render writes
 an RC successor status record; that mutable root record is the only permitted post-publication status change and never
-rewrites an RC snapshot or manifest.
+rewrites an RC snapshot or manifest. A `pending` candidate or final documentation render may provide protected,
+unlisted pre-publication evidence, but it authorizes no artifact publication, public status record, or navigation alias.

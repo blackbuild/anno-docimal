@@ -41,7 +41,8 @@ abstract class RenderVersionedDocumentationTask extends DefaultTask {
     @Input abstract Property<String> getRevision()
     @Input abstract Property<String> getRendererRevision()
     @Input abstract Property<String> getDocumentationVersion()
-    @Input abstract Property<String> getStage()
+    @Input abstract Property<String> getStatus()
+    @Input @Optional abstract Property<String> getReleaseStage()
     @Input @Optional abstract Property<String> getBrandingManifestPath()
     @Input @Optional abstract Property<String> getCurrentBrandingManifestPath()
     @Input @Optional abstract Property<String> getSuccessorOf()
@@ -55,7 +56,8 @@ abstract class RenderVersionedDocumentationTask extends DefaultTask {
         VersionedDocumentationRenderer.render(
                 objectDirectory: objectDirectory.get().asFile, outputDirectory: outputDirectory.get().asFile,
                 revision: revision.get(), rendererRevision: rendererRevision.get(), version: documentationVersion.get(),
-                stage: stage.get(), brandingManifestPath: brandingManifestPath.orNull,
+                status: status.get(), releaseStage: releaseStage.orNull,
+                brandingManifestPath: brandingManifestPath.orNull,
                 currentBrandingManifestPath: currentBrandingManifestPath.orNull, successorOf: successorOf.orNull,
                 javadocInputDirectories: javadocInputDirectories.get())
     }

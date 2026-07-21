@@ -64,21 +64,55 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         String historicRevision = git(fixture, ['rev-parse', 'HEAD']).trim()
         File archive = new File(temporaryDir, 'archive')
         project.delete(archive)
-        render(fixture, archive, historicRevision, javadoc, [version: '0.9.0', stage: 'archived', javadocInputDirectories: [:]])
+        render(fixture, archive, historicRevision, javadoc,
+                [version: '0.9.0', status: 'archived', javadocInputDirectories: [:],
+                 brandingManifestPath: null, currentBrandingManifestPath: null])
         assertTrue(new File(archive, 'archive/0.9.0/index.md').text.contains('Archived (legacy)'), 'legacy archive chrome')
         assertTrue(!new File(archive, 'archive/0.9.0/docs').exists(), 'README-only archives do not require modern Markdown sources')
         assertTrue(!new File(archive, 'archive/0.9.0/CHANGES.md').file, 'README-only archives do not require modern change history')
         assertTrue(!new File(archive, 'archive/0.9.0/api/index.md').file, 'archives do not fabricate current Javadocs')
         File finalRelease = new File(temporaryDir, 'final-release')
         project.delete(finalRelease)
-        render(fixture, finalRelease, revision, javadoc, [version: '1.0.0', stage: 'release', successorOf: '1.0.0-rc.1'])
+        render(fixture, finalRelease, revision, javadoc,
+                [version: '1.0.0', status: 'current', successorOf: '1.0.0-rc.1'])
         assertTrue(new File(finalRelease, 'status/1.0.0-rc.1.json').text.contains('"successor": "1.0.0"'), 'separate RC successor record')
         File candidate = new File(temporaryDir, 'candidate')
         project.delete(candidate)
         render(fixture, candidate, revision, javadoc, [brandingManifestPath: 'docs/branding/candidate.json'])
         assertTrue(new File(candidate, '1.0.0-rc.1/source-manifest.json').text.contains('Candidate identity'), 'candidate branding is allowed for public RCs')
-        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'candidate-final'), revision, javadoc, [version: '1.0.0', stage: 'release', brandingManifestPath: 'docs/branding/candidate.json', currentBrandingManifestPath: 'docs/branding/candidate.json']) }
-        expectFailure { VersionedDocumentationRenderer.render(objectDirectory: fixture, outputDirectory: new File(temporaryDir, 'bad'), revision: '0' * 40, rendererRevision: revision, version: '1.0.0-rc.1', stage: 'public-rc', brandingManifestPath: 'docs/branding/annodocimal-current.json', currentBrandingManifestPath: 'docs/branding/annodocimal-current.json', javadocInputDirectories: ['api': javadoc]) }
+        File pendingCandidate = new File(temporaryDir, 'pending-candidate')
+        project.delete(pendingCandidate)
+        render(fixture, pendingCandidate, revision, javadoc,
+                [status: 'pending', releaseStage: 'candidate', brandingManifestPath: 'docs/branding/candidate.json'])
+        assertTrue(new File(pendingCandidate, '1.0.0-rc.1/version-status.md').text.contains('deployed but unlisted'), 'pending evidence is explicitly unlisted')
+        assertTrue(!new File(pendingCandidate, 'status/1.0.0-rc.1.json').exists(), 'pending evidence creates no public status record')
+        assertTrue(new File(pendingCandidate, '1.0.0-rc.1/source-manifest.json').text.contains('Candidate identity'), 'candidate branding is allowed for pending candidates')
+        File pendingFinal = new File(temporaryDir, 'pending-final')
+        project.delete(pendingFinal)
+        render(fixture, pendingFinal, revision, javadoc,
+                [version: '1.0.0', status: 'pending', releaseStage: 'final'])
+        assertTrue(new File(pendingFinal, '1.0.0/source-manifest.json').text.contains('"releaseStage": "final"'), 'pending final proof records its release stage')
+        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'pending-without-release-stage'), revision, javadoc,
+                [status: 'pending']) }
+        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'release-stage-outside-pending'), revision, javadoc,
+                [releaseStage: 'candidate']) }
+        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'candidate-final'), revision, javadoc,
+                [version: '1.0.0', status: 'current', brandingManifestPath: 'docs/branding/candidate.json',
+                 currentBrandingManifestPath: 'docs/branding/candidate.json']) }
+        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'missing-branding'), revision, javadoc,
+                [brandingManifestPath: null]) }
+        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'candidate-final-version'), revision, javadoc,
+                [version: '1.0.0', status: 'pending', releaseStage: 'candidate']) }
+        expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'final-rc-version'), revision, javadoc,
+                [status: 'pending', releaseStage: 'final']) }
+        expectFailure {
+            VersionedDocumentationRenderer.render(
+                    objectDirectory: fixture, outputDirectory: new File(temporaryDir, 'bad'), revision: '0' * 40,
+                    rendererRevision: revision, version: '1.0.0-rc.1', status: 'public-rc',
+                    brandingManifestPath: 'docs/branding/annodocimal-current.json',
+                    currentBrandingManifestPath: 'docs/branding/annodocimal-current.json',
+                    javadocInputDirectories: ['api': javadoc])
+        }
         new File(javadoc, 'index.html').text = '<a href="missing.html">broken API link</a>'
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'broken-javadocs'), revision, javadoc) }
         new File(fixture, 'dirty').text = 'dirty'
@@ -87,7 +121,7 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
 
     private static void render(File fixture, File output, String revision, File javadoc, Map<String, ?> overrides = [:]) {
         Map<String, ?> inputs = [objectDirectory: fixture, outputDirectory: output, revision: revision,
-                                 rendererRevision: revision, version: '1.0.0-rc.1', stage: 'public-rc',
+                                 rendererRevision: revision, version: '1.0.0-rc.1', status: 'public-rc',
                                  brandingManifestPath: 'docs/branding/annodocimal-current.json',
                                  currentBrandingManifestPath: 'docs/branding/annodocimal-current.json',
                                  javadocInputDirectories: ['anno-docimal-annotations': javadoc]]
