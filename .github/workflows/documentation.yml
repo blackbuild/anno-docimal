@@ -1,0 +1,34 @@
+name: Build versioned documentation
+
+on:
+  pull_request:
+    branches: [ main, master, release/* ]
+  push:
+    branches: [ main, master, release/* ]
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Render exact-site rehearsal
+        shell: bash
+        run: |
+          revision="$(git rev-parse HEAD)"
+          ./gradlew renderVersionedDocumentation \
+            -PdocumentationRevision="$revision" \
+            -PdocumentationRendererRevision="$revision" \
+            -PdocumentationVersion=0.0.0-rc.1 \
+            -PdocumentationStage=public-rc \
+            -PdocumentationObjectDirectory="$GITHUB_WORKSPACE" \
+            -PdocumentationOutputDirectory="$GITHUB_WORKSPACE/build/versioned-documentation"

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added a protected, immutable GitHub Pages publication seam for exact AnnoDocimal documentation and all supported
+  Java API Javadocs. Pull requests rehearse the rendered site without deployment; release authorization and recovery
+  remain in the #45 runbook. See [versioned documentation](docs/versioned-documentation.md).
+
 - Added shared Java APT, local Groovy, and packaged global-AST capture conformance evidence across Groovy 3, 4, and 5.
   The shared declaration matrix covers documented keys, normalization, nested declarations, parameters, empty content,
   and carrier selection. Java APT now removes surrounding whitespace from documentation-properties values consistently

@@ -1,3 +1,6 @@
+import com.blackbuild.annodocimal.docs.RenderVersionedDocumentationTask
+import com.blackbuild.annodocimal.docs.VerifyVersionedDocumentationRendererTask
+
 buildscript {
     repositories {
         mavenCentral()
@@ -63,6 +66,30 @@ sonar {
         property "sonar.host.url", "https://sonarcloud.io"
         property "sonar.gradle.skipCompile", "true"
     }
+}
+
+def documentationJavadocProjects = subprojects.findAll { it.name != 'publication-smoke-tests' }
+def documentationJavadocDirectories = documentationJavadocProjects.collectEntries { project ->
+    [(project.name): project.layout.buildDirectory.dir('docs/javadoc').get().asFile.absolutePath]
+}
+
+tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask) {
+    group = 'documentation'
+    description = 'Renders one immutable AnnoDocimal documentation and Javadoc site from explicit exact inputs.'
+    dependsOn documentationJavadocProjects.collect { it.tasks.named('javadoc') }
+    revision.set(providers.gradleProperty('documentationRevision'))
+    rendererRevision.set(providers.gradleProperty('documentationRendererRevision'))
+    documentationVersion.set(providers.gradleProperty('documentationVersion'))
+    stage.set(providers.gradleProperty('documentationStage'))
+    objectDirectory.set(layout.dir(providers.gradleProperty('documentationObjectDirectory').map { file(it) }))
+    outputDirectory.set(layout.dir(providers.gradleProperty('documentationOutputDirectory').map { file(it) }))
+    javadocInputDirectories.set(documentationJavadocDirectories)
+    javadocInputs.from(documentationJavadocDirectories.values())
+}
+
+tasks.register('verifyVersionedDocumentationRenderer', VerifyVersionedDocumentationRendererTask) {
+    group = 'verification'
+    description = 'Runs hermetic acceptance fixtures for the immutable documentation renderer.'
 }
 
 def publicationAuditRepository = layout.buildDirectory.dir('publication-audit-repository')
@@ -215,4 +242,5 @@ tasks.register('publicRcSmoke') {
 tasks.named('check') {
     dependsOn ':publication-smoke-tests:test'
     dependsOn tasks.named('verifyPublicationReleaseConfiguration')
+    dependsOn tasks.named('verifyVersionedDocumentationRenderer')
 }

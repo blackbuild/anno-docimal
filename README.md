@@ -62,6 +62,7 @@ and documentation, but not original bodies, initializers, whitespace, or imports
 - [Supported API and implementation-only boundary](docs/api/1.0-supported-api.md)
 - [Source-projection policy and fidelity](docs/source-projection.md)
 - [Publication validation](docs/publication-validation.md)
+- [Versioned documentation and Javadocs](docs/versioned-documentation.md)
 - [0.x-to-1.0 migration](docs/migration/0.x-to-1.0-supported-api.md)
 - [Module-path migration](docs/migration/0.x-to-1.0-module-path.md)
 - [Change history](CHANGES.md)

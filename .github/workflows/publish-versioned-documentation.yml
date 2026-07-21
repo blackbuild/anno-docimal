@@ -1,0 +1,95 @@
+name: Publish protected versioned documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact lowercase source commit SHA
+        required: true
+        type: string
+      version:
+        description: Exact final or RC version
+        required: true
+        type: string
+      stage:
+        description: Public release stage
+        required: true
+        type: choice
+        options: [public-rc, release]
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-render:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+    steps:
+      - id: validate
+        shell: bash
+        env:
+          REVISION: ${{ inputs.revision }}
+          VERSION: ${{ inputs.version }}
+          STAGE: ${{ inputs.stage }}
+        run: |
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]]
+          if [[ "$STAGE" == public-rc ]]; then [[ "$VERSION" == *-rc.* ]]; else [[ "$VERSION" != *-rc.* ]]; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+      - name: Confirm exact source commit
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${{ inputs.revision }}"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Render immutable site artifact
+        shell: bash
+        run: |
+          ./gradlew renderVersionedDocumentation \
+            -PdocumentationRevision="${{ inputs.revision }}" \
+            -PdocumentationRendererRevision="${{ inputs.revision }}" \
+            -PdocumentationVersion="${{ inputs.version }}" \
+            -PdocumentationStage="${{ inputs.stage }}" \
+            -PdocumentationObjectDirectory="$GITHUB_WORKSPACE" \
+            -PdocumentationOutputDirectory="$GITHUB_WORKSPACE/build/versioned-documentation"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: versioned-documentation
+          path: build/versioned-documentation
+          if-no-files-found: error
+
+  deploy-immutable-snapshot:
+    needs: validate-and-render
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: versioned-documentation
+          path: rendered
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          fetch-depth: 1
+      - name: Add one previously absent exact snapshot
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate-and-render.outputs.version }}
+        run: |
+          test ! -e "pages/$VERSION"
+          mkdir -p pages
+          mv "rendered/$VERSION" "pages/$VERSION"
+          git -C pages config user.name github-actions[bot]
+          git -C pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C pages add "$VERSION"
+          git -C pages commit -m "Publish immutable documentation snapshot $VERSION"
+          git -C pages push origin HEAD:gh-pages
