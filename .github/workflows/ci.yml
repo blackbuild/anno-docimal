@@ -33,9 +33,12 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
-      - name: Build with Gradle
+      - name: Verify Gradle JVM is Java 17
+        run: ./gradlew --version
+      - name: Build and produce coverage with Java 17
+        run: ./gradlew build jacocoTestReport
+      - name: Analyze with auto-provisioned Sonar JRE
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run:
-          ./gradlew build jacocoTestReport sonar
+        run: ./gradlew sonar --info
