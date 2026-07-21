@@ -217,26 +217,26 @@ class CarrierFixture {
         def javaDocumentation = javaProperties.collectEntries { key, value ->
             [key, Documentation.parse(value).render()]
         }
-        def localDocumentation = captureGroovy('groovy-local', true, false).documentation
-        def globalDocumentation = captureGroovy('groovy-global-packaged', false, true).documentation
+        def localDocumentation = captureGroovy(GroovyCapturePath.LOCAL).documentation
+        def globalDocumentation = captureGroovy(GroovyCapturePath.PACKAGED_GLOBAL).documentation
 
         then: 'properties and annotations are intentionally different storage with the same declaration semantics'
         assertCapturePath('java-apt-properties', javaProperties, EXPECTED_PROPERTY_VALUES)
         assertCapturePath('java-apt-semantics', javaDocumentation, EXPECTED_DOCUMENTATION)
-        assertCapturePath('groovy-local-extraction', localDocumentation)
-        assertCapturePath('groovy-global-packaged-extraction', globalDocumentation)
+        assertCapturePath("${GroovyCapturePath.LOCAL.label}-extraction", localDocumentation)
+        assertCapturePath("${GroovyCapturePath.PACKAGED_GLOBAL.label}-extraction", globalDocumentation)
     }
 
     def "local and packaged-global capture preserve carrier precedence without duplicate emission"() {
         when:
-        def local = captureGroovy('carrier-local', true, false,
-                CARRIER_FIXTURE_CLASS, CARRIER_GROOVY_SOURCE, true)
-        def global = captureGroovy('carrier-global-packaged', false, true,
-                CARRIER_FIXTURE_CLASS, CARRIER_GROOVY_SOURCE, true)
+        def local = captureGroovy(GroovyCapturePath.LOCAL_WITH_RUNTIME,
+                CARRIER_FIXTURE_CLASS, CARRIER_GROOVY_SOURCE)
+        def global = captureGroovy(GroovyCapturePath.PACKAGED_GLOBAL_WITH_RUNTIME,
+                CARRIER_FIXTURE_CLASS, CARRIER_GROOVY_SOURCE)
 
         then:
-        assertCarrierPath('groovy-local-carriers', local)
-        assertCarrierPath('groovy-global-packaged-carriers', global)
+        assertCarrierPath("${GroovyCapturePath.LOCAL_WITH_RUNTIME.label}-carriers", local)
+        assertCarrierPath("${GroovyCapturePath.PACKAGED_GLOBAL_WITH_RUNTIME.label}-carriers", global)
     }
 
     private Map<String, String> captureJavaProperties() {
@@ -269,34 +269,33 @@ class CarrierFixture {
         properties.each { key, value -> target["$className#$key"] = value }
     }
 
-    private CaptureObservation captureGroovy(String path, boolean local, boolean packagedGlobal,
+    private CaptureObservation captureGroovy(GroovyCapturePath path,
                                              String fixtureClass = FIXTURE_CLASS,
-                                             String sourceText = GROOVY_SOURCE,
-                                             boolean runtimeGroovydoc = false) {
+                                             String sourceText = GROOVY_SOURCE) {
         String simpleName = fixtureClass.substring(fixtureClass.lastIndexOf('.') + 1)
-        Path source = temporaryDirectory.resolve("$path/src/conformance/${simpleName}.groovy")
-        Path classes = temporaryDirectory.resolve("$path/classes")
+        Path source = temporaryDirectory.resolve("$path.label/src/conformance/${simpleName}.groovy")
+        Path classes = temporaryDirectory.resolve("$path.label/classes")
         Files.createDirectories(source.parent)
         Files.createDirectories(classes)
-        String marker = local ? '@InlineJavadocs\n' : ''
+        String marker = path.local ? '@InlineJavadocs\n' : ''
         Files.writeString(source, sourceText.replace("class $simpleName", marker + "class $simpleName"))
 
         def observation = new CaptureObservation()
         def configuration = new CompilerConfiguration(targetDirectory: classes.toFile(), parameters: true)
         configuration.optimizationOptions.groovydoc = Boolean.TRUE
-        configuration.optimizationOptions.runtimeGroovydoc = runtimeGroovydoc
+        configuration.optimizationOptions.runtimeGroovydoc = path.runtimeGroovydoc
         configuration.addCompilationCustomizers(new DocumentationCollector(fixtureClass, observation))
 
         def parent = new GlobalAstFilteringClassLoader(getClass().classLoader)
         def loader = new GroovyClassLoader(parent, configuration)
         try {
-            if (packagedGlobal) {
+            if (path.packagedGlobal) {
                 File globalJar = moduleArtifact('globalAst')
                 loader.addURL(globalJar.toURI().toURL())
                 Class<?> provider = loader.loadClass(GLOBAL_PROVIDER)
                 File providerLocation = new File(provider.protectionDomain.codeSource.location.toURI())
                 assert providerLocation.canonicalFile == globalJar.canonicalFile:
-                        "$path provider was not loaded from packaged artifact $globalJar"
+                        "$path.label provider was not loaded from packaged artifact $globalJar"
             }
             loader.parseClass(source.toFile())
         } finally {
@@ -341,6 +340,25 @@ class CarrierFixture {
     private static final class CaptureObservation {
         final Map<String, String> documentation = [:]
         final Map<String, Map<String, Integer>> carriers = [:]
+    }
+
+    private enum GroovyCapturePath {
+        LOCAL('groovy-local', true, false, false),
+        PACKAGED_GLOBAL('groovy-global-packaged', false, true, false),
+        LOCAL_WITH_RUNTIME('groovy-local-runtime', true, false, true),
+        PACKAGED_GLOBAL_WITH_RUNTIME('groovy-global-packaged-runtime', false, true, true)
+
+        final String label
+        final boolean local
+        final boolean packagedGlobal
+        final boolean runtimeGroovydoc
+
+        GroovyCapturePath(String label, boolean local, boolean packagedGlobal, boolean runtimeGroovydoc) {
+            this.label = label
+            this.local = local
+            this.packagedGlobal = packagedGlobal
+            this.runtimeGroovydoc = runtimeGroovydoc
+        }
     }
 
     private static final class DocumentationCollector extends CompilationCustomizer {

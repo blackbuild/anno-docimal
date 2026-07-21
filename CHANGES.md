@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added shared Java APT, local Groovy, and packaged global-AST capture conformance evidence across Groovy 3, 4, and 5.
+  The shared declaration matrix covers documented keys, normalization, nested declarations, parameters, empty content,
+  and carrier selection. Java APT now removes surrounding whitespace from documentation-properties values consistently
+  with Groovy capture.
+
 - Added runtime GroovyDoc interoperability across Groovy 3, 4, and 5. Exact extraction now selects non-blank carriers in
   deterministic `@AnnoDoc`, runtime `@Groovydoc`, documentation-properties order; local and global Groovy capture avoid
   duplicate `@AnnoDoc` emission when Groovy supplies its runtime carrier. Source projection normalizes and renders the
