@@ -549,7 +549,8 @@ wiring currently belong to the consumer.
 - Java toolchains target 17.
 - Groovy 3.0.25 is the baseline test runtime; Groovy 4.0.32 and 5.0.6 use compatibility suites over shared tests.
 - `./gradlew check` passed on 2026-07-16 and exercised all configured Groovy lanes.
-- CI uses one Ubuntu/JDK 17 job and runs `build jacocoTestReport sonar`; the Gradle graph supplies compatibility lanes.
+- CI uses one Ubuntu/JDK 17 job. A Java 17 Gradle invocation runs `build jacocoTestReport`, followed by `sonar --info`
+  with SonarScanner's auto-provisioned analysis JRE; the Gradle graph supplies compatibility lanes.
 - Six artifacts and two Gradle plugin markers are configured for publication through Maven Central/Plugin Portal tooling.
 - Most artifacts publish Gradle module metadata; the generator shadow publication does not.
 - The five Java-facing module-path artifacts declare the stable automatic names confirmed for issue #36; the Gradle
