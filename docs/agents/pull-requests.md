@@ -21,6 +21,12 @@ or documentation semantics.
   is sufficient while one issue owns the class; use method-level annotations for tests driven by later or different
   issues. Add or amend `@Issue` on changed existing tests only for significant behavioral changes, and do not retrofit
   unrelated tests.
+- Verify that every newly added user-visible feature has a readable documentary happy path marked with
+  `@Tag("documentary")` and linked through `@See` to its canonical documentation under `docs/`, preferably at a stable
+  heading anchor. Confirm that the feature issue, documentary test class and feature method, and documentation section
+  reference one another as defined in `docs/agents/testing.md`.
+- Verify that new executable test classes use the `Test` suffix, normally `<Subject><Concern>Test`, and that dedicated
+  documentary classes use `<Theme>DocumentaryTest`. Do not require unrelated existing `*Spec` classes to be renamed.
 
 ## Review feedback
 
@@ -35,6 +41,8 @@ or documentation semantics.
 - Put detailed user documentation under `docs/`; keep architectural decisions under `docs/adr/`. Do not make a separate
   wiki or generated site the canonical source.
 - Keep published Javadoc, artifact descriptions, plugin metadata, examples, and generated-output terminology consistent.
+- For a newly added user-visible feature, show a concise documentation example aligned with its executable documentary
+  happy path and identify the corresponding documentary test class and feature method.
 - Record user-visible features, fixes, deprecations, and compatibility breaks under the unreleased section of `CHANGES.md`.
 - Put breaking-change migration guides under `docs/migration/` and link them from `CHANGES.md` and the affected user
   documentation. Create the directory lazily when the first migration guide is needed.

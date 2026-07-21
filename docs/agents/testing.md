@@ -61,3 +61,66 @@ for removing the suppression.
 Published API compatibility is checked against the per-artifact supported-API baseline. The check covers only types
 deliberately classified as supported and must not freeze implementation types merely because they are currently public.
 Any accepted incompatibility needs an intentional release-facing explanation.
+
+## Test class naming and organization
+
+Name every new executable test class with the `Test` suffix. Normally use `<Subject><Concern>Test`, or `<Subject>Test`
+when the subject is already narrow. Do not introduce new `*Spec` names, and do not expand unrelated work into a blanket
+rename of existing `*Spec` classes.
+
+A production class or concept does not require a one-to-one test class. Split tests when each resulting class has a
+cohesive purpose and the split improves readability, navigation, or fixture clarity; keep related behavior together when
+splitting would fragment ownership or duplicate setup.
+
+## Documentary tests
+
+Every newly added user-visible feature must have one or more readable documentary tests. At least one should be a happy
+path that demonstrates the feature's basic use as executable code. Prefer meaningful API or plugin examples over
+placeholder names when that makes the intended use easier to understand.
+
+Mark each documentary Spock test with `@Tag("documentary")`. Put the tag on the feature method unless the whole class is
+documentary, in which case a class-level tag is sufficient. Put `@See` on the same feature or class and link it to the
+relevant canonical AnnoDocimal documentation under `docs/`, preferably to a stable heading anchor. Because Spock exposes
+`@See` as a report attachment, use an absolute URL to the repository documentation.
+
+Documentary examples may stay beside focused behavioral tests or live in a dedicated thematic class. Prefer a cohesive
+`<Theme>DocumentaryTest` when several examples form a useful reading path, share understandable setup, or span multiple
+driving issues within one theme. Keep an isolated happy path with its focused behavioral tests when extraction would
+duplicate fixtures or fragment ownership. Use `DocumentaryTest`, not `DocumentationTest`, for a dedicated class.
+
+Put `@Tag("documentary")` on a dedicated documentary class. If its feature methods originate from different issues, put
+`@Issue` on each method. Put `@See` on each method when documentation targets differ; a class-level `@See` is sufficient
+only when one documentation target genuinely covers the whole class.
+
+A typical documentary feature method looks like:
+
+```groovy
+@Issue("123")
+@Tag("documentary")
+@See("https://github.com/blackbuild/anno-docimal/blob/master/docs/usage.md#capture-documentation")
+def "demonstrates the basic feature usage"() {
+    // readable happy path
+}
+```
+
+Keep the feature issue, documentary test, and user documentation mutually traceable:
+
+- The feature issue identifies the documentary test class and feature method, and the relevant documentation section.
+- The documentary test carries the driving `@Issue` number, the `documentary` tag, and an `@See` link to the relevant
+  documentation file or section.
+- The documentation shows an abbreviated example aligned with the executable test, and identifies the documentary test
+  class and feature method that exercise it.
+
+This policy applies prospectively. Do not expand unrelated work into a suite-wide documentary-test, naming, or
+traceability audit, and do not rename existing tests merely to conform to the new convention.
+
+## Feature discussion examples
+
+During grilling and implementation of a user-visible feature, use a compact example as a syntax or API probe before the
+design is settled. Keep it small enough to expose awkward calls, names, or configuration and to compare alternatives.
+Once accepted, use it as the seed for the documentary happy path and the abbreviated documentation example.
+
+- For a public Java client API, show Java first and Groovy second when the Groovy view is meaningful.
+- For Groovy-facing AST authoring, show the natural Groovy source surface.
+- For Gradle or plugin behavior, show the natural Groovy or Gradle DSL surface and omit unrelated build setup.
+- An internal-only change may omit the example, but state the reason briefly rather than skipping it silently.

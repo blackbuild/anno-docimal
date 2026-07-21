@@ -44,6 +44,19 @@ Every newly added test must carry its driving GitHub issue number in Spock's `@I
 sufficient while one issue owns the class, and individual methods identify tests driven by later or different issues.
 Add or amend `@Issue` on changed existing tests only for significant behavioral changes. Apply this rule prospectively;
 do not retrofit unrelated tests.
+Every newly added user-visible feature also needs a readable documentary happy-path test marked with
+`@Tag("documentary")` and linked through `@See` to its canonical documentation under `docs/`. Name new executable test
+classes with the `Test` suffix; use `<Theme>DocumentaryTest` for cohesive dedicated documentary classes, and do not
+blanket-rename existing `*Spec` classes. Keep the feature issue, documentary test, and user documentation mutually
+traceable. See `docs/agents/testing.md`.
+
+### Feature discussion examples
+
+During grilling and implementation, use a compact example as a syntax or API probe for a user-visible feature. Show public
+Java client APIs in Java first and, when meaningful, Groovy second. For Groovy-facing AST authoring or Gradle/plugin
+behavior, use the natural Groovy or Gradle DSL surface. Evolve the accepted example into the documentary test and its
+abbreviated user-documentation example. Internal-only changes may omit the example with a brief reason. See
+`docs/agents/testing.md`.
 
 ### Issue implementation and commits
 
