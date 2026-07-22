@@ -227,4 +227,4 @@ The supported surface is deliberately smaller than the set of `public` classes i
 projection facade. Processors and global providers are supported behavioral integrations with empty Java API
 allowlists. Visitors, extractors, parser and Groovy-version helpers, metadata caches, ASM, JavaPoet, shaded classes,
 plugin implementation classes, and task actions are implementation-only. The complete allowlists and nullability
-contract are recorded in [the supported API document](api/1.0-supported-api.md).
+contract are recorded in [the supported API document](supported-api.md).

@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0060
+---
+
 # Use release tags and Maven artifacts as current versioned documentation
 
 Until shared cross-project documentation infrastructure exists, each Git release tag is the immutable repository

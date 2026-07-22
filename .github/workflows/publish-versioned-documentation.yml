@@ -1,0 +1,195 @@
+name: Publish protected versioned documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact lowercase source commit SHA
+        required: true
+        type: string
+      version:
+        description: Exact final or RC version
+        required: true
+        type: string
+      status:
+        description: Documentation lifecycle status
+        required: true
+        type: choice
+        options: [pending, public-rc, current, archived]
+      release_stage:
+        description: Required candidate or final stage for pending evidence; omit otherwise
+        required: false
+        type: string
+      branding_manifest:
+        description: Versioned branding manifest; required for product snapshots and omitted for legacy archives
+        required: false
+        default: docs/branding/annodocimal-current.json
+        type: string
+      successor_of:
+        description: Exact RC version superseded by this final release, after release proof
+        required: false
+        type: string
+      deploy:
+        description: Publish the validated artifact after protected-environment approval
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-render:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      status: ${{ steps.validate.outputs.status }}
+      render_path: ${{ steps.validate.outputs.render_path }}
+      snapshot_path: ${{ steps.validate.outputs.snapshot_path }}
+    steps:
+      - id: validate
+        shell: bash
+        env:
+          REVISION: ${{ inputs.revision }}
+          VERSION: ${{ inputs.version }}
+          STATUS: ${{ inputs.status }}
+          RELEASE_STAGE: ${{ inputs.release_stage }}
+          SUCCESSOR_OF: ${{ inputs.successor_of }}
+        run: |
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]]
+          case "$STATUS" in
+            pending)
+              [[ "$RELEASE_STAGE" == candidate || "$RELEASE_STAGE" == final ]]
+              if [[ "$RELEASE_STAGE" == candidate ]]; then [[ "$VERSION" == *-rc.* ]]; else [[ "$VERSION" != *-rc.* ]]; fi
+              ;;
+            public-rc)
+              [[ -z "$RELEASE_STAGE" ]]
+              [[ "$VERSION" == *-rc.* ]]
+              ;;
+            current|archived)
+              [[ -z "$RELEASE_STAGE" ]]
+              [[ "$VERSION" != *-rc.* ]]
+              ;;
+            *) exit 1 ;;
+          esac
+          if [[ -n "$SUCCESSOR_OF" ]]; then
+            [[ "$STATUS" == current ]]
+            [[ "$SUCCESSOR_OF" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          if [[ "$STATUS" == pending ]]; then
+            echo "render_path=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "snapshot_path=pending/$VERSION/$REVISION" >> "$GITHUB_OUTPUT"
+          elif [[ "$STATUS" == archived ]]; then
+            echo "render_path=archive/$VERSION" >> "$GITHUB_OUTPUT"
+            echo "snapshot_path=archive/$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "render_path=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "snapshot_path=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision }}
+          path: source-object
+          fetch-depth: 0
+      - name: Confirm exact source commit
+        shell: bash
+        env:
+          REVISION: ${{ inputs.revision }}
+          VERSION: ${{ inputs.version }}
+          STATUS: ${{ inputs.status }}
+        run: |
+          test "$(git -C source-object rev-parse HEAD)" = "$REVISION"
+          if [[ "$STATUS" != pending ]]; then
+            test "$(git -C source-object tag --points-at HEAD "v$VERSION")" = "v$VERSION"
+          fi
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Generate Javadocs from the exact source commit
+        if: inputs.status != 'archived'
+        working-directory: source-object
+        run: ./gradlew javadoc
+      - name: Render immutable site artifact
+        shell: bash
+        env:
+          REVISION: ${{ inputs.revision }}
+          VERSION: ${{ inputs.version }}
+          STATUS: ${{ inputs.status }}
+          RELEASE_STAGE: ${{ inputs.release_stage }}
+          BRANDING_MANIFEST: ${{ inputs.branding_manifest }}
+          SUCCESSOR_OF: ${{ inputs.successor_of }}
+        run: |
+          arguments=(
+            -PdocumentationRevision="$REVISION"
+            -PdocumentationRendererRevision="$(git rev-parse HEAD)"
+            -PdocumentationVersion="$VERSION"
+            -PdocumentationStatus="$STATUS"
+            -PdocumentationObjectDirectory="$GITHUB_WORKSPACE/source-object"
+            -PdocumentationOutputDirectory="$GITHUB_WORKSPACE/build/versioned-documentation"
+          )
+          if [[ -n "$RELEASE_STAGE" ]]; then arguments+=(-PdocumentationReleaseStage="$RELEASE_STAGE"); fi
+          if [[ "$STATUS" != archived ]]; then
+            arguments+=(
+              -PdocumentationBrandingManifest="$BRANDING_MANIFEST"
+              -PdocumentationCurrentBrandingManifest=docs/branding/annodocimal-current.json
+            )
+          fi
+          if [[ -n "$SUCCESSOR_OF" ]]; then arguments+=(-PdocumentationSuccessorOf="$SUCCESSOR_OF"); fi
+          ./gradlew verifyRenderedVersionedDocumentationSite \
+            "${arguments[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: versioned-documentation
+          path: build/versioned-documentation
+          if-no-files-found: error
+
+  deploy-immutable-snapshot:
+    if: inputs.deploy
+    needs: validate-and-render
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: versioned-documentation
+          path: rendered
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          fetch-depth: 1
+      - name: Add one previously absent exact snapshot
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate-and-render.outputs.version }}
+          STATUS: ${{ needs.validate-and-render.outputs.status }}
+          RENDER_PATH: ${{ needs.validate-and-render.outputs.render_path }}
+          SNAPSHOT_PATH: ${{ needs.validate-and-render.outputs.snapshot_path }}
+        run: |
+          test ! -e "pages/$SNAPSHOT_PATH"
+          mkdir -p pages
+          touch pages/.nojekyll
+          mkdir -p "pages/$(dirname "$SNAPSHOT_PATH")"
+          mv "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"
+          if [[ "$STATUS" != pending ]]; then
+            mkdir -p pages/status
+            cp -R rendered/status/. pages/status/
+          fi
+          git -C pages config user.name github-actions[bot]
+          git -C pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C pages add "$SNAPSHOT_PATH"
+          git -C pages add .nojekyll
+          if [[ "$STATUS" != pending ]]; then git -C pages add status; fi
+          git -C pages commit -m "Publish immutable documentation snapshot $SNAPSHOT_PATH"
+          git -C pages push origin HEAD:gh-pages

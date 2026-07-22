@@ -1,0 +1,8 @@
+{
+  "identity": "AnnoDocimal",
+  "season": "Current identity",
+  "logo": "img/annodocimallogo.png",
+  "altText": "AnnoDocimal logo",
+  "sha256": "4ed3b5202435de10abbb3e823884ca979a4915835de4c3d0eb0fdbc4bd60fc6f",
+  "approval": "Repository-maintained current identity; issue #73 may replace it only with an accepted successor manifest."
+}

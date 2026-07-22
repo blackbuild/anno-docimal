@@ -4,7 +4,7 @@ Date: 2026-07-16; API-grilling refinement: 2026-07-19
 
 This plan records repository-native evidence and confirmed decisions. It is not an API or build implementation plan.
 After the architecture grilling, Stephan separately authorized the GitHub curation recorded in the issue-curation plan.
-The later issue #37/#51 decisions in ADRs 0053-0058 and `docs/api/1.0-supported-api.md` supersede provisional API names and
+The later issue #37/#51 decisions in ADRs 0053-0058 and `docs/user/supported-api.md` supersede provisional API names and
 plugin-ID details in this baseline where they differ.
 
 ## Confirmed decisions
@@ -36,7 +36,7 @@ Recorded in ADR 0002.
 Source and binary compatibility are governed by an explicit supported-API allowlist for each contract family. A type is
 not supported merely because it is public or included in a published JAR. Issue #37 classified the original 113 public
 types and the seven authoring types subsequently added by issue #51, then defined the intended 1.0 allowlists in
-`docs/api/1.0-supported-api.md`. No public type remains provisional; ADR 0058 lists pre-baseline member corrections.
+`docs/user/supported-api.md`. No public type remains provisional; ADR 0058 lists pre-baseline member corrections.
 
 Recorded in ADRs 0003, 0026, and 0053-0058.
 
@@ -184,7 +184,7 @@ Recorded in ADR 0015.
 ### Release and migration documentation
 
 - `CHANGES.md` is the canonical release history and contains an unreleased section.
-- Breaking changes receive guides under `docs/migration/`, linked from the changelog and affected user documentation.
+- Breaking changes receive guides under `docs/user/migration/`, linked from the changelog and affected user documentation.
 - GitHub Release text publishes the same repository-owned information rather than becoming a separate source.
 - Java/Groovy baseline changes, protocol migrations, artifact/module changes, and supported-API changes require explicit
   release and migration documentation.
@@ -312,7 +312,7 @@ Issue #37 completed the public-type classification, finalized every allowlist, a
 feeds per-artifact machine-readable source/binary signature snapshots. Issue #51 resolved the authoring-language slot;
 issue #38 applies ADR 0058's corrections before implementation locks the first full baseline.
 
-Recorded in ADR 0026 and `docs/api/1.0-supported-api.md`.
+Recorded in ADR 0026 and `docs/user/supported-api.md`.
 
 ### Structured protocol release target
 
