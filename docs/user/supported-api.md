@@ -17,8 +17,8 @@ Classification terms are:
   consumer API; and
 - **provisional**: must receive its stated disposition before the 1.0 baseline is locked.
 
-No public type remains provisional after the issue #37 and #51 decisions. The merged authoring implementation still has
-the pre-baseline member corrections in ADR 0058; those do not make its seven selected types provisional.
+No public type remains provisional after the issue #37 and #51 decisions. The authoring implementation incorporated the
+pre-baseline member corrections in ADR 0058 before its scoped allowlist was delivered.
 
 ## Nullability contract
 
@@ -52,8 +52,9 @@ Supported Java types and members:
   triggers local capture.
 
 The externally observable `__annodoc.properties` resource suffix and the class, method, and field key semantics
-are supported data-protocol behavior. `InlineJavadocs.JAVADOC_PROPERTIES_SUFFIX` is not supported Java API and is removed
-or hidden in 1.0; no new public properties utility is introduced merely to expose that constant.
+are supported data-protocol behavior. `InlineJavadocs.JAVADOC_PROPERTIES_SUFFIX` remains a public implementation
+compatibility field, but is not supported Java API; consumers must rely on the documented protocol rather than that
+constant. No new public properties utility is introduced merely to expose it.
 
 ### `anno-docimal-apt`
 
@@ -147,7 +148,7 @@ applies Gradle's Groovy plugin and the base layer. Plugin implementation classes
 | Current public type | Classification | 1.0 disposition |
 |---|---|---|
 | `com.blackbuild.annodocimal.annotations.AnnoDoc` | supported | Retain the annotation and `value()` carrier contract. |
-| `com.blackbuild.annodocimal.annotations.InlineJavadocs` | supported | Retain the marker; remove or hide its public suffix constant. |
+| `com.blackbuild.annodocimal.annotations.InlineJavadocs` | supported | Retain the marker; leave its public suffix constant unsupported. |
 
 ### APT artifact
 
@@ -330,5 +331,5 @@ output, plugin-ID behavior, and JPMS module names are not reduced to JVM signatu
 
 Issue #51 resolved the former builder slot and introduced a scoped authoring baseline. Issue #38 applied ADR 0058's
 pre-1.0 corrections, issue #39 added the scoped projection baseline, and issue #59 made their nullability annotations
-compatibility evidence. Issue #35 adds the Gradle type. Release compatibility work then generates and verifies complete
+compatibility evidence. Issue #35 added the Gradle type. Release compatibility work then generates and verifies complete
 per-artifact snapshots from this record rather than from the 0.x public surface or from all public bytecode.
