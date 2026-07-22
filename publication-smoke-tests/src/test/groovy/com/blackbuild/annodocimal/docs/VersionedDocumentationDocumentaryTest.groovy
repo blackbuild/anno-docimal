@@ -25,6 +25,8 @@ package com.blackbuild.annodocimal.docs
 
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.commonmark.ext.gfm.tables.TablesExtension
+import org.commonmark.parser.Parser
 import spock.lang.Issue
 import spock.lang.See
 import spock.lang.Specification
@@ -35,7 +37,7 @@ import java.security.MessageDigest
 
 @Issue('71')
 @Tag('documentary')
-@See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#local-rehearsal')
+@See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#local-presentation-rehearsal')
 class VersionedDocumentationDocumentaryTest extends Specification {
 
     def 'demonstrates an immutable exact-site rehearsal'() {
@@ -45,9 +47,9 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         git(checkout, ['config', 'user.email', 'fixtures@example.invalid'])
         git(checkout, ['config', 'user.name', 'Documentation fixtures'])
         new File(checkout, 'docs').mkdirs()
-        new File(checkout, 'README.md').text = '# AnnoDocimal\n'
+        new File(checkout, 'README.md').text = '# AnnoDocimal\n\n[Usage](docs/usage.md#details)\n'
         new File(checkout, 'CHANGES.md').text = '# Changes\n'
-        new File(checkout, 'docs/usage.md').text = '# Usage\n'
+        new File(checkout, 'docs/usage.md').text = '# Usage\n\n## Details\n\n[Home](../README.md)\n'
         new File(checkout, 'img').mkdirs()
         byte[] logo = 'documentary-logo'.bytes
         new File(checkout, 'img/annodocimallogo.png').bytes = logo
@@ -70,7 +72,9 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         ['index.html', 'allclasses-index.html', 'stylesheet.css'].each { new File(javadocs, it).text = '<title>Annotations API</title>' }
         File output = Files.createTempDirectory('documentation-output-').toFile()
         File buildLogic = new File(RenderVersionedDocumentationTask.protectionDomain.codeSource.location.toURI())
-        new File(checkout, 'build.gradle').text = rehearsalBuild(buildLogic, javadocs)
+        File commonmark = new File(Parser.protectionDomain.codeSource.location.toURI())
+        File tables = new File(TablesExtension.protectionDomain.codeSource.location.toURI())
+        new File(checkout, 'build.gradle').text = rehearsalBuild(buildLogic, commonmark, tables, javadocs)
         git(checkout, ['add', 'build.gradle'])
         git(checkout, ['commit', '-m', 'configure documentation rehearsal'])
         revision = git(checkout, ['rev-parse', 'HEAD']).trim()
@@ -91,14 +95,17 @@ class VersionedDocumentationDocumentaryTest extends Specification {
 
         then: 'the output makes its immutable source, status, and public API visible'
         result.task(':renderVersionedDocumentation').outcome == TaskOutcome.SUCCESS
-        new File(output, '1.0.0-rc.1/index.md').text.contains('1.0.0-rc.1 — public-rc')
+        new File(output, '1.0.0-rc.1/index.html').text.contains('1.0.0-rc.1 · release candidate')
+        new File(output, '1.0.0-rc.1/index.html').text.contains('docs/usage/#details')
         new File(output, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file
         new File(output, '1.0.0-rc.1/source-manifest.json').text.contains(revision)
-        new File(output, '1.0.0-rc.1/index.md').text.contains('successor status record')
+        new File(output, '1.0.0-rc.1/status/index.html').text.contains('successor status record')
 
         when: 'a README-only historical revision is rendered without branding or current Javadocs'
         javadocs.deleteDir()
+        new File(checkout, 'README.md').text = '# Historic AnnoDocimal\n'
         git(checkout, ['rm', '-r', 'docs', 'CHANGES.md'])
+        git(checkout, ['add', 'README.md'])
         git(checkout, ['commit', '-m', 'historic README-only documentation'])
         String archiveRevision = git(checkout, ['rev-parse', 'HEAD']).trim()
         File archiveOutput = Files.createTempDirectory('documentation-archive-output-').toFile()
@@ -115,17 +122,19 @@ class VersionedDocumentationDocumentaryTest extends Specification {
 
         then: 'the Gradle seam preserves the explicit legacy archive contract'
         archiveResult.task(':renderVersionedDocumentation').outcome == TaskOutcome.SUCCESS
-        new File(archiveOutput, 'archive/0.9.0/index.md').text.contains('Archived (legacy)')
+        new File(archiveOutput, 'archive/0.9.0/index.html').text.contains('Archived (legacy)')
         !new File(archiveOutput, 'archive/0.9.0/api').exists()
         !new File(archiveOutput, 'archive/0.9.0/assets/branding').exists()
     }
 
-    private static String rehearsalBuild(File buildLogic, File javadocs) {
+    private static String rehearsalBuild(File buildLogic, File commonmark, File tables, File javadocs) {
         String buildLogicPath = gradleString(buildLogic)
+        String commonmarkPath = gradleString(commonmark)
+        String tablesPath = gradleString(tables)
         String javadocPath = gradleString(javadocs)
         """buildscript {
     dependencies {
-        classpath files('$buildLogicPath')
+        classpath files('$buildLogicPath', '$commonmarkPath', '$tablesPath')
     }
 }
 

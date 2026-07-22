@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.docs
 
+import groovy.json.JsonSlurper
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
 
@@ -36,9 +37,9 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         File fixture = Files.createTempDirectory(temporaryDir.toPath(), 'versioned-documentation-').toFile()
         git(fixture, ['init']); git(fixture, ['config', 'user.email', 'fixtures@example.invalid']); git(fixture, ['config', 'user.name', 'Documentation fixtures'])
         new File(fixture, 'docs').mkdirs()
-        new File(fixture, 'README.md').text = '# AnnoDocimal\n'
+        new File(fixture, 'README.md').text = '# AnnoDocimal\n\n[Usage details](docs/usage.md#details)\n\n<script>alert("unsafe")</script>\n'
         new File(fixture, 'CHANGES.md').text = '# Changes\n'
-        new File(fixture, 'docs/usage.md').text = '# Usage\n'
+        new File(fixture, 'docs/usage.md').text = '# Usage\n\n## Details\n\n[Home](../README.md)\n\n[unsafe](javascript:alert(1))\n'
         new File(fixture, 'img').mkdirs()
         byte[] logo = 'fixture-logo'.getBytes('UTF-8')
         new File(fixture, 'img/annodocimallogo.png').bytes = logo
@@ -53,13 +54,31 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         File one = new File(temporaryDir, 'one'); File two = new File(temporaryDir, 'two')
         project.delete(one, two)
         render(fixture, one, revision, javadoc); render(fixture, two, revision, javadoc)
-        assertTrue(new File(one, '1.0.0-rc.1/index.md').text.contains('immutable documentation snapshot'), 'renderer-owned Markdown chrome')
-        assertTrue(new File(one, '1.0.0-rc.1/index.md').text.contains('successor status record'), 'fixed RC successor-status link')
+        assertTrue(new File(one, '1.0.0-rc.1/index.html').text.contains('data-status="public-rc"'), 'renderer-owned HTML chrome')
+        assertTrue(new File(one, '1.0.0-rc.1/index.html').text.contains('docs/usage/#details'), 'Markdown deep links are rewritten')
+        assertTrue(new File(one, '1.0.0-rc.1/index.html').text.contains('&lt;script&gt;'), 'authored HTML is escaped')
+        assertTrue(!new File(one, '1.0.0-rc.1/docs/usage/index.html').text.contains('href="javascript:'), 'unsafe URLs are sanitized')
+        assertTrue(new File(one, '1.0.0-rc.1/status/index.html').text.contains('successor status record'), 'fixed RC successor-status link')
         assertTrue(new File(one, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file, 'module Javadoc landing')
-        assertTrue(new File(one, '1.0.0-rc.1/source-manifest.json').text.contains(revision), 'exact source evidence')
-        assertTrue(!new File(one, '1.0.0-rc.1/source-manifest.json').text.contains('status/1.0.0-rc.1.json'), 'immutable snapshot manifest excludes mutable status')
+        File manifestFile = new File(one, '1.0.0-rc.1/source-manifest.json')
+        Map manifest = new JsonSlurper().parse(manifestFile) as Map
+        assertTrue(manifest.source.revision == revision, 'exact source evidence')
+        assertTrue(manifest.outputHashes['index.html'] == sha256(new File(one, '1.0.0-rc.1/index.html').bytes), 'manifest covers deployed HTML bytes')
+        assertTrue(manifest.outputHashes['api/anno-docimal-annotations/index.html'] == sha256(new File(one, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').bytes), 'manifest covers deployed Javadocs')
+        assertTrue(!manifestFile.text.contains('status/1.0.0-rc.1.json'), 'immutable snapshot manifest excludes mutable status')
+        List<File> deployedFiles = []
+        new File(one, '1.0.0-rc.1').eachFileRecurse { File file -> if (file.file) deployedFiles << file }
+        assertTrue(!deployedFiles.any { it.name.endsWith('.md') }, 'deployed payload contains no Markdown')
+        verifySite(one, '1.0.0-rc.1')
+        File brokenFragment = new File(temporaryDir, 'broken-fragment')
+        project.copy { from one; into brokenFragment }
+        File brokenFragmentIndex = new File(brokenFragment, '1.0.0-rc.1/index.html')
+        brokenFragmentIndex.text = brokenFragmentIndex.text.replace('#details', '#absent-fragment')
+        expectSiteFailure { VerifyVersionedDocumentationRendererTask.verifySite(brokenFragment, '1.0.0-rc.1') }
         assertTrue(digest(one) == digest(two), 'repeat rendering is deterministic')
+        new File(fixture, 'README.md').text = '# Historic AnnoDocimal\n'
         git(fixture, ['rm', '-r', 'docs', 'CHANGES.md'])
+        git(fixture, ['add', 'README.md'])
         git(fixture, ['commit', '-m', 'historic README-only documentation'])
         String historicRevision = git(fixture, ['rev-parse', 'HEAD']).trim()
         File archive = new File(temporaryDir, 'archive')
@@ -67,10 +86,11 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         render(fixture, archive, historicRevision, javadoc,
                 [version: '0.9.0', status: 'archived', javadocInputDirectories: [:],
                  brandingManifestPath: null, currentBrandingManifestPath: null])
-        assertTrue(new File(archive, 'archive/0.9.0/index.md').text.contains('Archived (legacy)'), 'legacy archive chrome')
+        assertTrue(new File(archive, 'archive/0.9.0/index.html').text.contains('Archived (legacy)'), 'legacy archive chrome')
         assertTrue(!new File(archive, 'archive/0.9.0/docs').exists(), 'README-only archives do not require modern Markdown sources')
-        assertTrue(!new File(archive, 'archive/0.9.0/CHANGES.md').file, 'README-only archives do not require modern change history')
-        assertTrue(!new File(archive, 'archive/0.9.0/api/index.md').file, 'archives do not fabricate current Javadocs')
+        assertTrue(!new File(archive, 'archive/0.9.0/CHANGES').exists(), 'README-only archives do not require modern change history')
+        assertTrue(!new File(archive, 'archive/0.9.0/api').exists(), 'archives do not fabricate current Javadocs')
+        verifySite(archive, 'archive/0.9.0')
         File finalRelease = new File(temporaryDir, 'final-release')
         project.delete(finalRelease)
         render(fixture, finalRelease, revision, javadoc,
@@ -84,7 +104,7 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         project.delete(pendingCandidate)
         render(fixture, pendingCandidate, revision, javadoc,
                 [status: 'pending', releaseStage: 'candidate', brandingManifestPath: 'docs/branding/candidate.json'])
-        assertTrue(new File(pendingCandidate, '1.0.0-rc.1/version-status.md').text.contains('deployed but unlisted'), 'pending evidence is explicitly unlisted')
+        assertTrue(new File(pendingCandidate, '1.0.0-rc.1/status/index.html').text.contains('deployed but unlisted'), 'pending evidence is explicitly unlisted')
         assertTrue(!new File(pendingCandidate, 'status/1.0.0-rc.1.json').exists(), 'pending evidence creates no public status record')
         assertTrue(new File(pendingCandidate, '1.0.0-rc.1/source-manifest.json').text.contains('Candidate identity'), 'candidate branding is allowed for pending candidates')
         File pendingFinal = new File(temporaryDir, 'pending-final')
@@ -92,6 +112,14 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         render(fixture, pendingFinal, revision, javadoc,
                 [version: '1.0.0', status: 'pending', releaseStage: 'final'])
         assertTrue(new File(pendingFinal, '1.0.0/source-manifest.json').text.contains('"releaseStage": "final"'), 'pending final proof records its release stage')
+        File rehearsal = new File(temporaryDir, 'rehearsal')
+        project.delete(rehearsal)
+        render(fixture, rehearsal, revision, javadoc,
+                [version: 'local-rehearsal', status: 'rehearsal', rehearsal: true])
+        String rehearsalPath = "rehearsal/${StaticDocumentationPageRenderer.CONTRACT_ID}/$revision"
+        assertTrue(new File(rehearsal, "$rehearsalPath/index.html").text.contains('non-release rehearsal'), 'rehearsal uses explicit non-release chrome')
+        assertTrue(!new File(rehearsal, 'status').exists(), 'rehearsal creates no release status record')
+        verifySite(rehearsal, rehearsalPath)
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'pending-without-release-stage'), revision, javadoc,
                 [status: 'pending']) }
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'release-stage-outside-pending'), revision, javadoc,
@@ -117,6 +145,15 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'broken-javadocs'), revision, javadoc) }
         new File(fixture, 'dirty').text = 'dirty'
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'dirty-output'), revision, javadoc) }
+    }
+
+    private static void verifySite(File root, String entryPath) {
+        DocumentationSiteServer server = new DocumentationSiteServer(root, entryPath)
+        try { server.verify() } finally { server.close() }
+    }
+    private static void expectSiteFailure(Closure action) {
+        try { action.call(); throw new AssertionError('Expected site verification failure') }
+        catch (org.gradle.api.GradleException ignored) { }
     }
 
     private static void render(File fixture, File output, String revision, File javadoc, Map<String, ?> overrides = [:]) {
@@ -149,6 +186,7 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         }
         value.digest().encodeHex().toString()
     }
+    private static String sha256(byte[] bytes) { MessageDigest.getInstance('SHA-256').digest(bytes).encodeHex().toString() }
     private static String git(File directory, List<String> arguments) { def process = new ProcessBuilder((['git'] + arguments) as List<String>).directory(directory).redirectErrorStream(true).start(); String output = process.inputStream.text; if (process.waitFor() != 0) throw new IllegalStateException(output); output }
     private static void assertTrue(boolean condition, String message) { if (!condition) throw new AssertionError(message) }
     private static void expectFailure(Closure action) { try { action.call(); throw new AssertionError('Expected renderer failure') } catch (IllegalArgumentException ignored) { } }

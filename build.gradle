@@ -1,4 +1,7 @@
 import com.blackbuild.annodocimal.docs.RenderVersionedDocumentationTask
+import com.blackbuild.annodocimal.docs.PreviewRenderedDocumentationTask
+import com.blackbuild.annodocimal.docs.StaticDocumentationPageRenderer
+import com.blackbuild.annodocimal.docs.VerifyRenderedDocumentationSiteTask
 import com.blackbuild.annodocimal.docs.VerifyVersionedDocumentationRendererTask
 
 buildscript {
@@ -102,6 +105,83 @@ tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask)
 tasks.register('verifyVersionedDocumentationRenderer', VerifyVersionedDocumentationRendererTask) {
     group = 'verification'
     description = 'Runs hermetic acceptance fixtures for the immutable documentation renderer.'
+}
+
+def renderedDocumentationEntryPath = providers.provider {
+    documentationStatus.get() == 'archived' ? "archive/${providers.gradleProperty('documentationVersion').get()}" :
+            providers.gradleProperty('documentationVersion').get()
+}
+tasks.register('verifyRenderedVersionedDocumentationSite', VerifyRenderedDocumentationSiteTask) {
+    group = 'verification'
+    description = 'Serves and crawls an explicit rendered site under the real /anno-docimal/ Pages base path.'
+    siteDirectory.set(layout.dir(providers.gradleProperty('documentationOutputDirectory').map { file(it) }))
+    entryPath.set(renderedDocumentationEntryPath)
+    dependsOn(tasks.named('renderVersionedDocumentation'))
+}
+
+def localDocumentationRevision = providers.gradleProperty('documentationRevision').orElse(
+        providers.exec {
+            workingDir(rootDir)
+            commandLine('git', 'rev-parse', 'HEAD')
+        }.standardOutput.asText.map { it.trim() })
+def localDocumentationObjectDirectory = providers.gradleProperty('documentationObjectDirectory')
+        .map { file(it) }.orElse(providers.provider { rootDir })
+def localDocumentationOutputDirectory = providers.gradleProperty('documentationOutputDirectory')
+        .map { file(it) }.orElse(providers.provider {
+            layout.buildDirectory.dir('versioned-documentation/local-review').get().asFile
+        })
+def localDocumentationJavadocs = providers.provider {
+    File sourceRoot = localDocumentationObjectDirectory.get()
+    documentationJavadocProjects.collectEntries { project ->
+        [(project.name): new File(sourceRoot, "${project.name}/build/docs/javadoc").absolutePath]
+    }
+}
+def cleanLocalDocumentationOutput = tasks.register('cleanLocalDocumentationOutput', Delete) {
+    delete(localDocumentationOutputDirectory)
+    doFirst {
+        File output = localDocumentationOutputDirectory.get().canonicalFile
+        File allowedRoot = layout.buildDirectory.dir('versioned-documentation').get().asFile.canonicalFile
+        if (output == allowedRoot || !output.toPath().startsWith(allowedRoot.toPath()))
+            throw new GradleException("Local documentation cleanup is restricted to a subdirectory of $allowedRoot: $output")
+    }
+}
+def renderDocumentationRehearsalFiles = tasks.register('renderDocumentationRehearsalFiles', RenderVersionedDocumentationTask) {
+    description = 'Renders the distinct non-release rehearsal tree with review-safe defaults.'
+    revision.set(localDocumentationRevision)
+    rendererRevision.set(providers.gradleProperty('documentationRendererRevision').orElse(localDocumentationRevision))
+    documentationVersion.set('local-rehearsal')
+    status.set('rehearsal')
+    rehearsal.set(true)
+    brandingManifestPath.set(providers.gradleProperty('documentationBrandingManifest').orElse('docs/branding/annodocimal-current.json'))
+    currentBrandingManifestPath.set('docs/branding/annodocimal-current.json')
+    objectDirectory.set(layout.dir(localDocumentationObjectDirectory))
+    outputDirectory.set(layout.dir(localDocumentationOutputDirectory))
+    javadocInputDirectories.set(localDocumentationJavadocs)
+    javadocInputs.from(localDocumentationJavadocs.map { it.values() })
+    dependsOn(cleanLocalDocumentationOutput)
+    if (localDocumentationObjectDirectory.orNull?.canonicalFile == rootDir.canonicalFile)
+        dependsOn(documentationJavadocProjects.collect { it.tasks.named('javadoc') })
+}
+def rehearsalEntryPath = localDocumentationRevision.map {
+    "rehearsal/${StaticDocumentationPageRenderer.CONTRACT_ID}/$it"
+}
+def verifyLocalDocumentationSite = tasks.register('verifyLocalDocumentationSite', VerifyRenderedDocumentationSiteTask) {
+    description = 'Serves and crawls the rehearsal under the real /anno-docimal/ Pages base path.'
+    siteDirectory.set(layout.dir(localDocumentationOutputDirectory))
+    entryPath.set(rehearsalEntryPath)
+    dependsOn(renderDocumentationRehearsalFiles)
+}
+tasks.register('renderLocalDocumentation') {
+    group = 'documentation'
+    description = 'Clears, renders, and verifies a credential-free non-release documentation rehearsal.'
+    dependsOn(verifyLocalDocumentationSite)
+}
+tasks.register('previewLocalDocumentation', PreviewRenderedDocumentationTask) {
+    group = 'documentation'
+    description = 'Clears, renders, and serves the non-release rehearsal until interrupted.'
+    siteDirectory.set(layout.dir(localDocumentationOutputDirectory))
+    entryPath.set(rehearsalEntryPath)
+    dependsOn(renderDocumentationRehearsalFiles)
 }
 
 def publicationAuditRepository = layout.buildDirectory.dir('publication-audit-repository')

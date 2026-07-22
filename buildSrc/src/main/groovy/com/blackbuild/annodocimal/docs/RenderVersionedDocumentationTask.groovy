@@ -46,6 +46,7 @@ abstract class RenderVersionedDocumentationTask extends DefaultTask {
     @Input @Optional abstract Property<String> getBrandingManifestPath()
     @Input @Optional abstract Property<String> getCurrentBrandingManifestPath()
     @Input @Optional abstract Property<String> getSuccessorOf()
+    @Input @Optional abstract Property<Boolean> getRehearsal()
     @InputDirectory abstract DirectoryProperty getObjectDirectory()
     @Input abstract MapProperty<String, String> getJavadocInputDirectories()
     @InputFiles @PathSensitive(PathSensitivity.RELATIVE) abstract ConfigurableFileCollection getJavadocInputs()
@@ -59,6 +60,7 @@ abstract class RenderVersionedDocumentationTask extends DefaultTask {
                 status: status.get(), releaseStage: releaseStage.orNull,
                 brandingManifestPath: brandingManifestPath.orNull,
                 currentBrandingManifestPath: currentBrandingManifestPath.orNull, successorOf: successorOf.orNull,
+                rehearsal: rehearsal.orElse(false).get(),
                 javadocInputDirectories: javadocInputDirectories.get())
     }
 }
