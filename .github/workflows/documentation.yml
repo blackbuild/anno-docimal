@@ -22,15 +22,9 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - name: Render exact-site rehearsal
-        shell: bash
-        run: |
-          revision="$(git rev-parse HEAD)"
-          ./gradlew renderVersionedDocumentation \
-            -PdocumentationRevision="$revision" \
-            -PdocumentationRendererRevision="$revision" \
-            -PdocumentationVersion=0.0.0-rc.1 \
-            -PdocumentationStatus=public-rc \
-            -PdocumentationBrandingManifest=docs/branding/annodocimal-current.json \
-            -PdocumentationCurrentBrandingManifest=docs/branding/annodocimal-current.json \
-            -PdocumentationObjectDirectory="$GITHUB_WORKSPACE" \
-            -PdocumentationOutputDirectory="$GITHUB_WORKSPACE/build/versioned-documentation"
+        run: ./gradlew renderLocalDocumentation
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentation-rehearsal
+          path: build/versioned-documentation/local-review
+          if-no-files-found: error

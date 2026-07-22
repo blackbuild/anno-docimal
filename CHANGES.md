@@ -2,9 +2,10 @@
 
 ## Unreleased
 
-- Added a protected, immutable GitHub Pages publication seam for exact AnnoDocimal documentation and all supported
-  Java API Javadocs. Pull requests rehearse the rendered site without deployment; release authorization and recovery
-  remain in the #45 runbook. See [versioned documentation](docs/versioned-documentation.md).
+- Added a protected, immutable GitHub Pages publication seam for deterministic static HTML and all supported Java API
+  Javadocs. Pull requests render and crawl a distinct non-release rehearsal without deployment; exact release manifests
+  cover the deployed HTML, assets, and Javadoc bytes. Release authorization and recovery remain in the #45 runbook. See
+  [versioned documentation](docs/versioned-documentation.md).
 
 - Added shared Java APT, local Groovy, and packaged global-AST capture conformance evidence across Groovy 3, 4, and 5.
   The shared declaration matrix covers documented keys, normalization, nested declarations, parameters, empty content,

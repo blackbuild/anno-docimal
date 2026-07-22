@@ -143,7 +143,7 @@ jobs:
             )
           fi
           if [[ -n "$SUCCESSOR_OF" ]]; then arguments+=(-PdocumentationSuccessorOf="$SUCCESSOR_OF"); fi
-          ./gradlew renderVersionedDocumentation \
+          ./gradlew verifyRenderedVersionedDocumentationSite \
             "${arguments[@]}"
       - uses: actions/upload-artifact@v4
         with:
@@ -179,6 +179,7 @@ jobs:
         run: |
           test ! -e "pages/$SNAPSHOT_PATH"
           mkdir -p pages
+          touch pages/.nojekyll
           mkdir -p "pages/$(dirname "$SNAPSHOT_PATH")"
           mv "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"
           if [[ "$STATUS" != pending ]]; then
@@ -188,6 +189,7 @@ jobs:
           git -C pages config user.name github-actions[bot]
           git -C pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git -C pages add "$SNAPSHOT_PATH"
+          git -C pages add .nojekyll
           if [[ "$STATUS" != pending ]]; then git -C pages add status; fi
           git -C pages commit -m "Publish immutable documentation snapshot $SNAPSHOT_PATH"
           git -C pages push origin HEAD:gh-pages
