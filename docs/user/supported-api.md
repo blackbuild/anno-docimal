@@ -2,8 +2,8 @@
 
 This record is the human-authoritative classification produced by issue #37. Java `public` visibility, inclusion in a
 published JAR, a service-provider name, or relocation into the generator artifact does not by itself make a type
-supported. Issues #35, #38, and #39 have delivered their scoped allowlists. Release compatibility work generates the
-complete mechanical snapshots from those classifications.
+supported. The scoped allowlists for issues #35, #38, and #39 are recorded here. Release compatibility work generates
+the complete mechanical snapshots from those classifications.
 
 The inventory began with all six artifacts at commit `981a511` and was refreshed through `505a4ae`, after the issue #51
 authoring implementation merged. It contains all 120 public top-level and nested types in those JARs: the original 113,
@@ -331,5 +331,6 @@ output, plugin-ID behavior, and JPMS module names are not reduced to JVM signatu
 
 Issue #51 resolved the former builder slot and introduced a scoped authoring baseline. Issue #38 applied ADR 0058's
 pre-1.0 corrections, issue #39 added the scoped projection baseline, and issue #59 made their nullability annotations
-compatibility evidence. Issue #35 added the Gradle type. Release compatibility work then generates and verifies complete
-per-artifact snapshots from this record rather than from the 0.x public surface or from all public bytecode.
+compatibility evidence. The scoped baseline includes the Gradle type. Release compatibility work then generates and
+verifies complete per-artifact snapshots from this record rather than from the 0.x public surface or from all public
+bytecode.
