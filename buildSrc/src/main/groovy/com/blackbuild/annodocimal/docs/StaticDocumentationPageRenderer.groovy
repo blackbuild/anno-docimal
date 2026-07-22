@@ -28,6 +28,8 @@ import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.node.AbstractVisitor
 import org.commonmark.node.Code
 import org.commonmark.node.Heading
+import org.commonmark.node.Image
+import org.commonmark.node.Link
 import org.commonmark.node.Node
 import org.commonmark.node.Text
 import org.commonmark.parser.Parser
@@ -179,13 +181,13 @@ img { max-width: 100%; height: auto; }
     private static void rewriteLinks(Node document, String sourcePath, String outputPath, Map<String, String> pageOutputs) {
         document.accept(new AbstractVisitor() {
             @Override
-            void visit(org.commonmark.node.Link link) {
+            void visit(Link link) {
                 link.destination = rewriteDestination(link.destination, sourcePath, outputPath, pageOutputs)
                 visitChildren(link)
             }
 
             @Override
-            void visit(org.commonmark.node.Image image) {
+            void visit(Image image) {
                 image.destination = rewriteDestination(image.destination, sourcePath, outputPath, pageOutputs)
                 visitChildren(image)
             }

@@ -71,15 +71,30 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         File javadocs = Files.createTempDirectory('documentation-javadocs-').toFile()
         ['index.html', 'allclasses-index.html', 'stylesheet.css'].each { new File(javadocs, it).text = '<title>Annotations API</title>' }
         File output = Files.createTempDirectory('documentation-output-').toFile()
+        File localOutput = Files.createTempDirectory('documentation-local-output-').toFile()
         File buildLogic = new File(RenderVersionedDocumentationTask.protectionDomain.codeSource.location.toURI())
         File commonmark = new File(Parser.protectionDomain.codeSource.location.toURI())
         File tables = new File(TablesExtension.protectionDomain.codeSource.location.toURI())
-        new File(checkout, 'build.gradle').text = rehearsalBuild(buildLogic, commonmark, tables, javadocs)
+        new File(checkout, 'build.gradle').text = rehearsalBuild(buildLogic, commonmark, tables, javadocs, localOutput)
         git(checkout, ['add', 'build.gradle'])
         git(checkout, ['commit', '-m', 'configure documentation rehearsal'])
         revision = git(checkout, ['rev-parse', 'HEAD']).trim()
 
-        when: 'the exact release candidate is rendered through the documented Gradle task without publishing'
+        when: 'the zero-argument local entry point renders and crawls a distinct non-release rehearsal'
+        def localResult = GradleRunner.create()
+                .withProjectDir(checkout)
+                .withArguments('renderLocalDocumentation')
+                .build()
+
+        then: 'the local task proves the real Pages presentation without a release identity'
+        localResult.task(':renderDocumentationRehearsalFiles').outcome == TaskOutcome.SUCCESS
+        localResult.task(':verifyLocalDocumentationSite').outcome == TaskOutcome.SUCCESS
+        localResult.task(':renderLocalDocumentation').outcome == TaskOutcome.SUCCESS
+        File localSite = new File(localOutput, "rehearsal/commonmark-java-static-html-v1/$revision")
+        new File(localSite, 'index.html').text.contains('non-release rehearsal')
+        !new File(localOutput, 'status').exists()
+
+        when: 'the exact release candidate is rendered through the explicit Gradle task without publishing'
         def result = GradleRunner.create()
                 .withProjectDir(checkout)
                 .withArguments(
@@ -127,11 +142,12 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         !new File(archiveOutput, 'archive/0.9.0/assets/branding').exists()
     }
 
-    private static String rehearsalBuild(File buildLogic, File commonmark, File tables, File javadocs) {
+    private static String rehearsalBuild(File buildLogic, File commonmark, File tables, File javadocs, File localOutput) {
         String buildLogicPath = gradleString(buildLogic)
         String commonmarkPath = gradleString(commonmark)
         String tablesPath = gradleString(tables)
         String javadocPath = gradleString(javadocs)
+        String localOutputPath = gradleString(localOutput)
         """buildscript {
     dependencies {
         classpath files('$buildLogicPath', '$commonmarkPath', '$tablesPath')
@@ -139,6 +155,33 @@ class VersionedDocumentationDocumentaryTest extends Specification {
 }
 
 import com.blackbuild.annodocimal.docs.RenderVersionedDocumentationTask
+import com.blackbuild.annodocimal.docs.StaticDocumentationPageRenderer
+import com.blackbuild.annodocimal.docs.VerifyRenderedDocumentationSiteTask
+
+def localRevision = providers.exec {
+    commandLine('git', 'rev-parse', 'HEAD')
+}.standardOutput.asText.map { it.trim() }
+def localRender = tasks.register('renderDocumentationRehearsalFiles', RenderVersionedDocumentationTask) {
+    revision.set(localRevision)
+    rendererRevision.set(localRevision)
+    documentationVersion.set('local-rehearsal')
+    status.set('rehearsal')
+    rehearsal.set(true)
+    brandingManifestPath.set('docs/branding/annodocimal-current.json')
+    currentBrandingManifestPath.set('docs/branding/annodocimal-current.json')
+    objectDirectory.set(layout.projectDirectory)
+    outputDirectory.set(file('$localOutputPath'))
+    javadocInputDirectories.set(['anno-docimal-annotations': '$javadocPath'])
+    javadocInputs.from(file('$javadocPath'))
+}
+def localVerify = tasks.register('verifyLocalDocumentationSite', VerifyRenderedDocumentationSiteTask) {
+    siteDirectory.set(file('$localOutputPath'))
+    entryPath.set(localRevision.map { "rehearsal/${StaticDocumentationPageRenderer.CONTRACT_ID}/\$it" })
+    dependsOn(localRender)
+}
+tasks.register('renderLocalDocumentation') {
+    dependsOn(localVerify)
+}
 
 tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask) {
     def documentationStatus = providers.gradleProperty('documentationStatus')

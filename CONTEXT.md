@@ -92,3 +92,18 @@ _Avoid_: Annotation processor
 **Global documentation transformation**:
 Documentation capture discovered for a Groovy compilation through the global AST transformation service mechanism.
 _Avoid_: Gradle plugin
+
+**Versioned documentation snapshot**:
+An immutable rendered presentation of repository-owned documentation and API reference for one exact product version
+and source commit. It does not replace the canonical authored source.
+_Avoid_: Documentation source when referring to the rendered site
+
+**Pending documentation evidence**:
+An immutable, unlisted, single-use proof for one candidate or final release before it becomes public. It advances no
+public navigation or alias by itself.
+_Avoid_: Preview or rehearsal, which implies disposable evidence
+
+**Documentation presentation rehearsal**:
+A non-release render used to prove static-site presentation and navigation without claiming or consuming a release
+version. It writes no lifecycle status record or alias.
+_Avoid_: Pending documentation, which is protected single-use release evidence

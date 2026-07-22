@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.docs
 
 import groovy.json.JsonSlurper
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.TaskAction
 
 import java.nio.file.Files
@@ -51,6 +52,8 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         String revision = git(fixture, ['rev-parse', 'HEAD']).trim()
         File javadoc = new File(temporaryDir, 'javadoc'); javadoc.mkdirs()
         ['index.html', 'allclasses-index.html', 'stylesheet.css'].each { new File(javadoc, it).text = '<title>API</title>' }
+        new File(javadoc, 'legal').mkdirs()
+        new File(javadoc, 'legal/jquery.md').text = 'Bundled Javadoc legal notice\n'
         File one = new File(temporaryDir, 'one'); File two = new File(temporaryDir, 'two')
         project.delete(one, two)
         render(fixture, one, revision, javadoc); render(fixture, two, revision, javadoc)
@@ -65,10 +68,11 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         assertTrue(manifest.source.revision == revision, 'exact source evidence')
         assertTrue(manifest.outputHashes['index.html'] == sha256(new File(one, '1.0.0-rc.1/index.html').bytes), 'manifest covers deployed HTML bytes')
         assertTrue(manifest.outputHashes['api/anno-docimal-annotations/index.html'] == sha256(new File(one, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').bytes), 'manifest covers deployed Javadocs')
+        assertTrue(manifest.outputHashes['api/anno-docimal-annotations/legal/jquery.md'] == sha256(new File(one, '1.0.0-rc.1/api/anno-docimal-annotations/legal/jquery.md').bytes), 'manifest covers Javadoc legal notices')
         assertTrue(!manifestFile.text.contains('status/1.0.0-rc.1.json'), 'immutable snapshot manifest excludes mutable status')
         List<File> deployedFiles = []
         new File(one, '1.0.0-rc.1').eachFileRecurse { File file -> if (file.file) deployedFiles << file }
-        assertTrue(!deployedFiles.any { it.name.endsWith('.md') }, 'deployed payload contains no Markdown')
+        assertTrue(!deployedFiles.any { File file -> file.name.endsWith('.md') && !file.toPath().startsWith(new File(one, '1.0.0-rc.1/api').toPath()) }, 'deployed payload contains no authored Markdown')
         verifySite(one, '1.0.0-rc.1')
         File brokenFragment = new File(temporaryDir, 'broken-fragment')
         project.copy { from one; into brokenFragment }
@@ -153,7 +157,7 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
     }
     private static void expectSiteFailure(Closure action) {
         try { action.call(); throw new AssertionError('Expected site verification failure') }
-        catch (org.gradle.api.GradleException ignored) { }
+        catch (GradleException ignored) { }
     }
 
     private static void render(File fixture, File output, String revision, File javadoc, Map<String, ?> overrides = [:]) {

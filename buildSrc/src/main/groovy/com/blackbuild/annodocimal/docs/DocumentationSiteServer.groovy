@@ -61,6 +61,12 @@ class DocumentationSiteServer implements Closeable {
     void verify() {
         URI rootUri = start()
         Set<URI> pending = new LinkedHashSet<>([rootUri])
+        root.eachFileRecurse { File file ->
+            if (file.file && file.name.endsWith('.html')) {
+                String relative = root.toPath().relativize(file.toPath()).toString().replace(File.separatorChar, '/' as char)
+                pending << new URI('http', null, rootUri.host, rootUri.port, basePath + relative, null, null)
+            }
+        }
         Set<URI> visited = new LinkedHashSet<>()
         while (!pending.empty) {
             URI requested = pending.iterator().next()
