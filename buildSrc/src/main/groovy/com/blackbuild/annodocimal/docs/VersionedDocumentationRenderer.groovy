@@ -179,7 +179,7 @@ class VersionedDocumentationRenderer {
                 outputHashes: new TreeMap<>(outputHashes)
         ]
         write(exactDirectory, 'source-manifest.json', canonicalJson(manifest).getBytes(StandardCharsets.UTF_8))
-        if (hashes(exactDirectory).keySet().any { it.endsWith('.md') })
+        if (hashes(exactDirectory).keySet().any { it.endsWith('.md') && !it.startsWith('api/') })
             fail('The deployed release payload must not contain authored Markdown')
     }
 
