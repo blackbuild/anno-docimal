@@ -97,7 +97,7 @@ A typical documentary feature method looks like:
 ```groovy
 @Issue("123")
 @Tag("documentary")
-@See("https://github.com/blackbuild/anno-docimal/blob/master/docs/usage.md#capture-documentation")
+@See("https://github.com/blackbuild/anno-docimal/blob/master/docs/user/usage.md#capture-documentation")
 def "demonstrates the basic feature usage"() {
     // readable happy path
 }

@@ -1,8 +1,10 @@
 # Versioned documentation and Javadocs
 
-The repository owns the canonical Markdown source. GitHub Pages publishes an additional immutable static-HTML
-presentation of one exact AnnoDocimal commit; it never replaces the repository documentation or creates a second
-authoring source.
+The repository owns the canonical Markdown source. Public user guides live exclusively under `docs/user/`; maintainer,
+agent, ADR, branding, and release-process material elsewhere under `docs/` is deliberately excluded. `docs/user/Home.md`
+is the exact-tree landing page; the repository `README.md` and `CHANGES.md` are not site inputs. GitHub Pages publishes
+an additional immutable static-HTML presentation of one exact AnnoDocimal commit; it never replaces the repository
+documentation or creates a second authoring source.
 
 ## Exact snapshots
 
@@ -13,8 +15,10 @@ status. Product snapshots generate all six supported Java API Javadocs from the 
 
 Markdown is never the Pages payload. The pinned repository-local CommonMark 0.28.0 renderer produces complete,
 dependency-free HTML with renderer-owned chrome and a local stylesheet. It rewrites Markdown and deep-fragment links
-to extensionless Pages URLs, escapes authored HTML, and sanitizes unsafe URL schemes. `README.md` becomes `index.html`;
-another `path/page.md` becomes `path/page/index.html`.
+to extensionless Pages URLs, escapes authored HTML, and sanitizes unsafe URL schemes. `docs/user/Home.md` becomes
+`index.html`; `docs/user/path/page.md` becomes `path/page/index.html`. Authored `docs/user/_Sidebar.md` and `_Footer.md` fragments
+supply navigation content and a short product footer without becoming public pages. The renderer still owns their HTML
+shell, safety, base-path rewriting, lifecycle/API links, and fallback presentation.
 
 Each exact tree contains `source-manifest.json`, which records:
 
@@ -46,8 +50,8 @@ current identity is valid and does not block an RC.
 The renderer rejects dirty source worktrees, abbreviated or unresolved revisions, non-exact version/status pairs,
 misplaced pending release stages, missing product Javadocs, non-current final branding, invalid logo digests, output
 collisions, and non-empty output directories. The mandatory JDK-only presentation check serves the artifact under the
-real `/anno-docimal/` Pages base path and crawls every local page, asset, Javadoc link, and fragment. Markdown URLs,
-missing targets, missing anchors, and base-path escapes fail the check.
+real `/anno-docimal/` Pages base path and crawls the renderer-owned output selector, exact-tree landing, every local page
+and asset, Javadocs, and fragments. Markdown URLs, missing targets, missing anchors, and base-path escapes fail the check.
 
 The protected release deployment adds exactly one previously absent `/<version>/`,
 `/pending/<version>/<revision>/`, or `/archive/<version>/` tree to `gh-pages`. Pending evidence does not touch root
@@ -71,10 +75,11 @@ Render and crawl the current checkout with no credentials and no release identit
 ./gradlew renderLocalDocumentation
 ```
 
-The static site is written below
-`build/versioned-documentation/local-review/rehearsal/commonmark-java-static-html-v1/<revision>/`. It is explicitly
-labelled as a non-release rehearsal, creates no root status record, and never uses `pending`. CI runs the same command
-and uploads the crawled artifact.
+The renderer-owned selector is written to `build/versioned-documentation/local-review/index.html`. It links the exact
+tree at `local-rehearsal/` and visibly identifies both renderer contract and full source SHA without resembling a
+release version or consuming a `pending` path. The tree is explicitly labelled as a
+non-release rehearsal, creates no root status record, and never uses `pending`. CI runs the same command and uploads the
+crawled artifact.
 
 Inspect it in a browser under the real Pages base path with:
 
@@ -84,10 +89,10 @@ Inspect it in a browser under the real Pages base path with:
 
 The task prints a loopback `/anno-docimal/` URL and runs until interrupted.
 
-The separate presentation-rehearsal workflow can retain accepted platform evidence only at
-`/rehearsal/commonmark-java-static-html-v1/<revision>/`. Deployment is opt-in and protected; the workflow defaults to a
-read-only render/crawl artifact. It writes no version status, alias, release record, or pending path. Merging the
-workflow neither configures Pages nor dispatches it.
+The separate presentation-rehearsal workflow maps that exact local tree to accepted platform evidence only at
+`/rehearsal/commonmark-java-static-html-v1/<revision>/`. It does not deploy the local selector. Deployment is opt-in and
+protected; the workflow defaults to a read-only render/crawl artifact. It writes no version status, alias, release
+record, or pending path. Merging the workflow neither configures Pages nor dispatches it.
 
 ## Explicit release render
 
@@ -106,8 +111,9 @@ revision="$(git rev-parse HEAD)"
   -PdocumentationOutputDirectory="$PWD/build/versioned-documentation"
 ```
 
-This compiles all six module Javadocs and produces static HTML under
-`build/versioned-documentation/1.0.0-rc.1/`. The documentary happy path is
+This compiles all six module Javadocs and produces a local selector plus static HTML under
+`build/versioned-documentation/1.0.0-rc.1/`. The protected deployment consumes only the exact tree, not that local
+selector. The documentary happy path is
 `VersionedDocumentationDocumentaryTest.demonstrates an immutable exact-site rehearsal`.
 
 An archive render instead uses `-PdocumentationStatus=archived`. A final successor update additionally uses

@@ -46,10 +46,13 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         git(checkout, ['init'])
         git(checkout, ['config', 'user.email', 'fixtures@example.invalid'])
         git(checkout, ['config', 'user.name', 'Documentation fixtures'])
-        new File(checkout, 'docs').mkdirs()
-        new File(checkout, 'README.md').text = '# AnnoDocimal\n\n[Usage](docs/usage.md#details)\n'
+        new File(checkout, 'docs/user').mkdirs()
+        new File(checkout, 'README.md').text = '# Repository pointer\n'
         new File(checkout, 'CHANGES.md').text = '# Changes\n'
-        new File(checkout, 'docs/usage.md').text = '# Usage\n\n## Details\n\n[Home](../README.md)\n'
+        new File(checkout, 'docs/user/Home.md').text = '# AnnoDocimal\n\n[Usage](usage.md#details)\n'
+        new File(checkout, 'docs/user/usage.md').text = '# Usage\n\n## Details\n\n[Home](Home.md)\n'
+        new File(checkout, 'docs/user/_Sidebar.md').text = '- [Overview](Home.md)\n- [Usage](usage.md)\n'
+        new File(checkout, 'docs/user/_Footer.md').text = 'AnnoDocimal fixture documentation.\n'
         new File(checkout, 'img').mkdirs()
         byte[] logo = 'documentary-logo'.bytes
         new File(checkout, 'img/annodocimallogo.png').bytes = logo
@@ -90,7 +93,9 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         localResult.task(':renderDocumentationRehearsalFiles').outcome == TaskOutcome.SUCCESS
         localResult.task(':verifyLocalDocumentationSite').outcome == TaskOutcome.SUCCESS
         localResult.task(':renderLocalDocumentation').outcome == TaskOutcome.SUCCESS
-        File localSite = new File(localOutput, "rehearsal/commonmark-java-static-html-v1/$revision")
+        String rehearsalName = 'local-rehearsal'
+        File localSite = new File(localOutput, rehearsalName)
+        new File(localOutput, 'index.html').text.contains(rehearsalName)
         new File(localSite, 'index.html').text.contains('non-release rehearsal')
         !new File(localOutput, 'status').exists()
 
@@ -111,7 +116,9 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         then: 'the output makes its immutable source, status, and public API visible'
         result.task(':renderVersionedDocumentation').outcome == TaskOutcome.SUCCESS
         new File(output, '1.0.0-rc.1/index.html').text.contains('1.0.0-rc.1 · release candidate')
-        new File(output, '1.0.0-rc.1/index.html').text.contains('docs/usage/#details')
+        new File(output, '1.0.0-rc.1/index.html').text.contains('usage/#details')
+        !new File(output, '1.0.0-rc.1/index.html').text.contains('Repository pointer')
+        new File(output, '1.0.0-rc.1/usage/index.html').text.contains('AnnoDocimal fixture documentation.')
         new File(output, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file
         new File(output, '1.0.0-rc.1/source-manifest.json').text.contains(revision)
         new File(output, '1.0.0-rc.1/status/index.html').text.contains('successor status record')
@@ -155,7 +162,6 @@ class VersionedDocumentationDocumentaryTest extends Specification {
 }
 
 import com.blackbuild.annodocimal.docs.RenderVersionedDocumentationTask
-import com.blackbuild.annodocimal.docs.StaticDocumentationPageRenderer
 import com.blackbuild.annodocimal.docs.VerifyRenderedDocumentationSiteTask
 
 def localRevision = providers.exec {
@@ -176,7 +182,7 @@ def localRender = tasks.register('renderDocumentationRehearsalFiles', RenderVers
 }
 def localVerify = tasks.register('verifyLocalDocumentationSite', VerifyRenderedDocumentationSiteTask) {
     siteDirectory.set(file('$localOutputPath'))
-    entryPath.set(localRevision.map { "rehearsal/${StaticDocumentationPageRenderer.CONTRACT_ID}/\$it" })
+    entryPath.set('')
     dependsOn(localRender)
 }
 tasks.register('renderLocalDocumentation') {

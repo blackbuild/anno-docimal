@@ -44,7 +44,7 @@ or documentation semantics.
 - For a newly added user-visible feature, show a concise documentation example aligned with its executable documentary
   happy path and identify the corresponding documentary test class and feature method.
 - Record user-visible features, fixes, deprecations, and compatibility breaks under the unreleased section of `CHANGES.md`.
-- Put breaking-change migration guides under `docs/migration/` and link them from `CHANGES.md` and the affected user
+- Put breaking-change migration guides under `docs/user/migration/` and link them from `CHANGES.md` and the affected user
   documentation. Create the directory lazily when the first migration guide is needed.
 - Keep GitHub Release text synchronized with `CHANGES.md`; it is a publication surface, not an independent source.
 - Document changes to artifact coordinates, dependencies, Java/Groovy/Gradle compatibility, task behavior, caching,

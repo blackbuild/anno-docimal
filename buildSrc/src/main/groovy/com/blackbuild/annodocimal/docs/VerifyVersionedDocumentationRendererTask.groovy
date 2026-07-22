@@ -37,10 +37,15 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
     void verifyRendererContract() {
         File fixture = Files.createTempDirectory(temporaryDir.toPath(), 'versioned-documentation-').toFile()
         git(fixture, ['init']); git(fixture, ['config', 'user.email', 'fixtures@example.invalid']); git(fixture, ['config', 'user.name', 'Documentation fixtures'])
-        new File(fixture, 'docs').mkdirs()
-        new File(fixture, 'README.md').text = '# AnnoDocimal\n\n[Usage details](docs/usage.md#details)\n\n<script>alert("unsafe")</script>\n'
+        new File(fixture, 'docs/user').mkdirs()
+        new File(fixture, 'README.md').text = '# Repository pointer that is not public site input\n'
         new File(fixture, 'CHANGES.md').text = '# Changes\n'
-        new File(fixture, 'docs/usage.md').text = '# Usage\n\n## Details\n\n[Home](../README.md)\n\n[unsafe](javascript:alert(1))\n'
+        new File(fixture, 'docs/user/Home.md').text = '# AnnoDocimal\n\n[Usage details](usage.md#details)\n\n<script>alert("unsafe")</script>\n'
+        new File(fixture, 'docs/user/usage.md').text = '# Usage\n\n## Details\n\n[Home](Home.md)\n\n[unsafe](javascript:alert(1))\n'
+        new File(fixture, 'docs/user/supported-api.md').text = '# Supported API\n'
+        new File(fixture, 'docs/user/_Sidebar.md').text = '- [Overview](Home.md)\n- [Usage](usage.md)\n'
+        new File(fixture, 'docs/user/_Footer.md').text = 'AnnoDocimal fixture documentation.\n'
+        new File(fixture, 'docs/versioned-documentation.md').text = '# Maintainer-only renderer notes\n'
         new File(fixture, 'img').mkdirs()
         byte[] logo = 'fixture-logo'.getBytes('UTF-8')
         new File(fixture, 'img/annodocimallogo.png').bytes = logo
@@ -57,15 +62,23 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         File one = new File(temporaryDir, 'one'); File two = new File(temporaryDir, 'two')
         project.delete(one, two)
         render(fixture, one, revision, javadoc); render(fixture, two, revision, javadoc)
+        assertTrue(new File(one, 'index.html').text.contains('1.0.0-rc.1/'), 'renderer-owned output selector links the exact tree')
         assertTrue(new File(one, '1.0.0-rc.1/index.html').text.contains('data-status="public-rc"'), 'renderer-owned HTML chrome')
-        assertTrue(new File(one, '1.0.0-rc.1/index.html').text.contains('docs/usage/#details'), 'Markdown deep links are rewritten')
+        assertTrue(!new File(one, '1.0.0-rc.1/index.html').text.contains('Repository pointer that is not public site input'), 'root README is excluded from product snapshots')
+        assertTrue(!new File(one, '1.0.0-rc.1/CHANGES').exists(), 'root change history is excluded from product snapshots')
+        assertTrue(new File(one, '1.0.0-rc.1/index.html').text.contains('usage/#details'), 'Markdown deep links are rewritten')
         assertTrue(new File(one, '1.0.0-rc.1/index.html').text.contains('&lt;script&gt;'), 'authored HTML is escaped')
-        assertTrue(!new File(one, '1.0.0-rc.1/docs/usage/index.html').text.contains('href="javascript:'), 'unsafe URLs are sanitized')
+        assertTrue(!new File(one, '1.0.0-rc.1/usage/index.html').text.contains('href="javascript:'), 'unsafe URLs are sanitized')
+        assertTrue(new File(one, '1.0.0-rc.1/usage/index.html').text.contains('aria-label="Documentation"'), 'authored sidebar is rendered in renderer-owned chrome')
+        assertTrue(new File(one, '1.0.0-rc.1/usage/index.html').text.contains('AnnoDocimal fixture documentation.'), 'authored footer is rendered in renderer-owned chrome')
+        assertTrue(!new File(one, '1.0.0-rc.1/docs/versioned-documentation').exists(), 'maintainer documentation is excluded from the public tree')
+        assertTrue(!new File(one, '1.0.0-rc.1/_Sidebar').exists(), 'navigation fragments are not rendered as pages')
         assertTrue(new File(one, '1.0.0-rc.1/status/index.html').text.contains('successor status record'), 'fixed RC successor-status link')
         assertTrue(new File(one, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').file, 'module Javadoc landing')
         File manifestFile = new File(one, '1.0.0-rc.1/source-manifest.json')
         Map manifest = new JsonSlurper().parse(manifestFile) as Map
         assertTrue(manifest.source.revision == revision, 'exact source evidence')
+        assertTrue(manifest.source.documentationRoot == 'docs/user' && manifest.source.home == 'docs/user/Home.md', 'manifest records the canonical public source boundary')
         assertTrue(manifest.outputHashes['index.html'] == sha256(new File(one, '1.0.0-rc.1/index.html').bytes), 'manifest covers deployed HTML bytes')
         assertTrue(manifest.outputHashes['api/anno-docimal-annotations/index.html'] == sha256(new File(one, '1.0.0-rc.1/api/anno-docimal-annotations/index.html').bytes), 'manifest covers deployed Javadocs')
         assertTrue(manifest.outputHashes['api/anno-docimal-annotations/legal/jquery.md'] == sha256(new File(one, '1.0.0-rc.1/api/anno-docimal-annotations/legal/jquery.md').bytes), 'manifest covers Javadoc legal notices')
@@ -118,12 +131,17 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         assertTrue(new File(pendingFinal, '1.0.0/source-manifest.json').text.contains('"releaseStage": "final"'), 'pending final proof records its release stage')
         File rehearsal = new File(temporaryDir, 'rehearsal')
         project.delete(rehearsal)
+        String rehearsalName = VersionedDocumentationRenderer.rehearsalName()
         render(fixture, rehearsal, revision, javadoc,
-                [version: 'local-rehearsal', status: 'rehearsal', rehearsal: true])
-        String rehearsalPath = "rehearsal/${StaticDocumentationPageRenderer.CONTRACT_ID}/$revision"
-        assertTrue(new File(rehearsal, "$rehearsalPath/index.html").text.contains('non-release rehearsal'), 'rehearsal uses explicit non-release chrome')
+                [version: rehearsalName, status: 'rehearsal', rehearsal: true])
+        assertTrue(new File(rehearsal, 'index.html').text.contains(rehearsalName), 'rehearsal selector identifies its contract and revision')
+        assertTrue(new File(rehearsal, "$rehearsalName/index.html").text.contains('non-release rehearsal'), 'rehearsal uses explicit non-release chrome')
+        Map rehearsalManifest = new JsonSlurper().parse(new File(rehearsal, "$rehearsalName/source-manifest.json")) as Map
+        assertTrue(rehearsalManifest.documentation.localPath == rehearsalName, 'manifest records the local exact-tree path')
+        assertTrue(rehearsalManifest.documentation.retainedPath == "rehearsal/${StaticDocumentationPageRenderer.CONTRACT_ID}/$revision",
+                'manifest separates local review from retained platform evidence')
         assertTrue(!new File(rehearsal, 'status').exists(), 'rehearsal creates no release status record')
-        verifySite(rehearsal, rehearsalPath)
+        verifySite(rehearsal, '')
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'pending-without-release-stage'), revision, javadoc,
                 [status: 'pending']) }
         expectFailure { VerifyVersionedDocumentationRendererTask.render(fixture, new File(temporaryDir, 'release-stage-outside-pending'), revision, javadoc,

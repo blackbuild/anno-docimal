@@ -123,7 +123,7 @@ Supported members:
 - `SourceProjectionException.getInputPath()` and `getDeclarationIdentifier()`.
 
 ADR 0054 defines their lifecycle, policy, output, and failure contracts. The detailed
-[source-projection guide](../source-projection.md) records the implemented inclusion policy. No ASM, JavaPoet, visitor,
+[source-projection guide](source-projection.md) records the implemented inclusion policy. No ASM, JavaPoet, visitor,
 converter, parser, filter, annotation-reader, or shaded type is supported. The scoped checked-in
 `1.0-projection-api-baseline.txt` mechanically rejects accidental changes to this allowlist across Groovy 3, 4, and 5;
 the complete release-baseline mechanism remains the release compatibility gate described below.

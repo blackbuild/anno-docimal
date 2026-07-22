@@ -64,6 +64,7 @@ a { color: var(--accent); }
 .sidebar { border-right: 1px solid var(--line); padding-right: 1rem; }
 .sidebar ul { padding-left: 1.2rem; }
 .content { min-width: 0; }
+.selector { width: min(52rem, calc(100% - 2rem)); margin: 3rem auto; }
 .status-banner { border: 1px solid var(--line); border-left: .35rem solid var(--accent); padding: .75rem 1rem; margin-bottom: 1.5rem; }
 pre, code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 code { background: var(--code); padding: .1em .25em; border-radius: .2rem; }
@@ -73,6 +74,8 @@ table { border-collapse: collapse; display: block; overflow-x: auto; }
 th, td { border: 1px solid var(--line); padding: .4rem .65rem; text-align: left; }
 img { max-width: 100%; height: auto; }
 .site-footer { border-top: 1px solid var(--line); padding: 1rem 0 2rem; color: var(--muted); }
+.site-footer > :first-child { margin-top: 0; }
+.renderer-navigation { border-top: 1px solid var(--line); margin-top: 1rem; padding-top: 1rem; }
 @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .sidebar { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 1rem; } }
 '''.stripIndent().trim() + '\n'
 
@@ -97,19 +100,24 @@ img { max-width: 100%; height: auto; }
         String homeLink = relativeUrl(outputPath, 'index.html')
         String apiLink = relativeUrl(outputPath, 'api/index.html')
         String statusLink = relativeUrl(outputPath, 'status/index.html')
-        String changesLink = relativeUrl(outputPath, 'CHANGES/index.html')
         String cssLink = relativeUrl(outputPath, 'assets/site.css')
         boolean hasApi = inputs.hasApi != false
-        boolean hasChanges = pageOutputs.containsKey('CHANGES.md')
-        String navigation = '<ul><li><a href="' + escapeAttribute(homeLink) + '">Documentation</a></li>' +
+        String sidebar = renderFragment(inputs.sidebarMarkdown?.toString(), inputs.sidebarSourcePath?.toString(),
+                outputPath, pageOutputs)
+        if (!sidebar) {
+            sidebar = '<ul><li><a href="' + escapeAttribute(homeLink) + '">Documentation</a></li></ul>'
+        }
+        String rendererNavigation = '<ul class="renderer-navigation">' +
                 (hasApi ? '<li><a href="' + escapeAttribute(apiLink) + '">API reference</a></li>' : '') +
-                (hasChanges ? '<li><a href="' + escapeAttribute(changesLink) + '">Change history</a></li>' : '') + '</ul>'
+                '<li><a href="' + escapeAttribute(statusLink) + '">Version status</a></li></ul>'
         String logoPath = inputs.logoPath?.toString()
         String logo = logoPath ? "<img src=\"${escapeAttribute(relativeUrl(outputPath, logoPath))}\" alt=\"${escapeAttribute(inputs.logoAltText?.toString() ?: 'AnnoDocimal')}\">" : ''
         String repositoryRevision = inputs.repositoryRevision?.toString()
         String repositorySourcePath = inputs.repositorySourcePath?.toString()
         String source = repositoryRevision && repositorySourcePath ?
                 "<a href=\"https://github.com/blackbuild/anno-docimal/blob/${escapeAttribute(repositoryRevision)}/${escapeAttribute(repositorySourcePath)}\">Exact source</a>." : ''
+        String authoredFooter = renderFragment(inputs.footerMarkdown?.toString(), inputs.footerSourcePath?.toString(),
+                outputPath, pageOutputs)
 
         """<!doctype html>
 <html lang="en">
@@ -125,22 +133,47 @@ img { max-width: 100%; height: auto; }
     <span class="version-badge">${escapeHtml(version)} · ${escapeHtml(statusLabel)}</span>
   </div></header>
   <div class="layout">
-    <nav class="sidebar" aria-label="Documentation">${navigation}</nav>
+    <nav class="sidebar" aria-label="Documentation">${sidebar}${rendererNavigation}</nav>
     <main class="content">
       <aside class="status-banner" data-status="${escapeAttribute(status)}">${escapeHtml(notice)} <a href="${escapeAttribute(statusLink)}">Version status</a>.</aside>
       ${content}
     </main>
   </div>
-  <footer class="site-footer"><p>AnnoDocimal documentation rendered from exact repository sources. ${source}</p></footer>
+  <footer class="site-footer">${authoredFooter}<p>Rendered from exact repository sources. ${source}</p></footer>
 </body>
 </html>
 """
     }
 
     static String pageOutputPath(String sourcePath) {
-        if (sourcePath == 'README.md') return 'index.html'
-        String withoutExtension = sourcePath.substring(0, sourcePath.length() - '.md'.length())
+        if (sourcePath == 'README.md' || sourcePath == 'docs/user/Home.md') return 'index.html'
+        String publicPath = publicSourcePath(sourcePath)
+        String withoutExtension = publicPath.substring(0, publicPath.length() - '.md'.length())
         "$withoutExtension/index.html"
+    }
+
+    static String publicAssetOutputPath(String sourcePath) { publicSourcePath(sourcePath) }
+
+    static String renderSelector(String snapshotPath, String description) {
+        String cssLink = "$snapshotPath/assets/site.css"
+        """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AnnoDocimal documentation selection</title>
+  <link rel="stylesheet" href="${escapeAttribute(cssLink)}">
+</head>
+<body>
+  <header class="site-header"><div class="site-header__inner"><span class="brand">AnnoDocimal documentation</span></div></header>
+  <main class="content selector">
+    <h1>Documentation selection</h1>
+    <p>${escapeHtml(description)}</p>
+    <p><a href="${escapeAttribute(snapshotPath)}/">Open ${escapeHtml(snapshotPath)}</a></p>
+  </main>
+</body>
+</html>
+"""
     }
 
     static String relativeUrl(String fromOutputPath, String targetOutputPath) {
@@ -157,6 +190,19 @@ img { max-width: 100%; height: auto; }
     }
 
     private static Parser parser() { Parser.builder().extensions(EXTENSIONS).build() }
+
+    private static String publicSourcePath(String sourcePath) {
+        sourcePath.startsWith('docs/user/') ? sourcePath.substring('docs/user/'.length()) : sourcePath
+    }
+
+    private static String renderFragment(String markdown, String sourcePath, String outputPath,
+                                         Map<String, String> pageOutputs) {
+        if (!markdown || !sourcePath) return ''
+        Node fragment = parser().parse(markdown)
+        Map<Node, String> headingIds = assignHeadingIds(fragment)
+        rewriteLinks(fragment, sourcePath, outputPath, pageOutputs)
+        htmlRenderer(headingIds).render(fragment)
+    }
 
     private static HtmlRenderer htmlRenderer(Map<Node, String> headingIds) {
         HtmlRenderer.builder().extensions(EXTENSIONS).escapeHtml(true).sanitizeUrls(true)

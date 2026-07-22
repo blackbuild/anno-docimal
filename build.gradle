@@ -1,6 +1,6 @@
 import com.blackbuild.annodocimal.docs.RenderVersionedDocumentationTask
 import com.blackbuild.annodocimal.docs.PreviewRenderedDocumentationTask
-import com.blackbuild.annodocimal.docs.StaticDocumentationPageRenderer
+import com.blackbuild.annodocimal.docs.VersionedDocumentationRenderer
 import com.blackbuild.annodocimal.docs.VerifyRenderedDocumentationSiteTask
 import com.blackbuild.annodocimal.docs.VerifyVersionedDocumentationRendererTask
 
@@ -149,7 +149,7 @@ def renderDocumentationRehearsalFiles = tasks.register('renderDocumentationRehea
     description = 'Renders the distinct non-release rehearsal tree with review-safe defaults.'
     revision.set(localDocumentationRevision)
     rendererRevision.set(providers.gradleProperty('documentationRendererRevision').orElse(localDocumentationRevision))
-    documentationVersion.set('local-rehearsal')
+    documentationVersion.set(VersionedDocumentationRenderer.rehearsalName())
     status.set('rehearsal')
     rehearsal.set(true)
     brandingManifestPath.set(providers.gradleProperty('documentationBrandingManifest').orElse('docs/branding/annodocimal-current.json'))
@@ -162,13 +162,10 @@ def renderDocumentationRehearsalFiles = tasks.register('renderDocumentationRehea
     if (localDocumentationObjectDirectory.orNull?.canonicalFile == rootDir.canonicalFile)
         dependsOn(documentationJavadocProjects.collect { it.tasks.named('javadoc') })
 }
-def rehearsalEntryPath = localDocumentationRevision.map {
-    "rehearsal/${StaticDocumentationPageRenderer.CONTRACT_ID}/$it"
-}
 def verifyLocalDocumentationSite = tasks.register('verifyLocalDocumentationSite', VerifyRenderedDocumentationSiteTask) {
     description = 'Serves and crawls the rehearsal under the real /anno-docimal/ Pages base path.'
     siteDirectory.set(layout.dir(localDocumentationOutputDirectory))
-    entryPath.set(rehearsalEntryPath)
+    entryPath.set('')
     dependsOn(renderDocumentationRehearsalFiles)
 }
 tasks.register('renderLocalDocumentation') {
@@ -180,7 +177,7 @@ tasks.register('previewLocalDocumentation', PreviewRenderedDocumentationTask) {
     group = 'documentation'
     description = 'Clears, renders, and serves the non-release rehearsal until interrupted.'
     siteDirectory.set(layout.dir(localDocumentationOutputDirectory))
-    entryPath.set(rehearsalEntryPath)
+    entryPath.set('')
     dependsOn(renderDocumentationRehearsalFiles)
 }
 

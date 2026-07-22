@@ -29,8 +29,8 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
@@ -47,7 +47,8 @@ abstract class RenderVersionedDocumentationTask extends DefaultTask {
     @Input @Optional abstract Property<String> getCurrentBrandingManifestPath()
     @Input @Optional abstract Property<String> getSuccessorOf()
     @Input @Optional abstract Property<Boolean> getRehearsal()
-    @InputDirectory abstract DirectoryProperty getObjectDirectory()
+    /** Git object-database location; the required full revision is the immutable content input. */
+    @Internal abstract DirectoryProperty getObjectDirectory()
     @Input abstract MapProperty<String, String> getJavadocInputDirectories()
     @InputFiles @PathSensitive(PathSensitivity.RELATIVE) abstract ConfigurableFileCollection getJavadocInputs()
     @OutputDirectory abstract DirectoryProperty getOutputDirectory()

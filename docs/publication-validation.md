@@ -60,5 +60,6 @@ publication order, and recovery procedure. Its documentation-site handoff must r
 an RC successor status record; that mutable root record is the only permitted post-publication status change and never
 rewrites an RC snapshot or manifest. A `pending` candidate or final documentation render may provide protected,
 unlisted pre-publication evidence, but it authorizes no artifact publication, public status record, or navigation alias.
-That single-use pending evidence is distinct from the disposable, non-release static-HTML presentation rehearsal under
-`rehearsal/commonmark-java-static-html-v1/<revision>/`.
+That single-use pending evidence is distinct from the disposable, non-release static-HTML presentation rehearsal. Its
+local artifact is selected from `local-rehearsal/`; accepted platform evidence is
+retained under `rehearsal/commonmark-java-static-html-v1/<revision>/`.

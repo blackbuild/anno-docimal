@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       exact_path: ${{ steps.identity.outputs.exact_path }}
+      render_path: ${{ steps.identity.outputs.render_path }}
     steps:
       - id: identity
         shell: bash
@@ -30,6 +31,7 @@ jobs:
           set -euo pipefail
           [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
           echo "exact_path=rehearsal/commonmark-java-static-html-v1/$REVISION" >> "$GITHUB_OUTPUT"
+          echo "render_path=local-rehearsal" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -94,11 +96,12 @@ jobs:
         shell: bash
         env:
           EXACT_PATH: ${{ needs.render-and-crawl.outputs.exact_path }}
+          RENDER_PATH: ${{ needs.render-and-crawl.outputs.render_path }}
         run: |
           set -euo pipefail
           test ! -e "pages/$EXACT_PATH"
           mkdir -p "pages/$(dirname "$EXACT_PATH")"
-          mv "rendered/$EXACT_PATH" "pages/$EXACT_PATH"
+          mv "rendered/$RENDER_PATH" "pages/$EXACT_PATH"
           touch pages/.nojekyll
           git -C pages config user.name github-actions[bot]
           git -C pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
