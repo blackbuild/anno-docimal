@@ -36,35 +36,50 @@ class GroovyPropertyDocumentationTest extends ClassGeneratingTest {
         createClass('''
             package contract
 
-            import com.blackbuild.annodocimal.annotations.AnnoDoc
+            import com.blackbuild.annodocimal.annotations.InlineJavadocs
 
+            @InlineJavadocs
             class GroovyPropertyFixture {
-                @AnnoDoc('Readable and writable property.')
+                /** Readable and writable property. */
                 String title
 
-                @AnnoDoc('Boolean property.')
+                /** Boolean property. */
                 boolean enabled
 
-                @AnnoDoc('Read-only property.')
+                /** Custom boolean property. */
+                boolean ready
+
+                /** Explicit boolean getter documentation. */
+                boolean isReady() {
+                    ready
+                }
+
+                /** Undocumented custom boolean accessor property. */
+                boolean available
+
+                boolean isAvailable() {
+                    available
+                }
+
+                /** Read-only property. */
                 final String identifier = 'id'
 
-                @AnnoDoc('Write-only property.')
+                /** Write-only property. */
                 private String secret
 
-                @AnnoDoc('Write-only property.')
+                /** Write-only property. */
                 void setSecret(String secret) {
                     this.secret = secret
                 }
 
-                @AnnoDoc('Property documentation.')
+                /** Property documentation. */
                 String endpoint
 
-                @AnnoDoc('Explicit getter documentation.')
+                /** Explicit getter documentation. */
                 String getEndpoint() {
                     endpoint
                 }
 
-                @AnnoDoc('Property documentation.')
                 void setEndpoint(String endpoint) {
                     this.endpoint = endpoint
                 }
@@ -103,10 +118,14 @@ class GroovyPropertyDocumentationTest extends ClassGeneratingTest {
   @Generated
   public void setEnabled(boolean value)''')
         projection.contains('''  /**
-   * Read-only property.
+   * Explicit boolean getter documentation.
    */
-  @Generated
-  public String getIdentifier()''')
+  public boolean isReady()''')
+        projection.contains('''  /**
+   * Undocumented custom boolean accessor property.
+   */
+  public boolean isAvailable()''')
+        projection.find(/(?s)\/\*\*\s+\* Read-only property\.\s+\*\/\s+@Generated\s+public (?:final )?String getIdentifier\(\)/)
         !projection.contains('setIdentifier(')
         projection.contains('''  /**
    * Write-only property.

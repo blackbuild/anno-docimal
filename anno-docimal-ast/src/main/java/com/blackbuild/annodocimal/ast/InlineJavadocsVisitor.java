@@ -26,7 +26,11 @@ package com.blackbuild.annodocimal.ast;
 import com.blackbuild.annodocimal.ast.formatting.AnnoDocUtil;
 import com.blackbuild.annodocimal.ast.parser.SourceExtractor;
 import com.blackbuild.annodocimal.ast.parser.SourceExtractorFactory;
+import com.blackbuild.annodocimal.annotations.GroovyPropertyDocumentation;
 import org.codehaus.groovy.ast.*;
+import org.codehaus.groovy.ast.expr.ConstantExpression;
+import org.codehaus.groovy.ast.expr.Expression;
+import org.codehaus.groovy.ast.expr.ListExpression;
 import org.codehaus.groovy.control.SourceUnit;
 
 import java.util.ArrayList;
@@ -91,19 +95,42 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
 
     private void applyPropertyDocumentation() {
         for (PropertyDocumentation property : propertyDocumentation) {
-            addDocumentationIfAbsent(property.node().getField(), property.documentation());
+            FieldNode field = property.node().getField();
+            if (field == null) continue;
+            addDocumentationIfAbsent(field, property.documentation());
+            addPropertyMapping(field, property.node());
 
-            ClassNode owner = property.node().getField().getOwner();
+            ClassNode owner = field.getOwner();
             String propertyName = capitalize(property.node().getName());
             MethodNode getter = owner.getGetterMethod("get" + propertyName, false);
-            if (getter == null && isBoolean(property.node()))
-                getter = owner.getGetterMethod("is" + propertyName, false);
             addDocumentationIfAbsent(getter, property.documentation());
+            if (isBoolean(property.node())) {
+                MethodNode booleanGetter = owner.getGetterMethod("is" + propertyName, false);
+                addDocumentationIfAbsent(booleanGetter, property.documentation());
+            }
 
             MethodNode setter = owner.getSetterMethod("set" + propertyName, false);
             addDocumentationIfAbsent(setter, property.documentation());
         }
         propertyDocumentation.clear();
+    }
+
+    private static void addPropertyMapping(FieldNode field, PropertyNode property) {
+        if (!field.getAnnotations(ClassHelper.make(GroovyPropertyDocumentation.class)).isEmpty()) return;
+
+        String propertyName = capitalize(property.getName());
+        List<String> getters = new ArrayList<>();
+        getters.add("get" + propertyName);
+        if (isBoolean(property)) getters.add("is" + propertyName);
+
+        AnnotationNode mapping = new AnnotationNode(ClassHelper.make(GroovyPropertyDocumentation.class));
+        mapping.addMember("getters", strings(getters));
+        mapping.addMember("setters", strings(List.of("set" + propertyName)));
+        field.addAnnotation(mapping);
+    }
+
+    private static ListExpression strings(List<String> values) {
+        return new ListExpression(values.stream().<Expression>map(ConstantExpression::new).toList());
     }
 
     private static boolean isBoolean(PropertyNode property) {

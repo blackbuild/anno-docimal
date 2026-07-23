@@ -149,6 +149,7 @@ applies Gradle's Groovy plugin and the base layer. Plugin implementation classes
 |---|---|---|
 | `com.blackbuild.annodocimal.annotations.AnnoDoc` | supported | Retain the annotation and `value()` carrier contract. |
 | `com.blackbuild.annodocimal.annotations.InlineJavadocs` | supported | Retain the marker; leave its public suffix constant unsupported. |
+| `com.blackbuild.annodocimal.annotations.GroovyPropertyDocumentation` | implementation-only | Retain as capture-to-projection metadata; documentation content stays in `AnnoDoc`. |
 
 ### APT artifact
 

@@ -81,9 +81,10 @@ are implementation-only. `@InlineJavadocs` is source-retained, while `@AnnoDoc` 
 ### Groovy property documentation
 
 Documentation on a Groovy property is semantic property documentation, not documentation for a field selected only by
-its JavaBeans-shaped name. Capture retains the normalized textual carrier on the backing field while the Groovy property
-model is available. An undocumented custom getter or setter receives that property documentation; an explicitly
-documented accessor keeps its own documentation.
+its JavaBeans-shaped name. Capture retains the normalized textual carrier on the backing field and classfile metadata
+that names its associated accessors while the Groovy property model is available. The metadata contains no documentation
+content and does not change the textual carrier. An undocumented custom getter or setter receives that property
+documentation; an explicitly documented accessor keeps its own documentation.
 
 ```groovy
 @InlineJavadocs
@@ -98,12 +99,12 @@ class DocumentedProperties {
 }
 ```
 
-Source projection applies the retained property semantics only to Groovy-generated accessor members. A readable and
-writable property documents its generated getter and setter; a read-only or write-only property documents only the
-accessor that exists. Boolean properties retain the getter forms emitted by the active Groovy compiler. Custom accessors
-use their explicit documentation when present and otherwise use the property documentation. Projection does not attach
-documentation to arbitrary JavaBeans-shaped methods. The carrier remains normalized text; property metadata does not
-introduce the future structured documentation schema.
+Source projection consumes that captured association. A readable and writable property documents its generated getter
+and setter; a read-only or write-only property documents only the accessor that exists. Boolean properties retain the
+getter forms emitted by the active Groovy compiler. Custom accessors use their explicit documentation when present and
+otherwise use the property documentation. Projection does not attach documentation to arbitrary JavaBeans-shaped
+methods. The carrier remains normalized text; the association metadata does not introduce the future structured
+documentation schema.
 
 The executable happy path is
 `GroovyPropertyDocumentationDocumentaryTest.captures property documentation and respects explicit accessor documentation`

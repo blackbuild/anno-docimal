@@ -319,6 +319,17 @@ class PropertyDocumentation {
     /** Property documentation. */
     String title
 
+    /** Custom boolean property. */
+    boolean ready
+
+    /** Explicit boolean getter documentation. */
+    boolean isReady() { ready }
+
+    /** Undocumented custom boolean accessor property. */
+    boolean available
+
+    boolean isAvailable() { available }
+
     /** Explicit getter documentation. */
     String getTitle() { title }
 
@@ -328,6 +339,8 @@ class PropertyDocumentation {
 
         then:
         clazz.getDeclaredField('title').getAnnotation(AnnoDoc).value() == 'Property documentation.'
+        clazz.getMethod('isReady').getAnnotation(AnnoDoc).value() == 'Explicit boolean getter documentation.'
+        clazz.getMethod('isAvailable').getAnnotation(AnnoDoc).value() == 'Undocumented custom boolean accessor property.'
         clazz.getMethod('getTitle').getAnnotation(AnnoDoc).value() == 'Explicit getter documentation.'
         clazz.getMethod('setTitle', String).getAnnotation(AnnoDoc).value() == 'Property documentation.'
     }

@@ -39,14 +39,16 @@ class GroovySourceProjectionContractTest extends ClassGeneratingTest {
             package contract
 
             import com.blackbuild.annodocimal.annotations.AnnoDoc
+            import com.blackbuild.annodocimal.annotations.InlineJavadocs
             import groovy.lang.Groovydoc
 
             import java.lang.annotation.Retention
             import java.lang.annotation.RetentionPolicy
 
+            @InlineJavadocs
             @AnnoDoc('Canonical Groovy class documentation')
             class GroovyDeclarationFixture<T extends Number> {
-                @AnnoDoc('Canonical Groovy property documentation')
+                /** Canonical Groovy property documentation */
                 T[] values
 
                 GroovyDeclarationFixture(T[] values) throws IllegalArgumentException {
