@@ -106,7 +106,7 @@ class GroovyPropertyDocumentationTest extends ClassGeneratingTest {
    * Read-only property.
    */
   @Generated
-  public final String getIdentifier()''')
+  public String getIdentifier()''')
         !projection.contains('setIdentifier(')
         projection.contains('''  /**
    * Write-only property.
