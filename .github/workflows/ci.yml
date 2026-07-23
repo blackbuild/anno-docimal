@@ -11,19 +11,101 @@ permissions:
   contents: read
 
 jobs:
-  build:
-
+  java17-and-groovy-compatibility:
+    name: Java 17 and Groovy compatibility
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 17 toolchain
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Verify Java 17 runtime and toolchain
+        run: ./gradlew --version
+      - name: Verify Groovy 3 baseline compatibility
+        run: ./gradlew test jacocoTestReport
+      - name: Verify Groovy 4 compatibility
+        run: ./gradlew groovy4Tests
+      - name: Verify Groovy 5 compatibility
+        run: ./gradlew groovy5Tests
 
+  supported-gradle-and-configuration-cache:
+    name: Supported Gradle range and strict configuration cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 17 toolchain
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Verify Gradle 7.3.3 and strict configuration-cache reuse
+        run: >-
+          ./gradlew :anno-docimal-gradle-plugin:test
+          --tests '*the documented Gradle minimum supports the reusable task and configuration cache'
+      - name: Verify wrapper Gradle 8.14.5 and strict configuration-cache reuse
+        run: >-
+          ./gradlew :anno-docimal-gradle-plugin:test
+          --tests '*source mirror stores and reuses the strict configuration cache'
+
+  capture-and-projection-contracts:
+    name: Capture and source-projection contract suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 17 toolchain
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Verify capture conformance across Groovy 3, 4, and 5
+        run: >-
+          ./gradlew
+          :anno-docimal-global-ast:test
+          :anno-docimal-global-ast:groovy4Tests
+          :anno-docimal-global-ast:groovy5Tests
+          --tests '*CapturePathConformanceTest'
+      - name: Verify source-projection contracts across Groovy 3, 4, and 5
+        run: >-
+          ./gradlew
+          :anno-docimal-generator:test
+          :anno-docimal-generator:groovy4Tests
+          :anno-docimal-generator:groovy5Tests
+          --tests '*SourceProjectionContractTest'
+
+  publication-and-consumer-smoke:
+    name: Clean publication and consumer smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 17 toolchain
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Verify clean local publication and Gradle/Maven consumers
+        run: ./gradlew :publication-smoke-tests:test
+
+  supplementary-sonar-analysis:
+    name: Supplementary Sonar analysis
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up JDK
+      - name: Set up Java 17 toolchain
         uses: actions/setup-java@v5
         with:
-          java-version: |
-            17
+          java-version: '17'
           distribution: 'adopt'
       - name: Cache SonarCloud packages
         uses: actions/cache@v6
@@ -31,14 +113,12 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
-      - name: Verify Gradle JVM is Java 17
-        run: ./gradlew --version
-      - name: Build and produce coverage with Java 17
-        run: ./gradlew build jacocoTestReport
+      - name: Produce Java 17 baseline coverage for analysis
+        run: ./gradlew jacocoTestReport
       - name: Analyze with auto-provisioned Sonar JRE
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./gradlew sonar --info
