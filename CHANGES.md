@@ -43,7 +43,8 @@
 
 - Rewrote the repository-owned landing page, usage guide, and migration guidance for the 1.0 documentation contract.
   They now describe the six artifacts, Java and Groovy capture, the supported authoring and projection APIs, automatic
-  module names, Javadoc and IDE-mirror boundaries, and the current versus #35-owned Gradle integration. See
+  module names, Javadoc and IDE-mirror boundaries, and the conventional and independently configurable Gradle
+  integrations. See
   [the usage guide](docs/user/usage.md) and [0.x-to-1.0 migration](docs/user/migration/0.x-to-1.0-supported-api.md).
 
 - Defined the supported 1.0 Java API as non-null by default with JSpecify. Supported annotation, transformation-author,

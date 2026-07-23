@@ -91,4 +91,5 @@ to the generator shadow JAR so module-path consumers do not receive a duplicate 
 
 The provisional 0.x `AnnoDocGenerator` helper is removed without a compatibility shim. See the
 [0.x-to-1.0 supported-API migration](migration/0.x-to-1.0-supported-api.md) for the direct replacement. The reusable
-Gradle task contract, including collection filtering and stale-output cleanup, remains owned by issue #35.
+`SourceProjectionTask` handles collection filtering and stale-output cleanup; its supported Gradle contract is described
+in the [usage guide](usage.md#source-projection-javadoc-and-ide-mirrors).
