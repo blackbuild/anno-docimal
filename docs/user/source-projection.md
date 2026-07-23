@@ -35,6 +35,11 @@ content is rendered as Javadoc, and neither carrier annotation is copied into th
 properties are compiler-model extraction resources rather than classfile annotations and are therefore outside a
 single-class-file projection input.
 
+For a captured Groovy property, projection carries the backing-field documentation to Groovy-generated `get`, `is`, and
+`set` accessors that exist in the compiled declaration. An accessor's own documentation takes precedence. The association
+requires Groovy-generated-member metadata and the captured backing field; projection does not infer property
+documentation for arbitrary JavaBeans-shaped methods. See the [capture policy](usage.md#groovy-property-documentation).
+
 ## Documentation inclusion policy
 
 `ProjectionPolicy.documentation()` has the stable documentation-oriented defaults:
