@@ -30,6 +30,7 @@ import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 
 import javax.lang.model.element.Modifier;
+import java.beans.Introspector;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
@@ -61,6 +62,7 @@ class JavaPoetClassVisitor extends ClassVisitor {
     private boolean recordDeclaration;
     private final List<RecordComponentShape> recordComponents = new ArrayList<>();
     private final List<RecordShape> recordShapes = new ArrayList<>();
+    private final Map<String, String> groovyPropertyDocumentation = new HashMap<>();
 
     JavaPoetClassVisitor(SpecConverter specConverter, ProjectionPolicy policy, Set<String> includedClasses,
                          boolean groovyClass, Set<String> groovyRuntimeMethods, Set<String> groovyRuntimeFields) {
@@ -296,10 +298,14 @@ class JavaPoetClassVisitor extends ClassVisitor {
             final MemberAnnotationVisitor.DocumentationCarrierSelection documentation =
                     new MemberAnnotationVisitor.DocumentationCarrierSelection();
             int visitedParameters;
+            boolean generated;
 
             @Override
             public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
                 Type annotationType = Type.getType(desc);
+                if (annotationType.getClassName().equals("groovy.transform.Generated")) {
+                    generated = true;
+                }
                 if (annotationType.getClassName().equals("org.codehaus.groovy.transform.trait.Traits$Implemented")) {
                     methodBuilder.modifiers.remove(Modifier.ABSTRACT);
                     methodBuilder.addModifiers(Modifier.DEFAULT);
@@ -358,6 +364,9 @@ class JavaPoetClassVisitor extends ClassVisitor {
                 }
 
                 String selectedDocumentation = documentation.selected();
+                if (selectedDocumentation == null && generated) {
+                    selectedDocumentation = documentationForGeneratedGroovyAccessor(name, methodType);
+                }
                 if (selectedDocumentation != null) {
                     methodBuilder.addJavadoc(filterParams(selectedDocumentation));
                 }
@@ -432,8 +441,12 @@ class JavaPoetClassVisitor extends ClassVisitor {
 
     @Override
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-        if (!ProjectionSelection.includesField(policy, access, name, typeAccess(),
-                groovyRuntimeFields.contains(ProjectionSelection.memberKey(name, desc)))) return null;
+        boolean included = ProjectionSelection.includesField(policy, access, name, typeAccess(),
+                groovyRuntimeFields.contains(ProjectionSelection.memberKey(name, desc)));
+
+        if (!included) {
+            return groovyClass ? documentationOnlyFieldVisitor(name) : null;
+        }
 
         TypeName fieldType = fieldType(desc, signature);
         if ((access & Opcodes.ACC_ENUM) != 0) return enumConstantVisitor(name);
@@ -498,9 +511,56 @@ class JavaPoetClassVisitor extends ClassVisitor {
             @Override
             public void visitEnd() {
                 addSelectedDocumentation(documentation, field::addJavadoc);
+                rememberGroovyPropertyDocumentation(name, documentation);
                 typeBuilder.addField(field.build());
             }
         };
+    }
+
+    private FieldVisitor documentationOnlyFieldVisitor(String name) {
+        return new FieldVisitor(api) {
+            private final MemberAnnotationVisitor.DocumentationCarrierSelection documentation =
+                    new MemberAnnotationVisitor.DocumentationCarrierSelection();
+
+            @Override
+            public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                Type annotationType = Type.getType(descriptor);
+                return documentation.visitor(annotationType);
+            }
+
+            @Override
+            public void visitEnd() {
+                rememberGroovyPropertyDocumentation(name, documentation);
+            }
+        };
+    }
+
+    private void rememberGroovyPropertyDocumentation(
+            String fieldName, MemberAnnotationVisitor.DocumentationCarrierSelection documentation) {
+        if (!groovyClass) return;
+        String selectedDocumentation = documentation.selected();
+        if (selectedDocumentation != null) groovyPropertyDocumentation.put(fieldName, selectedDocumentation);
+    }
+
+    private String documentationForGeneratedGroovyAccessor(String methodName, Type methodType) {
+        String propertyName = generatedAccessorPropertyName(methodName, methodType);
+        return propertyName == null ? null : groovyPropertyDocumentation.get(propertyName);
+    }
+
+    private static String generatedAccessorPropertyName(String methodName, Type methodType) {
+        if (methodName.startsWith("get") && methodName.length() > 3
+                && methodType.getArgumentTypes().length == 0 && methodType.getReturnType().getSort() != Type.VOID) {
+            return Introspector.decapitalize(methodName.substring(3));
+        }
+        if (methodName.startsWith("is") && methodName.length() > 2
+                && methodType.getArgumentTypes().length == 0 && methodType.getReturnType().getSort() == Type.BOOLEAN) {
+            return Introspector.decapitalize(methodName.substring(2));
+        }
+        if (methodName.startsWith("set") && methodName.length() > 3
+                && methodType.getArgumentTypes().length == 1 && methodType.getReturnType().getSort() == Type.VOID) {
+            return Introspector.decapitalize(methodName.substring(3));
+        }
+        return null;
     }
 
     private AnnotationVisitor fieldAnnotationVisitor(
