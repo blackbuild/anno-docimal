@@ -158,7 +158,7 @@ jobs:
     needs: validate-and-render
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: annodocimal-pages-writer
     permissions:
       contents: read
     steps:
