@@ -44,10 +44,8 @@ jobs:
           distribution: 'adopt'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
-      - name: Verify Gradle 7.3.3 and strict configuration-cache reuse
-        run: ./gradlew :anno-docimal-gradle-plugin:test -Pannodocimal.ci.test-tag=ci-supported-gradle-minimum
-      - name: Verify wrapper Gradle 8.14.5 and strict configuration-cache reuse
-        run: ./gradlew :anno-docimal-gradle-plugin:test -Pannodocimal.ci.test-tag=ci-current-gradle-configuration-cache
+      - name: Verify Gradle 7.3.3 and wrapper 8.14.5 configuration-cache compatibility
+        run: ./gradlew :anno-docimal-gradle-plugin:test -Pannodocimal.test-tag=compatibility-gradle
 
   capture-and-projection-contracts:
     name: Capture and source-projection contract suites

@@ -113,7 +113,8 @@ class AnnoDocimalPluginTest extends Specification {
     }
 
     @Issue("35")
-    @Tag('ci-current-gradle-configuration-cache')
+    @Tag('compatibility-gradle')
+    @Tag('gradle-configuration-cache')
     def "source mirror stores and reuses the strict configuration cache"() {
         given:
         prepareMirrorProject()
@@ -144,7 +145,8 @@ class AnnoDocimalPluginTest extends Specification {
     }
 
     @Issue("35")
-    @Tag('ci-supported-gradle-minimum')
+    @Tag('compatibility-gradle')
+    @Tag('gradle-configuration-cache')
     def "the documented Gradle minimum supports the reusable task and configuration cache"() {
         given:
         prepareMirrorProject()
