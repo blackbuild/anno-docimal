@@ -52,8 +52,9 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         String renderJob = job(publicationWorkflow, 'validate-and-render')
         String ordinaryPublicationJobs = publicationWorkflow.replace(writerJob, '')
 
-        expect: 'only the protected writer can mint the dedicated App token and use it to push canonical Pages'
-        writerJob.contains('environment:\n      name: github-pages')
+        expect: 'only the protected writer environment can mint the dedicated App token and use it to push canonical Pages'
+        writerJob.contains('environment:\n      name: annodocimal-pages-writer')
+        !writerJob.contains('environment:\n      name: github-pages')
         writerJob.contains('contents: read')
         !writerJob.contains('contents: write')
         writerJob.contains('actions/create-github-app-token@v1')
@@ -70,6 +71,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         !renderJob.contains('create-github-app-token')
         !ordinaryPublicationJobs.contains('PAGES_WRITER_')
         !ordinaryPublicationJobs.contains('create-github-app-token')
+        !publicationWorkflow.contains('environment:\n      name: github-pages')
 
         and: 'the disposable rehearsal remains credential-free and artifact-only'
         !rehearsalWorkflow.contains('github-pages')
@@ -77,6 +79,10 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         !rehearsalWorkflow.contains('gh-pages')
 
         and: 'the maintainer documentation makes the authority boundary auditable'
+        documentation.contains('`annodocimal-pages-writer` environment')
+        documentation.contains('`github-pages` environment')
+        documentation.contains('credential-free GitHub Pages service deployment')
+        documentation.contains('protected `gh-pages` branch')
         documentation.contains('protected canonical writer job')
         documentation.contains('Pages-writer App')
     }

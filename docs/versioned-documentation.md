@@ -67,22 +67,31 @@ writer App material.
 
 ## Protected canonical writer
 
-The `github-pages` environment gates the distinct canonical writer job. Only that job may receive the environment-scoped
-dedicated Pages-writer App identifier and private key, and it mints that App's installation token only after the artifact
-has been staged. The workflow token remains read-only; the App token is used only for the `gh-pages` push. Before that
-push, the writer resolves `refs/heads/master` remotely and refuses to continue unless its exact commit equals the
-requested source revision. It also verifies that the staged `source-manifest.json` binds that source, version, and
-status. After the push, a fresh remote checkout must resolve to the pushed commit and contain byte-identical manifest
-content with the same source/version/status binding. A missing protected-environment value fails the writer before token
-minting or canonical mutation. This workflow defines no App, secret, environment, Pages setting, branch rule, or
-`gh-pages` branch; those remain separate maintainer-controlled setup.
+The credential-bearing `annodocimal-pages-writer` environment gates the distinct canonical writer job. Only that
+master-only, reviewed job may receive the environment-scoped dedicated Pages-writer App identifier and private key, and
+it mints that App's installation token only after the artifact has been staged. The workflow token remains read-only;
+the App token is used only for the `gh-pages` push. Before that push, the writer resolves `refs/heads/master` remotely
+and refuses to continue unless its exact commit equals the requested source revision. It also verifies that the staged
+`source-manifest.json` binds that source, version, and status. After the push, a fresh remote checkout must resolve to
+the pushed commit and contain byte-identical manifest content with the same source/version/status binding. A missing
+protected-environment value fails the writer before token minting or canonical mutation.
+
+The separately named `github-pages` environment is the credential-free GitHub Pages service deployment from the
+protected `gh-pages` branch. It receives neither the Pages-writer App material nor its installation token and is not a
+canonical-writer approval boundary. This workflow writes the protected ledger only through
+`annodocimal-pages-writer`; GitHub Pages serves the resulting commit through its distinct service deployment boundary.
+
+This workflow defines no App, secret, environment, Pages setting, branch rule, or `gh-pages` branch; those remain
+separate maintainer-controlled setup.
 
 The documentary contract
 `VersionedDocumentationDocumentaryTest.keeps the protected canonical writer separate from artifact-only rendering`
 checks this checked-in authority boundary while the release and rehearsal examples below prove rendering behavior.
 
-Before any authorized deployment, a maintainer must create `gh-pages`, configure Pages to serve it, and protect the
-`github-pages` environment. This repository configuration does not perform those remote actions.
+Before any authorized deployment, a maintainer must create and protect `gh-pages`, configure Pages to serve that
+branch through the credential-free `github-pages` environment, and protect the separate
+`annodocimal-pages-writer` environment for the canonical writer. This repository configuration does not perform those
+remote actions.
 
 ## Local presentation rehearsal
 

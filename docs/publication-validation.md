@@ -70,9 +70,11 @@ that artifact from a clearly experimental Pages branch. They record each validat
 until the first result is verified and accepted, after which Pages is deactivated and the branch is removed. They are not
 retained on the canonical Pages ledger.
 
-The canonical documentation writer is a separate `github-pages`-gated job, not part of render, crawl, publication
-smoke, or rehearsal. It requires the requested exact source to still be current `master`, validates the staged immutable
-manifest binding, and uses the dedicated environment-scoped Pages-writer App only for the `gh-pages` push. A remote
-read-back must confirm the pushed commit and manifest before the job succeeds. This is deployment integrity evidence;
-it neither authorizes a release nor changes #45's ordering, recovery, RC/final, tagging, signing, or release-record
-ownership.
+The canonical documentation writer is a separate, master-only, reviewed
+`annodocimal-pages-writer`-gated job, not part of render, crawl, publication smoke, or rehearsal. It requires the
+requested exact source to still be current `master`, validates the staged immutable manifest binding, and uses the
+dedicated environment-scoped Pages-writer App only for the `gh-pages` push. A remote read-back must confirm the pushed
+commit and manifest before the job succeeds. The separate `github-pages` environment is the credential-free GitHub
+Pages service deployment from the protected `gh-pages` branch; it never receives or mints the App token. This is
+deployment integrity evidence; it neither authorizes a release nor changes #45's ordering, recovery, RC/final, tagging,
+signing, or release-record ownership.
