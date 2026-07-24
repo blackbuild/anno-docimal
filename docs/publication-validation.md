@@ -65,5 +65,7 @@ an RC successor status record; that mutable root record is the only permitted po
 rewrites an RC snapshot or manifest. A `pending` candidate or final documentation render may provide protected,
 unlisted pre-publication evidence, but it authorizes no artifact publication, public status record, or navigation alias.
 That single-use pending evidence is distinct from the disposable, non-release static-HTML presentation rehearsal. Its
-local artifact is selected from `local-rehearsal/`; accepted platform evidence is
-retained under `rehearsal/commonmark-java-static-html-v1/<revision>/`.
+local artifact is selected from `local-rehearsal/`; one or more maintainer-led platform rehearsals may temporarily use
+that artifact from a clearly experimental Pages branch. They record each validation in #71 and keep Pages unprotected
+until the first result is verified and accepted, after which Pages is deactivated and the branch is removed. They are not
+retained on the canonical Pages ledger.
