@@ -41,8 +41,13 @@ dependencies {
     testImplementation libs.spock.g3
 }
 
+def ciTestTag = providers.gradleProperty('annodocimal.ci.test-tag')
+
 test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        if (ciTestTag.present)
+            includeTags(ciTestTag.get())
+    }
     inputs.files(project(":anno-docimal-ast").tasks.named("jar"), project(":anno-docimal-annotations").tasks.named("jar"))
 
     doFirst {
