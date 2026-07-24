@@ -40,6 +40,34 @@ import java.security.MessageDigest
 @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#local-presentation-rehearsal')
 class VersionedDocumentationDocumentaryTest extends Specification {
 
+    def 'keeps the protected canonical writer separate from artifact-only rendering'() {
+        given: 'the checked-in Pages contracts'
+        File repository = new File(System.getProperty('annodocimal.repository.root'))
+        String publicationWorkflow = new File(repository, '.github/workflows/publish-versioned-documentation.yml').text
+        String rehearsalWorkflow = new File(repository, '.github/workflows/rehearse-versioned-documentation.yml').text
+        String documentation = new File(repository, 'docs/versioned-documentation.md').text
+
+        expect: 'only the protected writer can mint the dedicated App token and use it to push canonical Pages'
+        publicationWorkflow.contains('write-canonical-immutable-snapshot:')
+        publicationWorkflow.contains('environment:\n      name: github-pages')
+        publicationWorkflow.contains('contents: read')
+        !publicationWorkflow.contains('contents: write')
+        publicationWorkflow.contains('actions/create-github-app-token@v1')
+        publicationWorkflow.contains('Require the requested source to be current master')
+        publicationWorkflow.contains('Assert the staged artifact is bound to the requested source')
+        publicationWorkflow.contains('Read back the canonical commit and source manifest')
+        publicationWorkflow.contains('HEAD:gh-pages')
+
+        and: 'the disposable rehearsal remains credential-free and artifact-only'
+        !rehearsalWorkflow.contains('github-pages')
+        !rehearsalWorkflow.contains('create-github-app-token')
+        !rehearsalWorkflow.contains('gh-pages')
+
+        and: 'the maintainer documentation makes the authority boundary auditable'
+        documentation.contains('protected canonical writer job')
+        documentation.contains('Pages-writer App')
+    }
+
     def 'demonstrates an immutable exact-site rehearsal'() {
         given: 'a clean checkout at one exact commit and generated module Javadocs'
         File checkout = Files.createTempDirectory('documentation-checkout-').toFile()

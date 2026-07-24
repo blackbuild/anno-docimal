@@ -28,6 +28,7 @@ tasks.named('test') {
     systemProperty 'annodocimal.publication.version', project.version.toString()
     systemProperty 'annodocimal.maven.executable', rootProject.layout.buildDirectory
             .file("maven-distribution/apache-maven-${mavenVersion}/bin/mvn").get().asFile.absolutePath
+    systemProperty 'annodocimal.repository.root', rootProject.rootDir.absolutePath
 }
 
 def publicRcVersion = providers.gradleProperty('annodocimalVersion')

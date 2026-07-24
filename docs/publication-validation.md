@@ -69,3 +69,10 @@ local artifact is selected from `local-rehearsal/`; one or more maintainer-led p
 that artifact from a clearly experimental Pages branch. They record each validation in #71 and keep Pages unprotected
 until the first result is verified and accepted, after which Pages is deactivated and the branch is removed. They are not
 retained on the canonical Pages ledger.
+
+The canonical documentation writer is a separate `github-pages`-gated job, not part of render, crawl, publication
+smoke, or rehearsal. It requires the requested exact source to still be current `master`, validates the staged immutable
+manifest binding, and uses the dedicated environment-scoped Pages-writer App only for the `gh-pages` push. A remote
+read-back must confirm the pushed commit and manifest before the job succeeds. This is deployment integrity evidence;
+it neither authorizes a release nor changes #45's ordering, recovery, RC/final, tagging, signing, or release-record
+ownership.
