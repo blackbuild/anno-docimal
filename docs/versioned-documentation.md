@@ -89,10 +89,16 @@ Inspect it in a browser under the real Pages base path with:
 
 The task prints a loopback `/anno-docimal/` URL and runs until interrupted.
 
-The separate presentation-rehearsal workflow maps that exact local tree to accepted platform evidence only at
-`/rehearsal/commonmark-java-static-html-v1/<revision>/`. It does not deploy the local selector. Deployment is opt-in and
-protected; the workflow defaults to a read-only render/crawl artifact. It writes no version status, alias, release
-record, or pending path. Merging the workflow neither configures Pages nor dispatches it.
+The separate presentation-rehearsal workflow is artifact-only. It renders and crawls the exact local tree, then uploads
+the result; it has no Pages write permission and no deployment input. It writes no version status, alias, release
+record, pending path, or Pages tree. Merging the workflow neither configures Pages nor dispatches it.
+
+One maintainer-authorized platform rehearsal may use that generated artifact to populate a clearly experimental branch
+for manual Pages inspection. It is neither release evidence nor a protected ledger entry: it uses no `pending` or
+release-snapshot path, and its exact revision and validation result are recorded in issue #71. After inspection, set
+the Pages source to `None` and delete the complete experimental branch. Only after that teardown may a fresh orphan
+`gh-pages` branch with root `.nojekyll` become the protected canonical ledger. The workflow never automates either
+Pages configuration or this deletion.
 
 ## Explicit release render
 

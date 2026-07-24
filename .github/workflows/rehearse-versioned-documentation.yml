@@ -7,11 +7,6 @@ on:
         description: Exact lowercase source commit SHA
         required: true
         type: string
-      deploy:
-        description: Retain this non-release rehearsal on the protected Pages ledger
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -19,19 +14,14 @@ permissions:
 jobs:
   render-and-crawl:
     runs-on: ubuntu-latest
-    outputs:
-      exact_path: ${{ steps.identity.outputs.exact_path }}
-      render_path: ${{ steps.identity.outputs.render_path }}
     steps:
-      - id: identity
+      - name: Validate exact source revision
         shell: bash
         env:
           REVISION: ${{ inputs.revision }}
         run: |
           set -euo pipefail
           [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
-          echo "exact_path=rehearsal/commonmark-java-static-html-v1/$REVISION" >> "$GITHUB_OUTPUT"
-          echo "render_path=local-rehearsal" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -73,38 +63,3 @@ jobs:
           name: documentation-presentation-rehearsal
           path: build/versioned-documentation/rehearsal-review
           if-no-files-found: error
-
-  retain-on-pages:
-    if: inputs.deploy
-    needs: render-and-crawl
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: documentation-presentation-rehearsal
-          path: rendered
-      - uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: pages
-          fetch-depth: 1
-      - name: Add one immutable non-release rehearsal
-        shell: bash
-        env:
-          EXACT_PATH: ${{ needs.render-and-crawl.outputs.exact_path }}
-          RENDER_PATH: ${{ needs.render-and-crawl.outputs.render_path }}
-        run: |
-          set -euo pipefail
-          test ! -e "pages/$EXACT_PATH"
-          mkdir -p "pages/$(dirname "$EXACT_PATH")"
-          mv "rendered/$RENDER_PATH" "pages/$EXACT_PATH"
-          touch pages/.nojekyll
-          git -C pages config user.name github-actions[bot]
-          git -C pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git -C pages add "$EXACT_PATH" .nojekyll
-          git -C pages commit -m "Retain documentation rehearsal $EXACT_PATH"
-          git -C pages push origin HEAD:gh-pages
