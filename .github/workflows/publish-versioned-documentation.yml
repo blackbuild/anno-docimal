@@ -42,6 +42,7 @@ jobs:
   validate-and-render:
     runs-on: ubuntu-latest
     outputs:
+      revision: ${{ steps.validate.outputs.revision }}
       version: ${{ steps.validate.outputs.version }}
       status: ${{ steps.validate.outputs.status }}
       render_path: ${{ steps.validate.outputs.render_path }}
@@ -77,6 +78,7 @@ jobs:
             [[ "$STATUS" == current ]]
             [[ "$SUCCESSOR_OF" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]
           fi
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
           if [[ "$STATUS" == pending ]]; then
@@ -151,24 +153,52 @@ jobs:
           path: build/versioned-documentation
           if-no-files-found: error
 
-  deploy-immutable-snapshot:
+  write-canonical-immutable-snapshot:
     if: inputs.deploy
     needs: validate-and-render
     runs-on: ubuntu-latest
     environment:
       name: github-pages
     permissions:
-      contents: write
+      contents: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the requested source to be current master
+        shell: bash
+        env:
+          REVISION: ${{ needs.validate-and-render.outputs.revision }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "$REVISION^{commit}")" = "$REVISION"
+          master_revision="$(git ls-remote --exit-code origin refs/heads/master | awk '{print $1}')"
+          test "$master_revision" = "$REVISION"
       - uses: actions/download-artifact@v4
         with:
           name: versioned-documentation
           path: rendered
+      - name: Assert the staged artifact is bound to the requested source
+        shell: bash
+        env:
+          REVISION: ${{ needs.validate-and-render.outputs.revision }}
+          VERSION: ${{ needs.validate-and-render.outputs.version }}
+          STATUS: ${{ needs.validate-and-render.outputs.status }}
+          RENDER_PATH: ${{ needs.validate-and-render.outputs.render_path }}
+        run: |
+          set -euo pipefail
+          manifest="rendered/$RENDER_PATH/source-manifest.json"
+          test -f "$manifest"
+          jq -e --arg revision "$REVISION" --arg version "$VERSION" --arg status "$STATUS" \
+            '.source.revision == $revision and .documentation.version == $version and .documentation.status == $status' \
+            "$manifest" >/dev/null
       - uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: pages
           fetch-depth: 1
+          persist-credentials: false
       - name: Add one previously absent exact snapshot
         shell: bash
         env:
@@ -192,4 +222,52 @@ jobs:
           git -C pages add .nojekyll
           if [[ "$STATUS" != pending ]]; then git -C pages add status; fi
           git -C pages commit -m "Publish immutable documentation snapshot $SNAPSHOT_PATH"
-          git -C pages push origin HEAD:gh-pages
+          echo "pushed_commit=$(git -C pages rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Require protected writer credentials
+        shell: bash
+        env:
+          PAGES_WRITER_APP_ID: ${{ secrets.PAGES_WRITER_APP_ID }}
+          PAGES_WRITER_APP_PRIVATE_KEY: ${{ secrets.PAGES_WRITER_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$PAGES_WRITER_APP_ID"
+          test -n "$PAGES_WRITER_APP_PRIVATE_KEY"
+      - name: Mint the dedicated Pages writer token
+        id: pages-writer-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PAGES_WRITER_APP_ID }}
+          private-key: ${{ secrets.PAGES_WRITER_APP_PRIVATE_KEY }}
+      - name: Write the canonical immutable snapshot
+        shell: bash
+        env:
+          PAGES_WRITER_TOKEN: ${{ steps.pages-writer-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          test -n "$PAGES_WRITER_TOKEN"
+          git -C pages push "https://x-access-token:${PAGES_WRITER_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: written-pages
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Read back the canonical commit and source manifest
+        shell: bash
+        env:
+          PUSHED_COMMIT: ${{ env.pushed_commit }}
+          REVISION: ${{ needs.validate-and-render.outputs.revision }}
+          VERSION: ${{ needs.validate-and-render.outputs.version }}
+          STATUS: ${{ needs.validate-and-render.outputs.status }}
+          SNAPSHOT_PATH: ${{ needs.validate-and-render.outputs.snapshot_path }}
+          RENDER_PATH: ${{ needs.validate-and-render.outputs.render_path }}
+        run: |
+          set -euo pipefail
+          test "$(git -C written-pages rev-parse HEAD)" = "$PUSHED_COMMIT"
+          staged_manifest="rendered/$RENDER_PATH/source-manifest.json"
+          written_manifest="written-pages/$SNAPSHOT_PATH/source-manifest.json"
+          test -f "$written_manifest"
+          cmp -- "$staged_manifest" "$written_manifest"
+          jq -e --arg revision "$REVISION" --arg version "$VERSION" --arg status "$STATUS" \
+            '.source.revision == $revision and .documentation.version == $version and .documentation.status == $status' \
+            "$written_manifest" >/dev/null

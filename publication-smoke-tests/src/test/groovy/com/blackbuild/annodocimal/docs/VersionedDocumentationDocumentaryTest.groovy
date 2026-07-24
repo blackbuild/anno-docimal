@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.docs
 
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.intellij.lang.annotations.Language
 import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.parser.Parser
 import spock.lang.Issue
@@ -39,6 +40,46 @@ import java.security.MessageDigest
 @Tag('documentary')
 @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#local-presentation-rehearsal')
 class VersionedDocumentationDocumentaryTest extends Specification {
+
+    @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#protected-canonical-writer')
+    def 'keeps the protected canonical writer separate from artifact-only rendering'() {
+        given: 'the checked-in Pages contracts'
+        File repository = new File(System.getProperty('annodocimal.repository.root'))
+        String publicationWorkflow = new File(repository, '.github/workflows/publish-versioned-documentation.yml').text
+        String rehearsalWorkflow = new File(repository, '.github/workflows/rehearse-versioned-documentation.yml').text
+        String documentation = new File(repository, 'docs/versioned-documentation.md').text
+        String writerJob = job(publicationWorkflow, 'write-canonical-immutable-snapshot')
+        String renderJob = job(publicationWorkflow, 'validate-and-render')
+        String ordinaryPublicationJobs = publicationWorkflow.replace(writerJob, '')
+
+        expect: 'only the protected writer can mint the dedicated App token and use it to push canonical Pages'
+        writerJob.contains('environment:\n      name: github-pages')
+        writerJob.contains('contents: read')
+        !writerJob.contains('contents: write')
+        writerJob.contains('actions/create-github-app-token@v1')
+        writerJob.contains('PAGES_WRITER_APP_ID')
+        writerJob.contains('PAGES_WRITER_APP_PRIVATE_KEY')
+        writerJob.contains('Require the requested source to be current master')
+        writerJob.contains('Assert the staged artifact is bound to the requested source')
+        writerJob.contains('Read back the canonical commit and source manifest')
+        writerJob.contains('PAGES_WRITER_TOKEN')
+        writerJob.contains('HEAD:gh-pages')
+
+        and: 'rendering and all other ordinary workflow jobs cannot receive or mint writer credentials'
+        !renderJob.contains('PAGES_WRITER_')
+        !renderJob.contains('create-github-app-token')
+        !ordinaryPublicationJobs.contains('PAGES_WRITER_')
+        !ordinaryPublicationJobs.contains('create-github-app-token')
+
+        and: 'the disposable rehearsal remains credential-free and artifact-only'
+        !rehearsalWorkflow.contains('github-pages')
+        !rehearsalWorkflow.contains('create-github-app-token')
+        !rehearsalWorkflow.contains('gh-pages')
+
+        and: 'the maintainer documentation makes the authority boundary auditable'
+        documentation.contains('protected canonical writer job')
+        documentation.contains('Pages-writer App')
+    }
 
     def 'demonstrates an immutable exact-site rehearsal'() {
         given: 'a clean checkout at one exact commit and generated module Javadocs'
@@ -59,7 +100,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         new File(checkout, 'docs/branding').mkdirs()
         new File(checkout, 'docs/branding/annodocimal-current.json').text = """{
   \"identity\": \"AnnoDocimal\",
-  \"season\": \"Current identity\",
+  \"presentation\": \"Current identity\",
   \"logo\": \"img/annodocimallogo.png\",
   \"altText\": \"AnnoDocimal logo\",
   \"sha256\": \"${MessageDigest.getInstance('SHA-256').digest(logo).encodeHex()}\",
@@ -149,6 +190,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         !new File(archiveOutput, 'archive/0.9.0/assets/branding').exists()
     }
 
+    @Language("groovy")
     private static String rehearsalBuild(File buildLogic, File commonmark, File tables, File javadocs, File localOutput) {
         String buildLogicPath = gradleString(buildLogic)
         String commonmarkPath = gradleString(commonmark)
@@ -212,6 +254,12 @@ tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask)
 
     private static String gradleString(File file) {
         file.absolutePath.replace('\\', '\\\\').replace("'", "\\'")
+    }
+
+    private static String job(String workflow, String name) {
+        def match = (workflow =~ "(?ms)^  ${name}:\\n(.*?)(?=^  [A-Za-z][A-Za-z0-9-]*:\\n|\\z)")
+        assert match.find(): "Missing workflow job: $name"
+        match.group(0)
     }
 
     private static String git(File directory, List<String> arguments) {

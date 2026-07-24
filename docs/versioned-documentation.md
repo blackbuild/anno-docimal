@@ -42,7 +42,7 @@ Historical releases live at `/archive/<version>/`. They are final-version snapsh
 may be rendered from README-only historic tags, may omit historical branding, and never receive current Javadocs.
 Ordinary immutable RC and final snapshots remain at `/<version>/`.
 
-Product renders require a versioned Season/logo manifest. A public RC or pending candidate may select a candidate
+Product renders require a versioned presentation/logo manifest. A public RC or pending candidate may select a candidate
 manifest. A current or pending final render must select `docs/branding/annodocimal-current.json`, whose logo digest is
 checked against the exact source commit. Issue #73 may replace it through an accepted future manifest, but retaining the
 current identity is valid and does not block an RC.
@@ -61,8 +61,25 @@ release authorization, proof, metadata links, recovery, and supersession; this r
 authority.
 
 The release workflow defaults to artifact-only validation. It renders, crawls, and uploads the complete site but skips
-the protected deployment job. Public statuses additionally require the matching version tag; pending proof precedes
-publication and therefore does not. Repository write permission exists only inside the protected deployment job.
+the protected canonical writer job. Public statuses additionally require the matching version tag; pending proof precedes
+publication and therefore does not. Render and crawl jobs have only read permission and never receive the canonical
+writer App material.
+
+## Protected canonical writer
+
+The `github-pages` environment gates the distinct canonical writer job. Only that job may receive the environment-scoped
+dedicated Pages-writer App identifier and private key, and it mints that App's installation token only after the artifact
+has been staged. The workflow token remains read-only; the App token is used only for the `gh-pages` push. Before that
+push, the writer resolves `refs/heads/master` remotely and refuses to continue unless its exact commit equals the
+requested source revision. It also verifies that the staged `source-manifest.json` binds that source, version, and
+status. After the push, a fresh remote checkout must resolve to the pushed commit and contain byte-identical manifest
+content with the same source/version/status binding. A missing protected-environment value fails the writer before token
+minting or canonical mutation. This workflow defines no App, secret, environment, Pages setting, branch rule, or
+`gh-pages` branch; those remain separate maintainer-controlled setup.
+
+The documentary contract
+`VersionedDocumentationDocumentaryTest.keeps the protected canonical writer separate from artifact-only rendering`
+checks this checked-in authority boundary while the release and rehearsal examples below prove rendering behavior.
 
 Before any authorized deployment, a maintainer must create `gh-pages`, configure Pages to serve it, and protect the
 `github-pages` environment. This repository configuration does not perform those remote actions.
@@ -90,8 +107,9 @@ Inspect it in a browser under the real Pages base path with:
 The task prints a loopback `/anno-docimal/` URL and runs until interrupted.
 
 The separate presentation-rehearsal workflow is artifact-only. It renders and crawls the exact local tree, then uploads
-the result; it has no Pages write permission and no deployment input. It writes no version status, alias, release
-record, pending path, or Pages tree. Merging the workflow neither configures Pages nor dispatches it.
+the result; it has no Pages write permission, deployment input, protected environment, or Pages-writer App material. It
+writes no version status, alias, release record, pending path, or Pages tree. Merging the workflow neither configures
+Pages nor dispatches it.
 
 One or more maintainer-authorized platform rehearsals may use that generated artifact to populate a clearly experimental
 branch for manual Pages inspection. They are neither release evidence nor protected ledger entries: they use no `pending`
