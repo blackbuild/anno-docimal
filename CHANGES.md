@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Groovy property documentation is now retained as property semantics across capture and source projection. The
+  normalized textual carrier stays on the backing field, undocumented custom accessors inherit it, and projected
+  Groovy-generated getters and setters receive it while explicitly documented accessors keep precedence. Projection does
+  not apply general JavaBeans inference; see the [usage guide](docs/user/usage.md#groovy-property-documentation) and
+  [authoring migration](docs/user/migration/0.x-to-1.0-authoring-language.md#groovy-property-documentation).
+
 - Added a protected, immutable GitHub Pages publication seam for deterministic static HTML and all supported Java API
   Javadocs. Pull requests render and crawl a distinct non-release rehearsal without deployment; exact release manifests
   cover the deployed HTML, assets, and Javadoc bytes. Release authorization and recovery remain in the #45 runbook. See

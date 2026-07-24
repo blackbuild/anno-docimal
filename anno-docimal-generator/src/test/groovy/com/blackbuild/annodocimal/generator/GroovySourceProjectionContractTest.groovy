@@ -29,7 +29,7 @@ import spock.lang.Issue
 import static com.blackbuild.annodocimal.generator.ProjectionContractAssertions.assertProjectionCompiles
 import static com.google.testing.compile.Compiler.javac
 
-@Issue(["41", "19"])
+@Issue(["41", "19", "9"])
 class GroovySourceProjectionContractTest extends ClassGeneratingTest {
 
     def "representative Groovy declaration projection is deterministic and recompilable"() {
@@ -39,14 +39,16 @@ class GroovySourceProjectionContractTest extends ClassGeneratingTest {
             package contract
 
             import com.blackbuild.annodocimal.annotations.AnnoDoc
+            import com.blackbuild.annodocimal.annotations.InlineJavadocs
             import groovy.lang.Groovydoc
 
             import java.lang.annotation.Retention
             import java.lang.annotation.RetentionPolicy
 
+            @InlineJavadocs
             @AnnoDoc('Canonical Groovy class documentation')
             class GroovyDeclarationFixture<T extends Number> {
-                @AnnoDoc('Canonical Groovy property documentation')
+                /** Canonical Groovy property documentation */
                 T[] values
 
                 GroovyDeclarationFixture(T[] values) throws IllegalArgumentException {
@@ -104,11 +106,17 @@ public class GroovyDeclarationFixture<T extends Number> {
     return null;
   }
 
+  /**
+   * Canonical Groovy property documentation
+   */
   @Generated
   public T[] getValues() {
     return null;
   }
 
+  /**
+   * Canonical Groovy property documentation
+   */
   @Generated
   public void setValues(T[] value) {
   }

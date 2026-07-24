@@ -19,6 +19,7 @@ dependencies {
     implementation "org.ow2.asm:asm-tree:9.10.1"
     sharedTests "com.google.testing.compile:compile-testing:0.23.0"
     sharedTests project(':anno-docimal-annotations')
+    sharedTests project(':anno-docimal-ast')
     sharedTests "com.squareup:javapoet:1.13.0"
 }
 

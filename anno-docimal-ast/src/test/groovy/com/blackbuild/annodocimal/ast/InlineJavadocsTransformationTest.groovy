@@ -305,4 +305,43 @@ class TestClass {
         then:
         noExceptionThrown()
     }
+
+    @Issue("9")
+    def "property documentation is captured on the backing field and undocumented custom accessors"() {
+        when:
+        createClass "dummy/PropertyDocumentation.groovy", '''
+package dummy
+
+import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+@InlineJavadocs
+class PropertyDocumentation {
+    /** Property documentation. */
+    String title
+
+    /** Custom boolean property. */
+    boolean ready
+
+    /** Explicit boolean getter documentation. */
+    boolean isReady() { ready }
+
+    /** Undocumented custom boolean accessor property. */
+    boolean available
+
+    boolean isAvailable() { available }
+
+    /** Explicit getter documentation. */
+    String getTitle() { title }
+
+    void setTitle(String title) { this.title = title }
+}
+'''
+
+        then:
+        clazz.getDeclaredField('title').getAnnotation(AnnoDoc).value() == 'Property documentation.'
+        clazz.getMethod('isReady').getAnnotation(AnnoDoc).value() == 'Explicit boolean getter documentation.'
+        clazz.getMethod('isAvailable').getAnnotation(AnnoDoc).value() == 'Undocumented custom boolean accessor property.'
+        clazz.getMethod('getTitle').getAnnotation(AnnoDoc).value() == 'Explicit getter documentation.'
+        clazz.getMethod('setTitle', String).getAnnotation(AnnoDoc).value() == 'Property documentation.'
+    }
 }

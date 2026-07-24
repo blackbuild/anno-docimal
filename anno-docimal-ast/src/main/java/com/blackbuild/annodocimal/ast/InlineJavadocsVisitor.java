@@ -26,18 +26,30 @@ package com.blackbuild.annodocimal.ast;
 import com.blackbuild.annodocimal.ast.formatting.AnnoDocUtil;
 import com.blackbuild.annodocimal.ast.parser.SourceExtractor;
 import com.blackbuild.annodocimal.ast.parser.SourceExtractorFactory;
+import com.blackbuild.annodocimal.annotations.GroovyPropertyDocumentation;
 import org.codehaus.groovy.ast.*;
+import org.codehaus.groovy.ast.expr.ConstantExpression;
+import org.codehaus.groovy.ast.expr.Expression;
+import org.codehaus.groovy.ast.expr.ListExpression;
 import org.codehaus.groovy.control.SourceUnit;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * AST visitor that inlines Javadoc comments as annotations.
+ *
+ * <p>For Groovy properties, the visitor preserves property documentation on the backing field and copies it to an
+ * undocumented custom accessor. Generated accessor documentation is associated during source projection, where Groovy's
+ * generated-member metadata remains available.</p>
  */
 public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
     private final SourceUnit sourceUnit;
 
     private final SourceExtractor sourceExtractor;
+
+    private final List<PropertyDocumentation> propertyDocumentation = new ArrayList<>();
 
     public InlineJavadocsVisitor(SourceUnit sourceUnit) {
         this.sourceUnit = sourceUnit;
@@ -53,6 +65,7 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
     public void visitClass(ClassNode node) {
         addJavadocAsAnnotation(node);
         node.visitContents(this);
+        applyPropertyDocumentation();
         for (Iterator<InnerClassNode> it = node.getInnerClasses(); it.hasNext(); ) {
             InnerClassNode innerClassNode = it.next();
             visitClass(innerClassNode);
@@ -71,7 +84,67 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
 
     @Override
     public void visitProperty(PropertyNode node) {
-        // properties have no annotations
+        FieldNode field = node.getField();
+        String documentation = sourceExtractor.getJavaDoc(node);
+        if ((documentation == null || documentation.isBlank()) && field != null)
+            documentation = sourceExtractor.getJavaDoc(field);
+        if (documentation != null && !documentation.isBlank()) {
+            propertyDocumentation.add(new PropertyDocumentation(node, documentation));
+        }
+    }
+
+    private void applyPropertyDocumentation() {
+        for (PropertyDocumentation property : propertyDocumentation) {
+            FieldNode field = property.node().getField();
+            if (field == null) continue;
+            addDocumentationIfAbsent(field, property.documentation());
+            addPropertyMapping(field, property.node());
+
+            ClassNode owner = field.getOwner();
+            String propertyName = capitalize(property.node().getName());
+            MethodNode getter = owner.getGetterMethod("get" + propertyName, false);
+            addDocumentationIfAbsent(getter, property.documentation());
+            if (isBoolean(property.node())) {
+                MethodNode booleanGetter = owner.getGetterMethod("is" + propertyName, false);
+                addDocumentationIfAbsent(booleanGetter, property.documentation());
+            }
+
+            MethodNode setter = owner.getSetterMethod("set" + propertyName, false);
+            addDocumentationIfAbsent(setter, property.documentation());
+        }
+        propertyDocumentation.clear();
+    }
+
+    private static void addPropertyMapping(FieldNode field, PropertyNode property) {
+        if (!field.getAnnotations(ClassHelper.make(GroovyPropertyDocumentation.class)).isEmpty()) return;
+
+        String propertyName = capitalize(property.getName());
+        List<String> getters = new ArrayList<>();
+        getters.add("get" + propertyName);
+        if (isBoolean(property)) getters.add("is" + propertyName);
+
+        AnnotationNode mapping = new AnnotationNode(ClassHelper.make(GroovyPropertyDocumentation.class));
+        mapping.addMember("getters", strings(getters));
+        mapping.addMember("setters", strings(List.of("set" + propertyName)));
+        field.addAnnotation(mapping);
+    }
+
+    private static ListExpression strings(List<String> values) {
+        return new ListExpression(values.stream().<Expression>map(ConstantExpression::new).toList());
+    }
+
+    private static boolean isBoolean(PropertyNode property) {
+        return ClassHelper.boolean_TYPE.equals(property.getType()) || ClassHelper.Boolean_TYPE.equals(property.getType());
+    }
+
+    private static String capitalize(String name) {
+        if (name.isEmpty()) return name;
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+    }
+
+    private static void addDocumentationIfAbsent(AnnotatedNode node, String documentation) {
+        if (node == null || AnnoDocUtil.getDocumentationCarrierValue(node) != null) return;
+        AnnoDocUtil.addDocumentation(node, documentation);
     }
 
     private void addJavadocAsAnnotation(AnnotatedNode node) {
@@ -82,5 +155,7 @@ public class InlineJavadocsVisitor extends ClassCodeVisitorSupport {
         if (javadoc != null && !javadoc.isBlank())
             AnnoDocUtil.addDocumentation(node, javadoc);
     }
+
+    private record PropertyDocumentation(PropertyNode node, String documentation) {}
 
 }
