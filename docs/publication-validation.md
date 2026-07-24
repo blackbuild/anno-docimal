@@ -36,6 +36,10 @@ publish task, a Plugin Portal task, or a signing task. It verifies:
 - clean, offline Gradle and Apache Maven consumers resolving all six coordinates. The Gradle fixture also applies both
   plugin IDs. The Maven runtime is a pinned build-tool dependency and uses a fresh isolated local repository.
 
+CI exposes this same audit as the **Clean publication and consumer smoke tests** check. Its result is behavioral
+evidence for the local publication contract; a passing Sonar analysis is supplementary static analysis and never
+substitutes for this check.
+
 `verifyPublicationReleaseConfiguration`, included in the root `check`, inspects the signing tasks for every Maven
 publication, the Maven Central staging and snapshot endpoints, and the Gradle Plugin Portal publication task. It does
 not read signing credentials, create signatures, open a staging repository, or publish anything.

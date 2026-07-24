@@ -42,6 +42,22 @@ Source-projection changes require exact generated-source assertions for affected
 The Gradle integration must document and verify a supported Gradle range. Use the wrapper as the primary development
 baseline and test the documented minimum separately. Raising that minimum is a breaking compatibility change.
 
+## Semantic test tags
+
+Use Spock/JUnit Platform `@Tag` annotations to identify stable, semantic test cohorts. A tag describes the contract or
+purpose under test, never the execution environment, a CI job, or an incidental test implementation detail. Tags are
+lowercase and hyphenated.
+
+- `compatibility-<subject>` identifies a cohort that proves a supported compatibility boundary, for example
+  `compatibility-gradle`, `compatibility-java`, or `compatibility-intellij` when that product has such a cohort.
+- `<subject>-<capability>` identifies a narrower, orthogonal guarantee. A Gradle compatibility test that proves
+  configuration-cache behavior therefore carries both `compatibility-gradle` and `gradle-configuration-cache`.
+- `documentary` remains the established tag for readable user-facing happy paths; it is not a compatibility tag.
+
+Tags may select focused work through a supported test-engine mechanism, but remain optional metadata where a
+compatibility lane cannot select them. Tag selection must never suppress a required compatibility lane. Introduce tags
+prospectively for a concrete cohort; do not retrofit a suite merely to make its vocabulary uniform.
+
 ## Issue traceability
 
 Every newly added test must carry Spock's `@Issue` annotation with the number of its driving GitHub issue. When one issue

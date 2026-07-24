@@ -28,6 +28,7 @@ import org.gradle.testkit.runner.GradleRunner
 import spock.lang.Issue
 import spock.lang.Shared
 import spock.lang.Specification
+import spock.lang.Tag
 import spock.lang.TempDir
 
 class AnnoDocimalPluginTest extends Specification {
@@ -112,6 +113,8 @@ class AnnoDocimalPluginTest extends Specification {
     }
 
     @Issue("35")
+    @Tag('compatibility-gradle')
+    @Tag('gradle-configuration-cache')
     def "source mirror stores and reuses the strict configuration cache"() {
         given:
         prepareMirrorProject()
@@ -142,6 +145,8 @@ class AnnoDocimalPluginTest extends Specification {
     }
 
     @Issue("35")
+    @Tag('compatibility-gradle')
+    @Tag('gradle-configuration-cache')
     def "the documented Gradle minimum supports the reusable task and configuration cache"() {
         given:
         prepareMirrorProject()
