@@ -42,7 +42,7 @@ Historical releases live at `/archive/<version>/`. They are final-version snapsh
 may be rendered from README-only historic tags, may omit historical branding, and never receive current Javadocs.
 Ordinary immutable RC and final snapshots remain at `/<version>/`.
 
-Product renders require a versioned Season/logo manifest. A public RC or pending candidate may select a candidate
+Product renders require a versioned presentation/logo manifest. A public RC or pending candidate may select a candidate
 manifest. A current or pending final render must select `docs/branding/annodocimal-current.json`, whose logo digest is
 checked against the exact source commit. Issue #73 may replace it through an accepted future manifest, but retaining the
 current identity is valid and does not block an RC.

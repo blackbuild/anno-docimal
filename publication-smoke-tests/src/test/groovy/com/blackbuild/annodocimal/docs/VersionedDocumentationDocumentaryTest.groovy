@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.docs
 
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.intellij.lang.annotations.Language
 import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.parser.Parser
 import spock.lang.Issue
@@ -99,7 +100,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         new File(checkout, 'docs/branding').mkdirs()
         new File(checkout, 'docs/branding/annodocimal-current.json').text = """{
   \"identity\": \"AnnoDocimal\",
-  \"season\": \"Current identity\",
+  \"presentation\": \"Current identity\",
   \"logo\": \"img/annodocimallogo.png\",
   \"altText\": \"AnnoDocimal logo\",
   \"sha256\": \"${MessageDigest.getInstance('SHA-256').digest(logo).encodeHex()}\",
@@ -189,6 +190,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         !new File(archiveOutput, 'archive/0.9.0/assets/branding').exists()
     }
 
+    @Language("groovy")
     private static String rehearsalBuild(File buildLogic, File commonmark, File tables, File javadocs, File localOutput) {
         String buildLogicPath = gradleString(buildLogic)
         String commonmarkPath = gradleString(commonmark)

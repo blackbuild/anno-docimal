@@ -187,10 +187,10 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         inputs.putAll(overrides)
         VersionedDocumentationRenderer.render(inputs)
     }
-    private static String branding(String identity, String season, String digest) {
+    private static String branding(String identity, String presentation, String digest) {
         """{
   \"identity\": \"$identity\",
-  \"season\": \"$season\",
+  \"presentation\": \"$presentation\",
   \"logo\": \"img/annodocimallogo.png\",
   \"altText\": \"AnnoDocimal logo\",
   \"sha256\": \"$digest\",

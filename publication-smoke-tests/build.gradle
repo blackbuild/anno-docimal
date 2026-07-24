@@ -10,6 +10,7 @@ java {
 
 dependencies {
     testImplementation libs.bundles.spock.groovy.v3
+    testImplementation libs.jb.anno
     testImplementation files(rootProject.file('buildSrc/build/libs/buildSrc.jar'))
     testImplementation 'org.commonmark:commonmark:0.28.0'
     testImplementation 'org.commonmark:commonmark-ext-gfm-tables:0.28.0'

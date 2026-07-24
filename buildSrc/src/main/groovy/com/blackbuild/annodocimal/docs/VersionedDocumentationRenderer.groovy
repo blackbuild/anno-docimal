@@ -184,7 +184,7 @@ class VersionedDocumentationRenderer {
                                                retainedPath: "rehearsal/${StaticDocumentationPageRenderer.CONTRACT_ID}/$revision"] :
                         [version: version, status: status] + (releaseStage ? [releaseStage: releaseStage] : [:]),
                 branding: branding == null ? null : [manifest: brandingManifestPath, identity: branding.identity,
-                                                     season: branding.season, altText: branding.altText,
+                                                     presentation: branding.presentation, altText: branding.altText,
                                                      approval: branding.approval, sourceAsset: branding.logo,
                                                      outputAsset: logoTarget, sha256: branding.sha256],
                 javadocs: hasApi ? javadocs.collectEntries { String module, File source -> [(module): sha256Directory(source)] } : [:],
@@ -281,7 +281,7 @@ class VersionedDocumentationRenderer {
         }
         if (!(parsed instanceof Map)) fail("Branding manifest must be an object: $path")
         Map<String, ?> branding = parsed as Map<String, ?>
-        ['identity', 'season', 'logo', 'altText', 'sha256', 'approval'].each { String field ->
+        ['identity', 'presentation', 'logo', 'altText', 'sha256', 'approval'].each { String field ->
             if (!(branding[field] instanceof String) || branding[field].trim().empty) fail("Branding manifest $path requires $field")
         }
         safePath(branding.logo)
