@@ -51,15 +51,17 @@ deployment seam.
 
 ## Recommended coordinated adjustment
 
-Adopt the KlumAST model for AnnoDocimal's first external Pages rehearsal:
+Adopt the KlumAST model for AnnoDocimal's external Pages rehearsals:
 
-1. Render and validate a clearly non-release, non-`pending` site from an exact
-   source revision, then temporarily serve it only for manual presentation and
-   deep-link verification.
-2. Record the result and the exact revision in #71, retaining only the normal
+1. Render and validate clearly non-release, non-`pending` sites from exact
+   source revisions, then temporarily serve them only for manual presentation
+   and deep-link verification until one result is accepted.
+2. Record each result and exact revision in #71, retaining only the normal
    workflow artifact/evidence permitted by its retention policy—not a Pages
    ledger entry or release-evidence path.
-3. Deactivate Pages and delete the entire experimental branch after validation.
+3. Keep the experimental Pages boundary unprotected while rehearsals repeat to
+   address found problems. After the first verified and accepted result,
+   deactivate Pages and delete the entire experimental branch.
 4. Only afterwards create a fresh orphan `.nojekyll` `gh-pages` ledger, apply
    the separately agreed protections/environments, and use it exclusively for
    future authorized immutable release evidence.

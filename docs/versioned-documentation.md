@@ -93,12 +93,13 @@ The separate presentation-rehearsal workflow is artifact-only. It renders and cr
 the result; it has no Pages write permission and no deployment input. It writes no version status, alias, release
 record, pending path, or Pages tree. Merging the workflow neither configures Pages nor dispatches it.
 
-One maintainer-authorized platform rehearsal may use that generated artifact to populate a clearly experimental branch
-for manual Pages inspection. It is neither release evidence nor a protected ledger entry: it uses no `pending` or
-release-snapshot path, and its exact revision and validation result are recorded in issue #71. After inspection, set
-the Pages source to `None` and delete the complete experimental branch. Only after that teardown may a fresh orphan
-`gh-pages` branch with root `.nojekyll` become the protected canonical ledger. The workflow never automates either
-Pages configuration or this deletion.
+One or more maintainer-authorized platform rehearsals may use that generated artifact to populate a clearly experimental
+branch for manual Pages inspection. They are neither release evidence nor protected ledger entries: they use no `pending`
+or release-snapshot path, and each exact revision and validation result is recorded in issue #71. If a rehearsal reveals
+a problem, correct it and rehearse again on the experimental boundary. Pages and its branch remain unprotected until the
+first rehearsal result is verified and accepted; then set the Pages source to `None` and delete the complete experimental
+branch. Only after that teardown may a fresh orphan `gh-pages` branch with root `.nojekyll` become the protected canonical
+ledger. The workflow never automates either Pages configuration or this deletion.
 
 ## Explicit release render
 
