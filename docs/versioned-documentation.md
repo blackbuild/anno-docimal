@@ -65,6 +65,8 @@ the protected canonical writer job. Public statuses additionally require the mat
 publication and therefore does not. Render and crawl jobs have only read permission and never receive the canonical
 writer App material.
 
+## Protected canonical writer
+
 The `github-pages` environment gates the distinct canonical writer job. Only that job may receive the environment-scoped
 dedicated Pages-writer App identifier and private key, and it mints that App's installation token only after the artifact
 has been staged. The workflow token remains read-only; the App token is used only for the `gh-pages` push. Before that
@@ -74,6 +76,10 @@ status. After the push, a fresh remote checkout must resolve to the pushed commi
 content with the same source/version/status binding. A missing protected-environment value fails the writer before token
 minting or canonical mutation. This workflow defines no App, secret, environment, Pages setting, branch rule, or
 `gh-pages` branch; those remain separate maintainer-controlled setup.
+
+The documentary contract
+`VersionedDocumentationDocumentaryTest.keeps the protected canonical writer separate from artifact-only rendering`
+checks this checked-in authority boundary while the release and rehearsal examples below prove rendering behavior.
 
 Before any authorized deployment, a maintainer must create `gh-pages`, configure Pages to serve it, and protect the
 `github-pages` environment. This repository configuration does not perform those remote actions.

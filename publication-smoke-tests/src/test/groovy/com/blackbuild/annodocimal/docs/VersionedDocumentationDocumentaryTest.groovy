@@ -40,23 +40,35 @@ import java.security.MessageDigest
 @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#local-presentation-rehearsal')
 class VersionedDocumentationDocumentaryTest extends Specification {
 
+    @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#protected-canonical-writer')
     def 'keeps the protected canonical writer separate from artifact-only rendering'() {
         given: 'the checked-in Pages contracts'
         File repository = new File(System.getProperty('annodocimal.repository.root'))
         String publicationWorkflow = new File(repository, '.github/workflows/publish-versioned-documentation.yml').text
         String rehearsalWorkflow = new File(repository, '.github/workflows/rehearse-versioned-documentation.yml').text
         String documentation = new File(repository, 'docs/versioned-documentation.md').text
+        String writerJob = job(publicationWorkflow, 'write-canonical-immutable-snapshot')
+        String renderJob = job(publicationWorkflow, 'validate-and-render')
+        String ordinaryPublicationJobs = publicationWorkflow.replace(writerJob, '')
 
         expect: 'only the protected writer can mint the dedicated App token and use it to push canonical Pages'
-        publicationWorkflow.contains('write-canonical-immutable-snapshot:')
-        publicationWorkflow.contains('environment:\n      name: github-pages')
-        publicationWorkflow.contains('contents: read')
-        !publicationWorkflow.contains('contents: write')
-        publicationWorkflow.contains('actions/create-github-app-token@v1')
-        publicationWorkflow.contains('Require the requested source to be current master')
-        publicationWorkflow.contains('Assert the staged artifact is bound to the requested source')
-        publicationWorkflow.contains('Read back the canonical commit and source manifest')
-        publicationWorkflow.contains('HEAD:gh-pages')
+        writerJob.contains('environment:\n      name: github-pages')
+        writerJob.contains('contents: read')
+        !writerJob.contains('contents: write')
+        writerJob.contains('actions/create-github-app-token@v1')
+        writerJob.contains('PAGES_WRITER_APP_ID')
+        writerJob.contains('PAGES_WRITER_APP_PRIVATE_KEY')
+        writerJob.contains('Require the requested source to be current master')
+        writerJob.contains('Assert the staged artifact is bound to the requested source')
+        writerJob.contains('Read back the canonical commit and source manifest')
+        writerJob.contains('PAGES_WRITER_TOKEN')
+        writerJob.contains('HEAD:gh-pages')
+
+        and: 'rendering and all other ordinary workflow jobs cannot receive or mint writer credentials'
+        !renderJob.contains('PAGES_WRITER_')
+        !renderJob.contains('create-github-app-token')
+        !ordinaryPublicationJobs.contains('PAGES_WRITER_')
+        !ordinaryPublicationJobs.contains('create-github-app-token')
 
         and: 'the disposable rehearsal remains credential-free and artifact-only'
         !rehearsalWorkflow.contains('github-pages')
@@ -240,6 +252,12 @@ tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask)
 
     private static String gradleString(File file) {
         file.absolutePath.replace('\\', '\\\\').replace("'", "\\'")
+    }
+
+    private static String job(String workflow, String name) {
+        def match = (workflow =~ "(?ms)^  ${name}:\\n(.*?)(?=^  [A-Za-z][A-Za-z0-9-]*:\\n|\\z)")
+        assert match.find(): "Missing workflow job: $name"
+        match.group(0)
     }
 
     private static String git(File directory, List<String> arguments) {
