@@ -86,9 +86,9 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$RELEASE_STAGE" == rc && "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]; then
-            echo 'name=annodocimal-release-rc' >> "$GITHUB_OUTPUT"
+            echo 'name=release-candidate' >> "$GITHUB_OUTPUT"
           elif [[ "$RELEASE_STAGE" == final && "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo 'name=annodocimal-release-final' >> "$GITHUB_OUTPUT"
+            echo 'name=final-release' >> "$GITHUB_OUTPUT"
           else
             echo 'Stage must be rc or final and match the exact immutable version.' >&2
             exit 1
