@@ -65,6 +65,8 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         writerJob.contains('Read back the canonical commit and source manifest')
         writerJob.contains('PAGES_WRITER_TOKEN')
         writerJob.contains('HEAD:gh-pages')
+        writerJob.contains('if [[ "$STATUS" == archived ]]')
+        writerJob.contains('git tag --points-at "$REVISION" "v$VERSION"')
 
         and: 'rendering and all other ordinary workflow jobs cannot receive or mint writer credentials'
         !renderJob.contains('PAGES_WRITER_')
@@ -86,7 +88,17 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         documentation.contains('protected canonical writer job')
         documentation.contains('Pages-writer App')
 
-        and: 'public routing keeps every snapshot exact and advances only explicitly proof-gated aliases'
+    }
+
+    @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#exact-snapshots')
+    def 'keeps public documentation routing immutable and proof-gated'() {
+        given: 'the checked-in protected publication contract'
+        File repository = new File(System.getProperty('annodocimal.repository.root'))
+        String publicationWorkflow = new File(repository, '.github/workflows/publish-versioned-documentation.yml').text
+        String documentation = new File(repository, 'docs/versioned-documentation.md').text
+        String writerJob = job(publicationWorkflow, 'write-canonical-immutable-snapshot')
+
+        expect: 'public routes keep an exact immutable tree and only proof-gated aliases move after deployment'
         publicationWorkflow.contains('alias_proof:')
         publicationWorkflow.contains('DEPLOY: ${{ inputs.deploy }}')
         publicationWorkflow.contains('[[ "$ALIAS_PROOF" =~ ^https://[^[:space:]]+$ ]]')
@@ -100,6 +112,8 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         documentation.contains('`/archive/` is a discovery index')
         documentation.contains('`/stable/`, `/<maintained-line>/`, and `/preview/`')
         documentation.contains('`/pending/<version>/<full-source-sha>/`')
+        documentation.contains('VersionedDocumentationDocumentaryTest.keeps public documentation routing immutable and proof-gated')
+        documentation.contains('exact tagged historical source')
     }
 
     def 'demonstrates an immutable exact-site rehearsal'() {

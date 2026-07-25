@@ -79,6 +79,10 @@ Pages service deployment from the protected `gh-pages` branch; it never receives
 deployment integrity evidence; it neither authorizes a release nor changes #45's ordering, recovery, RC/final, tagging,
 signing, or release-record ownership.
 
+The sole source-selection exception is an `archived` render from its exact `v<version>` tag. It remains protected by the
+same App-only writer, immutable-path absence check, manifest binding, and remote read-back; it exists only so historical
+documentation can occupy its required `/<version>/` route and appear in the `/archive/` discovery index.
+
 Public routing preserves every RC, final, and historical snapshot at `/<version>/`; `/archive/` is only the historical
 discovery index. The protected writer may advance labelled `/preview/`, `/stable/`, or `/<maintained-line>/` aliases only
 when its `deploy=true` dispatch supplies the HTTPS #45-recorded public-artifact proof reference. Pending evidence rejects that input,

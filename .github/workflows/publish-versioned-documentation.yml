@@ -177,11 +177,17 @@ jobs:
         shell: bash
         env:
           REVISION: ${{ needs.validate-and-render.outputs.revision }}
+          VERSION: ${{ needs.validate-and-render.outputs.version }}
+          STATUS: ${{ needs.validate-and-render.outputs.status }}
         run: |
           set -euo pipefail
           test "$(git rev-parse "$REVISION^{commit}")" = "$REVISION"
-          master_revision="$(git ls-remote --exit-code origin refs/heads/master | awk '{print $1}')"
-          test "$master_revision" = "$REVISION"
+          if [[ "$STATUS" == archived ]]; then
+            test "$(git tag --points-at "$REVISION" "v$VERSION")" = "v$VERSION"
+          else
+            master_revision="$(git ls-remote --exit-code origin refs/heads/master | awk '{print $1}')"
+            test "$master_revision" = "$REVISION"
+          fi
       - uses: actions/download-artifact@v4
         with:
           name: versioned-documentation

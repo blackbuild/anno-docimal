@@ -51,6 +51,9 @@ a `deploy=true` dispatch supplies an HTTPS reference to #45-recorded public-arti
 uses `deploy=false`, accepts no proof input, and advances no alias. `pending` and `archived` reject that proof input and
 cannot advance an alias.
 
+The executable routing contract is
+`VersionedDocumentationDocumentaryTest.keeps public documentation routing immutable and proof-gated`.
+
 Product renders require a versioned presentation/logo manifest. A public RC or pending candidate may select a candidate
 manifest. A current or pending final render must select `docs/branding/annodocimal-current.json`, whose logo digest is
 checked against the exact source commit. Issue #73 may replace it through an accepted future manifest, but retaining the
@@ -77,10 +80,12 @@ writer App material.
 ## Protected canonical writer
 
 The credential-bearing `annodocimal-pages-writer` environment gates the distinct canonical writer job. Only that
-master-only, reviewed job may receive the environment-scoped dedicated Pages-writer App identifier and private key, and
-it mints that App's installation token only after the artifact has been staged. The workflow token remains read-only;
-the App token is used only for the `gh-pages` push. Before that push, the writer resolves `refs/heads/master` remotely
-and refuses to continue unless its exact commit equals the requested source revision. It also verifies that the staged
+reviewed job may receive the environment-scoped dedicated Pages-writer App identifier and private key, and it mints that
+App's installation token only after the artifact has been staged. The workflow token remains read-only; the App token is
+used only for the `gh-pages` push. Before that push, the writer resolves `refs/heads/master` remotely and refuses to
+continue unless a pending, public-RC, or current source revision is its exact tip. The narrow archived exception accepts
+only an exact tagged historical source (`v<version>`), so a legacy snapshot can be published at its immutable version
+route and added to `/archive/` without weakening the non-archive master boundary. It also verifies that the staged
 `source-manifest.json` binds that source, version, and status. After the push, a fresh remote checkout must resolve to
 the pushed commit and contain byte-identical manifest content with the same source/version/status binding. A missing
 protected-environment value fails the writer before token minting or canonical mutation.
