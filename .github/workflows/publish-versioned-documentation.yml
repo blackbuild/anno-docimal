@@ -29,6 +29,10 @@ on:
         description: Exact RC version superseded by this final release, after release proof
         required: false
         type: string
+      alias_proof:
+        description: HTTPS reference to #45-recorded public-artifact proof; required before a public route advances an alias
+        required: false
+        type: string
       deploy:
         description: Publish the validated artifact after protected-environment approval
         required: true
@@ -56,21 +60,27 @@ jobs:
           STATUS: ${{ inputs.status }}
           RELEASE_STAGE: ${{ inputs.release_stage }}
           SUCCESSOR_OF: ${{ inputs.successor_of }}
+          ALIAS_PROOF: ${{ inputs.alias_proof }}
+          DEPLOY: ${{ inputs.deploy }}
         run: |
           [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]]
+          [[ "$DEPLOY" == true || "$DEPLOY" == false ]]
           case "$STATUS" in
             pending)
+              [[ -z "$ALIAS_PROOF" ]]
               [[ "$RELEASE_STAGE" == candidate || "$RELEASE_STAGE" == final ]]
               if [[ "$RELEASE_STAGE" == candidate ]]; then [[ "$VERSION" == *-rc.* ]]; else [[ "$VERSION" != *-rc.* ]]; fi
               ;;
             public-rc)
               [[ -z "$RELEASE_STAGE" ]]
               [[ "$VERSION" == *-rc.* ]]
+              if [[ "$DEPLOY" == true ]]; then [[ "$ALIAS_PROOF" =~ ^https://[^[:space:]]+$ ]]; else [[ -z "$ALIAS_PROOF" ]]; fi
               ;;
             current|archived)
               [[ -z "$RELEASE_STAGE" ]]
               [[ "$VERSION" != *-rc.* ]]
+              if [[ "$STATUS" == current && "$DEPLOY" == true ]]; then [[ "$ALIAS_PROOF" =~ ^https://[^[:space:]]+$ ]]; else [[ -z "$ALIAS_PROOF" ]]; fi
               ;;
             *) exit 1 ;;
           esac
@@ -84,9 +94,6 @@ jobs:
           if [[ "$STATUS" == pending ]]; then
             echo "render_path=$VERSION" >> "$GITHUB_OUTPUT"
             echo "snapshot_path=pending/$VERSION/$REVISION" >> "$GITHUB_OUTPUT"
-          elif [[ "$STATUS" == archived ]]; then
-            echo "render_path=archive/$VERSION" >> "$GITHUB_OUTPUT"
-            echo "snapshot_path=archive/$VERSION" >> "$GITHUB_OUTPUT"
           else
             echo "render_path=$VERSION" >> "$GITHUB_OUTPUT"
             echo "snapshot_path=$VERSION" >> "$GITHUB_OUTPUT"
@@ -212,6 +219,50 @@ jobs:
           touch pages/.nojekyll
           mkdir -p "pages/$(dirname "$SNAPSHOT_PATH")"
           mv "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"
+
+          write_alias() {
+            local alias="$1"
+            local target="$2"
+            local label="$3"
+            local explanation="$4"
+            mkdir -p "pages/$alias"
+            {
+              printf '%s\n' '<!doctype html>' '<html lang="en"><head><meta charset="utf-8">'
+              printf '<meta http-equiv="refresh" content="0; url=/anno-docimal/%s/">\n' "$target"
+              printf '<title>%s</title></head><body><h1>%s</h1>\n' "$label" "$label"
+              printf '<p>%s <a href="/anno-docimal/%s/">Open immutable documentation %s</a>.</p>\n' "$explanation" "$target" "$target"
+              printf '%s\n' '</body></html>'
+            } > "pages/$alias/index.html"
+          }
+
+          case "$STATUS" in
+            public-rc)
+              write_alias preview "$VERSION" 'Preview documentation (proof-gated)' 'This alias names one publicly proven release candidate.'
+              ;;
+            current)
+              maintained_line="${VERSION%.*}"
+              write_alias stable "$VERSION" 'Stable documentation (proof-gated)' 'This alias names one publicly proven final release.'
+              write_alias "$maintained_line" "$VERSION" "Maintained $maintained_line documentation (proof-gated)" 'This alias names the publicly proven final release for its maintained line.'
+              ;;
+            archived)
+              mkdir -p pages/archive
+              {
+                printf '%s\n' '<!doctype html>' '<html lang="en"><head><meta charset="utf-8"><title>Documentation archive</title></head><body>'
+                printf '%s\n' '<h1>Documentation archive</h1><p>Historical snapshots remain at their immutable version routes.</p><ul>'
+                while IFS= read -r archived_version; do
+                  printf '<li><a href="/anno-docimal/%s/">%s</a></li>\n' "$archived_version" "$archived_version"
+                done < <(
+                  for manifest in pages/*/source-manifest.json; do
+                    [[ -f "$manifest" ]] || continue
+                    if [[ "$(jq -r '.documentation.status' "$manifest")" == archived ]]; then
+                      jq -r '.documentation.version' "$manifest"
+                    fi
+                  done | sort -V
+                )
+                printf '%s\n' '</ul></body></html>'
+              } > pages/archive/index.html
+              ;;
+          esac
           if [[ "$STATUS" != pending ]]; then
             mkdir -p pages/status
             cp -R rendered/status/. pages/status/
@@ -221,6 +272,9 @@ jobs:
           git -C pages add "$SNAPSHOT_PATH"
           git -C pages add .nojekyll
           if [[ "$STATUS" != pending ]]; then git -C pages add status; fi
+          if [[ "$STATUS" == public-rc ]]; then git -C pages add preview; fi
+          if [[ "$STATUS" == current ]]; then git -C pages add stable "$maintained_line"; fi
+          if [[ "$STATUS" == archived ]]; then git -C pages add archive; fi
           git -C pages commit -m "Publish immutable documentation snapshot $SNAPSHOT_PATH"
           echo "pushed_commit=$(git -C pages rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Require protected writer credentials

@@ -10,7 +10,9 @@
 
 - Added a protected, immutable GitHub Pages publication seam for deterministic static HTML and all supported Java API
   Javadocs. Pull requests render and crawl a distinct non-release rehearsal without deployment; exact release manifests
-  cover the deployed HTML, assets, and Javadoc bytes. Release authorization and recovery remain in the #45 runbook. See
+  cover the deployed HTML, assets, and Javadoc bytes. Immutable RC, final, and historical snapshots all use their exact
+  version route; the archive is a discovery index, and labelled stable, maintained-line, and preview aliases require
+  #45-recorded public-artifact proof. Release authorization and recovery remain in the #45 runbook. See
   repository-owned versioned documentation.
 
 - Added shared Java APT, local Groovy, and packaged global-AST capture conformance evidence across Groovy 3, 4, and 5.

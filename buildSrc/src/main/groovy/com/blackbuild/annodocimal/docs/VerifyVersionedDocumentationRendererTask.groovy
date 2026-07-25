@@ -103,11 +103,12 @@ abstract class VerifyVersionedDocumentationRendererTask extends DefaultTask {
         render(fixture, archive, historicRevision, javadoc,
                 [version: '0.9.0', status: 'archived', javadocInputDirectories: [:],
                  brandingManifestPath: null, currentBrandingManifestPath: null])
-        assertTrue(new File(archive, 'archive/0.9.0/index.html').text.contains('Archived (legacy)'), 'legacy archive chrome')
-        assertTrue(!new File(archive, 'archive/0.9.0/docs').exists(), 'README-only archives do not require modern Markdown sources')
-        assertTrue(!new File(archive, 'archive/0.9.0/CHANGES').exists(), 'README-only archives do not require modern change history')
-        assertTrue(!new File(archive, 'archive/0.9.0/api').exists(), 'archives do not fabricate current Javadocs')
-        verifySite(archive, 'archive/0.9.0')
+        assertTrue(new File(archive, '0.9.0/index.html').text.contains('Archived (legacy)'), 'legacy archive chrome')
+        assertTrue(!new File(archive, 'archive').exists(), 'the renderer reserves /archive/ for writer-owned discovery')
+        assertTrue(!new File(archive, '0.9.0/docs').exists(), 'README-only archives do not require modern Markdown sources')
+        assertTrue(!new File(archive, '0.9.0/CHANGES').exists(), 'README-only archives do not require modern change history')
+        assertTrue(!new File(archive, '0.9.0/api').exists(), 'archives do not fabricate current Javadocs')
+        verifySite(archive, '0.9.0')
         File finalRelease = new File(temporaryDir, 'final-release')
         project.delete(finalRelease)
         render(fixture, finalRelease, revision, javadoc,

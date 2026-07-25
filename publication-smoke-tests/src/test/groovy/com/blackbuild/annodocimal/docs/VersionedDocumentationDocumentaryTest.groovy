@@ -85,6 +85,21 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         documentation.contains('protected `gh-pages` branch')
         documentation.contains('protected canonical writer job')
         documentation.contains('Pages-writer App')
+
+        and: 'public routing keeps every snapshot exact and advances only explicitly proof-gated aliases'
+        publicationWorkflow.contains('alias_proof:')
+        publicationWorkflow.contains('DEPLOY: ${{ inputs.deploy }}')
+        publicationWorkflow.contains('[[ "$ALIAS_PROOF" =~ ^https://[^[:space:]]+$ ]]')
+        publicationWorkflow.contains('[[ -z "$ALIAS_PROOF" ]]')
+        !publicationWorkflow.contains('snapshot_path=archive/$VERSION')
+        writerJob.contains("write_alias preview \"\$VERSION\" 'Preview documentation (proof-gated)'")
+        writerJob.contains("write_alias stable \"\$VERSION\" 'Stable documentation (proof-gated)'")
+        writerJob.contains('maintained_line="${VERSION%.*}"')
+        writerJob.contains('pages/archive/index.html')
+        writerJob.contains('pages/*/source-manifest.json')
+        documentation.contains('`/archive/` is a discovery index')
+        documentation.contains('`/stable/`, `/<maintained-line>/`, and `/preview/`')
+        documentation.contains('`/pending/<version>/<full-source-sha>/`')
     }
 
     def 'demonstrates an immutable exact-site rehearsal'() {
@@ -189,11 +204,12 @@ class VersionedDocumentationDocumentaryTest extends Specification {
                         "-PdocumentationOutputDirectory=${archiveOutput.absolutePath}")
                 .build()
 
-        then: 'the Gradle seam preserves the explicit legacy archive contract'
+        then: 'the Gradle seam keeps the legacy snapshot at its immutable version route'
         archiveResult.task(':renderVersionedDocumentation').outcome == TaskOutcome.SUCCESS
-        new File(archiveOutput, 'archive/0.9.0/index.html').text.contains('Archived (legacy)')
-        !new File(archiveOutput, 'archive/0.9.0/api').exists()
-        !new File(archiveOutput, 'archive/0.9.0/assets/branding').exists()
+        new File(archiveOutput, '0.9.0/index.html').text.contains('Archived (legacy)')
+        !new File(archiveOutput, 'archive').exists()
+        !new File(archiveOutput, '0.9.0/api').exists()
+        !new File(archiveOutput, '0.9.0/assets/branding').exists()
     }
 
     @Language("groovy")

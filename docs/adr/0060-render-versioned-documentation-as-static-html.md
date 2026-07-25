@@ -7,3 +7,9 @@ exact-tree landing. The repository README and change history are not renderer in
 link rewriting, manifests, and credential-free crawling, while a distinct non-release rehearsal path proves presentation
 without consuming single-use pending release evidence. The shared contract standardizes outcomes, not code or release
 mechanics, so AnnoDocimal retains its repository-local implementation and protected publication ownership.
+
+The public topology is also part of the presentation contract: every immutable RC, final, and historical snapshot uses
+`/<version>/`; `/archive/` is a mutable discovery index only. Labelled `/preview/`, `/stable/`, and
+`/<maintained-line>/` aliases are writer-owned and proof-gated, while unlisted pending evidence remains single-use at
+`/pending/<version>/<full-source-sha>/`. This decision does not make aliases release authority: #45 supplies the
+public-artifact proof and retains ordering, recovery, and supersession ownership.

@@ -78,3 +78,8 @@ commit and manifest before the job succeeds. The separate `github-pages` environ
 Pages service deployment from the protected `gh-pages` branch; it never receives or mints the App token. This is
 deployment integrity evidence; it neither authorizes a release nor changes #45's ordering, recovery, RC/final, tagging,
 signing, or release-record ownership.
+
+Public routing preserves every RC, final, and historical snapshot at `/<version>/`; `/archive/` is only the historical
+discovery index. The protected writer may advance labelled `/preview/`, `/stable/`, or `/<maintained-line>/` aliases only
+when its `deploy=true` dispatch supplies the HTTPS #45-recorded public-artifact proof reference. Pending evidence rejects that input,
+stays at `pending/<version>/<full-source-sha>/`, and advances neither aliases nor public status.
