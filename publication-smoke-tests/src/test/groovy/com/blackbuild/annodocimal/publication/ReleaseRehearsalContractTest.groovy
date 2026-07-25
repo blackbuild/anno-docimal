@@ -24,12 +24,16 @@
 package com.blackbuild.annodocimal.publication
 
 import spock.lang.Issue
+import spock.lang.See
 import spock.lang.Specification
+import spock.lang.Tag
 
 @Issue('45')
+@Tag('documentary')
+@See('https://github.com/blackbuild/anno-docimal/blob/master/RELEASING.md#local-non-publishing-rehearsal')
 class ReleaseRehearsalContractTest extends Specification {
 
-    def 'runbook and local rehearsal keep the release boundary explicit'() {
+    def 'demonstrates the local non-publishing rehearsal'() {
         given:
         File repository = new File(System.getProperty('annodocimal.repository.root'))
         String runbook = new File(repository, 'RELEASING.md').text
@@ -62,10 +66,13 @@ class ReleaseRehearsalContractTest extends Specification {
 
         and: 'the local rehearsal composes only safe local validation and writes durable local evidence'
         build.contains("tasks.register('releaseRehearsal')")
+        build.contains("tasks.register('verifyReleaseRehearsalInputs')")
+        build.contains("providers.gradleProperty('release.version')")
+        build.contains('does not match the configured build version')
         build.contains("dependsOn tasks.named('check')")
         build.contains("dependsOn tasks.named('renderLocalDocumentation')")
         build.contains("'release-rehearsal/evidence.md'")
-        runbook.contains('./gradlew releaseRehearsal')
+        runbook.contains('-Prelease.version=1.0.0-rc.1')
         runbook.contains('cannot tag, upload, dispatch, publish documentation, change environments, or mutate GitHub')
     }
 }

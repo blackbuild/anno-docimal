@@ -327,28 +327,38 @@ tasks.register('publicRcSmoke') {
     dependsOn ':publication-smoke-tests:publicRcSmoke'
 }
 
-def releaseRehearsalVersion = providers.gradleProperty('releaseVersion')
+def releaseRehearsalVersion = providers.gradleProperty('release.version')
 def releaseRehearsalEvidence = layout.buildDirectory.file('release-rehearsal/evidence.md')
-tasks.register('releaseRehearsal') {
+def validateReleaseRehearsalInputs = {
+    if (!releaseRehearsalVersion.present ||
+            !(releaseRehearsalVersion.get() ==~ /\d+\.\d+\.\d+(-rc\.[1-9]\d*)?/))
+        throw new GradleException('Set -Prelease.version to one exact final or RC version such as 1.0.0 or 1.0.0-rc.1')
+
+    String buildVersion = project.version.toString()
+    if (buildVersion != releaseRehearsalVersion.get())
+        throw new GradleException("Release rehearsal version ${releaseRehearsalVersion.get()} does not match the configured build version $buildVersion")
+
+    String status = providers.exec {
+        workingDir(rootDir)
+        commandLine('git', 'status', '--porcelain')
+    }.standardOutput.asText.get().trim()
+    if (status)
+        throw new GradleException('Release rehearsal requires a clean checkout; commit or discard the local changes first')
+}
+def verifyReleaseRehearsalInputs = tasks.register('verifyReleaseRehearsalInputs') {
+    group = 'verification'
+    description = 'Validates clean exact source and build-version inputs before the non-publishing release rehearsal.'
+    inputs.property('releaseVersion', releaseRehearsalVersion)
+    doLast(validateReleaseRehearsalInputs)
+}
+def releaseRehearsal = tasks.register('releaseRehearsal') {
     group = 'verification'
     description = 'Records a credential-free, non-publishing release preflight for one exact RC or final version.'
     inputs.property('releaseVersion', releaseRehearsalVersion)
     outputs.file(releaseRehearsalEvidence)
+    dependsOn(verifyReleaseRehearsalInputs)
     dependsOn tasks.named('check')
     dependsOn tasks.named('renderLocalDocumentation')
-
-    doFirst {
-        if (!releaseRehearsalVersion.present ||
-                !(releaseRehearsalVersion.get() ==~ /\d+\.\d+\.\d+(-rc\.[1-9]\d*)?/))
-            throw new GradleException('Set -PreleaseVersion to one exact final or RC version such as 1.0.0 or 1.0.0-rc.1')
-
-        String status = providers.exec {
-            workingDir(rootDir)
-            commandLine('git', 'status', '--porcelain')
-        }.standardOutput.asText.get().trim()
-        if (status)
-            throw new GradleException('Release rehearsal requires a clean checkout; commit or discard the local changes first')
-    }
 
     doLast {
         String revision = providers.exec {
@@ -380,6 +390,10 @@ This task writes only this local evidence file and Gradle build outputs. It does
 dispatch workflows, publish documentation, change environments, or mutate GitHub.
 """
     }
+}
+gradle.taskGraph.whenReady { taskGraph ->
+    if (taskGraph.hasTask(releaseRehearsal.get()))
+        validateReleaseRehearsalInputs()
 }
 
 tasks.named('check') {
