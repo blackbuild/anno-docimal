@@ -44,6 +44,13 @@ substitutes for this check.
 publication, the Maven Central staging and snapshot endpoints, and the Gradle Plugin Portal publication task. It does
 not read signing credentials, create signatures, open a staging repository, or publish anything.
 
+`publishCompleteProduct` is the sole checked-in remote-product entry point. It first requires the protected
+`ANNODOCIMAL_RELEASE_AUTHORIZED` stage to agree with exact `-Prelease.stage` and `-Prelease.version` inputs, rejects
+composite builds, and runs root `check` before it can invoke any Central or Plugin Portal task. The manually dispatched
+release workflow selects that sentinel only after its unprivileged preflight maps the valid `rc` or `final` stage to the
+separate `annodocimal-release-rc` or `annodocimal-release-final` environment. It does not authorize a tag, GitHub
+Release, or Pages mutation; those remain ordered external steps in [the #45 runbook](../RELEASING.md).
+
 ## Authorized public RC validation
 
 After one exact immutable RC version has been explicitly authorized and published to the public repositories, validate

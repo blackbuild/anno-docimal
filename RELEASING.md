@@ -37,6 +37,35 @@ Complete these checks while no protected environment has been selected. This is 
 
 The protected release workflow itself needs an unprivileged preflight job. It strictly accepts only `rc` or `final`, maps that accepted value to exactly the corresponding protected environment, and exports that selected environment as a job output. The publishing job consumes that output. Invalid input must reach neither protected environment nor secret; do not use a fallback expression that could select the final environment before rejecting an unexpected stage.
 
+## Protected authorization workflow
+
+`Publish protected AnnoDocimal release` (`.github/workflows/publish-protected-release.yml`) is manually dispatched with
+the exact `stage`, `version`, full lowercase `revision`, and an existing
+`pending/<version>/<full-source-sha>` documentation path. The unprivileged preflight rejects any mismatched stage/version
+or source build identity, non-current-master SHA, existing `v<version>` tag or GitHub Release record,
+missing/mismatched pending manifest, or an already occupied public `/<version>/` Pages target. It maps only `rc` to `annodocimal-release-rc` and `final` to
+`annodocimal-release-final`; there is no default environment.
+
+Those two reviewer-gated, credential-bearing environments are separate from both `annodocimal-pages-writer` and the
+credential-free `github-pages` service environment. The publishing job alone receives `SONATYPE_USERNAME`,
+`SONATYPE_PASSWORD`, `SIGNING_KEY`, `SIGNING_PASSWORD`, `GRADLE_PUBLISH_KEY`, and `GRADLE_PUBLISH_SECRET`; it maps them
+only to Gradle's scoped publication inputs. Ordinary CI, preflight, release rehearsal, public resolve-back, and the Pages
+writer/service jobs have read-only repository access and none of those release secrets. Checkout credentials are never
+persisted.
+
+After reviewer approval, the publishing job repeats the exact-master and pending-handoff checks, requires Java 17, and
+runs `publishCompleteProduct`. That Gradle entry point rejects a non-matching protected stage/version authorization or a
+composite build, runs `check` and the six-coordinate/two-marker product gate before remote tasks, then stages/releases
+the Maven Central product and publishes both Plugin Portal markers. It does not create a tag, GitHub Release, or public
+Pages snapshot. The exact protected workflow is not a replacement for the existing protected Pages dispatches: first
+stage pending documentation, then publish the product, then complete #44 public resolve-back, then create the exact tag
+and CHANGES-derived GitHub Release, and only then dispatch the proof-gated public Pages handoff.
+
+This repository workflow defines names and code only. A maintainer must separately create and reviewer-protect
+`annodocimal-release-rc` and `annodocimal-release-final`, add only the listed secrets to their matching environment, and
+retain the existing Pages environment/ruleset setup. It does not create or configure environments, secrets, credentials,
+rulesets, Pages, tags, releases, uploads, or workflow runs.
+
 ## Complete product and release evidence
 
 Every RC and final uses one version across all six Maven Central coordinates:
