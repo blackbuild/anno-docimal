@@ -1,0 +1,94 @@
+import com.blackbuild.annodocimal.release.ProtectedReleaseConventionExtension
+import org.gradle.api.GradleException
+
+if (project != rootProject)
+    throw new GradleException('annodocimal-release.conventions must be applied to the root project')
+
+def protectedRelease = extensions.create('protectedRelease', ProtectedReleaseConventionExtension)
+def protectedReleaseStage = providers.gradleProperty('release.stage')
+def protectedReleaseVersion = providers.gradleProperty('release.version')
+def protectedReleaseAuthorization = providers.environmentVariable('ANNODOCIMAL_RELEASE_AUTHORIZED')
+def validateUnprivilegedReleaseIdentity = {
+    if (!protectedReleaseStage.present || !(protectedReleaseStage.get() in ['rc', 'final']))
+        throw new GradleException('Set -Prelease.stage to exactly rc or final')
+    if (!protectedReleaseVersion.present)
+        throw new GradleException('Set -Prelease.version to the exact authorized RC or final version')
+
+    String stage = protectedReleaseStage.get()
+    String version = protectedReleaseVersion.get()
+    boolean versionMatchesStage = stage == 'rc'
+            ? version ==~ /\d+\.\d+\.\d+-rc\.[1-9]\d*/
+            : version ==~ /\d+\.\d+\.\d+/
+    if (!versionMatchesStage)
+        throw new GradleException("Release stage $stage does not match exact version $version")
+    if (project.version.toString() != version)
+        throw new GradleException("Configured release version $version does not match the build version $project.version")
+    if (!gradle.includedBuilds.empty)
+        throw new GradleException('Protected release publication does not allow composite builds')
+}
+def verifyUnprivilegedReleaseInputs = tasks.register('verifyUnprivilegedReleaseInputs') {
+    group = 'verification'
+    description = 'Validates exact RC/final identity and rejects composite builds before environment selection.'
+    inputs.property('releaseStage', protectedReleaseStage.orElse(''))
+    inputs.property('releaseVersion', protectedReleaseVersion.orElse(''))
+    doLast(validateUnprivilegedReleaseIdentity)
+}
+def validateProtectedReleaseAuthorization = {
+    validateUnprivilegedReleaseIdentity()
+    if (!protectedReleaseAuthorization.present || protectedReleaseAuthorization.get() != protectedReleaseStage.get())
+        throw new GradleException('Protected release authorization does not match -Prelease.stage')
+}
+def verifyProtectedReleaseAuthorization = tasks.register('verifyProtectedReleaseAuthorization') {
+    group = 'verification'
+    description = 'Rejects an unapproved, non-exact, or composite RC/final publication before remote tasks run.'
+    inputs.property('releaseStage', protectedReleaseStage.orElse(''))
+    inputs.property('releaseVersion', protectedReleaseVersion.orElse(''))
+    inputs.property('releaseAuthorization', protectedReleaseAuthorization.orElse(''))
+    doLast(validateProtectedReleaseAuthorization)
+}
+
+def publishCompleteProduct = tasks.register('publishCompleteProduct') {
+    group = 'publishing'
+    description = 'Publishes the guarded six-coordinate product, releases Central staging, then publishes both plugin markers.'
+}
+def verifyCompleteProductPublication = tasks.register('verifyCompleteProductPublication') {
+    group = 'verification'
+    description = 'Rejects direct partial publication tasks that bypass the complete-product entry point.'
+    dependsOn verifyProtectedReleaseAuthorization
+    doLast {
+        if (!gradle.taskGraph.allTasks.any { it.path == ':publishCompleteProduct' })
+            throw new GradleException('Remote publication must use publishCompleteProduct for the complete product')
+    }
+}
+gradle.projectsEvaluated {
+    if (protectedRelease.centralPublicationTasks.empty || protectedRelease.pluginMarkerTasks.empty)
+        throw new GradleException('Configure Central and Plugin Portal publication tasks for the protected release convention')
+
+    def taskProviderFor = { String taskPath ->
+        int separator = taskPath.lastIndexOf(':')
+        if (separator <= 0 || separator == taskPath.length() - 1)
+            throw new GradleException("Invalid protected release task path $taskPath")
+        project(taskPath.substring(0, separator)).tasks.named(taskPath.substring(separator + 1))
+    }
+    def centralPublicationTasks = protectedRelease.centralPublicationTasks.collect(taskProviderFor)
+    def pluginMarkerTasks = protectedRelease.pluginMarkerTasks.collect(taskProviderFor)
+    (centralPublicationTasks + pluginMarkerTasks).each { publicationTask ->
+        publicationTask.configure {
+            dependsOn rootProject.tasks.named('check')
+            dependsOn verifyCompleteProductPublication
+        }
+    }
+    def closeAndRelease = tasks.named('closeAndReleaseSonatypeStagingRepository') {
+        dependsOn centralPublicationTasks
+        mustRunAfter centralPublicationTasks
+    }
+    pluginMarkerTasks.each { pluginMarkerTask ->
+        pluginMarkerTask.configure {
+            mustRunAfter closeAndRelease
+        }
+    }
+    publishCompleteProduct.configure {
+        dependsOn closeAndRelease
+        dependsOn pluginMarkerTasks
+    }
+}
