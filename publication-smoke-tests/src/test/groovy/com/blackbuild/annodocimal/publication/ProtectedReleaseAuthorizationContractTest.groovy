@@ -127,6 +127,23 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
     }
 
     @Unroll
+    def 'rejects #condition in the checked-in workflow preflight'() {
+        given: 'one exact validation step copied from the checked-in workflow'
+        File repository = new File(System.getProperty('annodocimal.repository.root'))
+        String workflow = new File(repository, '.github/workflows/publish-protected-release.yml').text
+
+        expect: 'the shell contract fails before it can reach a protected environment'
+        runBash(workflowStep(workflow, step), environment) != 0
+
+        where:
+        condition                 | step                                                                        | environment
+        'a non-lowercase SHA'     | 'Reject malformed release inputs'                                         | [RELEASE_STAGE: 'rc', RELEASE_VERSION: '1.0.0-rc.1', REVISION: 'A' * 40]
+        'a stale master SHA'      | 'Require the requested source to be current master'                       | staleMasterEnvironment()
+        'an existing release tag' | 'Reject a used tag or GitHub Release record'                              | existingTagEnvironment()
+        'a mismatched Pages path' | 'Require the exact pending documentation handoff and absent public target' | [RELEASE_STAGE: 'rc', RELEASE_VERSION: '1.0.0-rc.1', REVISION: 'a' * 40, PENDING_DOCUMENTATION_PATH: 'pending/other']
+    }
+
+    @Unroll
     def 'rejects malformed #stage release identity #version before environment selection'() {
         given: 'the credential-free Gradle preflight'
         File repository = new File(System.getProperty('annodocimal.repository.root'))
@@ -161,5 +178,57 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
             }
         }
         end < 0 ? workflow.substring(start) : workflow.substring(start, end)
+    }
+
+    private static String workflowStep(String workflow, String name) {
+        int stepStart = workflow.indexOf("name: $name\n")
+        assert stepStart >= 0
+        String runMarker = '        run: |\n'
+        int scriptStart = workflow.indexOf(runMarker, stepStart)
+        assert scriptStart >= 0
+        scriptStart += runMarker.length()
+        int scriptEnd = workflow.indexOf('\n      - ', scriptStart)
+        if (scriptEnd < 0)
+            scriptEnd = workflow.indexOf('\n  ', scriptStart)
+        String indentedScript = scriptEnd < 0 ? workflow.substring(scriptStart) : workflow.substring(scriptStart, scriptEnd)
+        indentedScript.readLines().collect { line -> line.size() >= 10 ? line.substring(10) : line }.join('\n')
+    }
+
+    private static int runBash(String script, Map<String, String> environment) {
+        ProcessBuilder process = new ProcessBuilder('bash', '-c', script)
+        environment.each { key, value -> process.environment().put(key, value.toString()) }
+        process.redirectErrorStream(true)
+        process.start().waitFor()
+    }
+
+    private static Map<String, String> staleMasterEnvironment() {
+        File bin = temporaryBin('stale-master')
+        new File(bin, 'git').text = '''#!/usr/bin/env bash
+case "$1:$2" in
+  rev-parse:HEAD|rev-parse:*) printf '%s\\n' "$REVISION" ;;
+  ls-remote:--exit-code) printf '%s\\trefs/heads/master\\n' bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ;;
+  status:--porcelain=v1) ;;
+  *) exit 1 ;;
+esac
+'''
+        new File(bin, 'git').setExecutable(true)
+        [REVISION: 'a' * 40, PATH: "$bin:${System.getenv('PATH')}"]
+    }
+
+    private static Map<String, String> existingTagEnvironment() {
+        File bin = temporaryBin('existing-tag')
+        new File(bin, 'git').text = '''#!/usr/bin/env bash
+[[ "$1" == show-ref ]]
+'''
+        new File(bin, 'git').setExecutable(true)
+        [VERSION: '1.0.0-rc.1', GITHUB_TOKEN: 'fixture-token', PATH: "$bin:${System.getenv('PATH')}"]
+    }
+
+    private static File temporaryBin(String prefix) {
+        File directory = File.createTempFile(prefix, '')
+        assert directory.delete()
+        assert directory.mkdir()
+        directory.deleteOnExit()
+        directory
     }
 }
