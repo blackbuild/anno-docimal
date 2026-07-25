@@ -327,6 +327,61 @@ tasks.register('publicRcSmoke') {
     dependsOn ':publication-smoke-tests:publicRcSmoke'
 }
 
+def releaseRehearsalVersion = providers.gradleProperty('releaseVersion')
+def releaseRehearsalEvidence = layout.buildDirectory.file('release-rehearsal/evidence.md')
+tasks.register('releaseRehearsal') {
+    group = 'verification'
+    description = 'Records a credential-free, non-publishing release preflight for one exact RC or final version.'
+    inputs.property('releaseVersion', releaseRehearsalVersion)
+    outputs.file(releaseRehearsalEvidence)
+    dependsOn tasks.named('check')
+    dependsOn tasks.named('renderLocalDocumentation')
+
+    doFirst {
+        if (!releaseRehearsalVersion.present ||
+                !(releaseRehearsalVersion.get() ==~ /\d+\.\d+\.\d+(-rc\.[1-9]\d*)?/))
+            throw new GradleException('Set -PreleaseVersion to one exact final or RC version such as 1.0.0 or 1.0.0-rc.1')
+
+        String status = providers.exec {
+            workingDir(rootDir)
+            commandLine('git', 'status', '--porcelain')
+        }.standardOutput.asText.get().trim()
+        if (status)
+            throw new GradleException('Release rehearsal requires a clean checkout; commit or discard the local changes first')
+    }
+
+    doLast {
+        String revision = providers.exec {
+            workingDir(rootDir)
+            commandLine('git', 'rev-parse', 'HEAD')
+        }.standardOutput.asText.get().trim()
+        String branch = providers.exec {
+            workingDir(rootDir)
+            commandLine('git', 'branch', '--show-current')
+        }.standardOutput.asText.get().trim()
+        String releaseVersion = releaseRehearsalVersion.get()
+        File evidence = releaseRehearsalEvidence.get().asFile
+        evidence.parentFile.mkdirs()
+        evidence.text = """# Non-publishing release rehearsal
+
+- release version: `${releaseVersion}`
+- derived tag name: `v${releaseVersion}`
+- exact source revision: `${revision}`
+- checked-out branch: `${branch ?: '(detached HEAD)'}`
+- local build version: `${project.version}`
+
+Completed local evidence:
+
+- root `check`, including the unsigned complete-product publication audit and signing-configuration inspection;
+- credential-free non-release documentation presentation rehearsal; and
+- this clean-worktree source/version/tag derivation record.
+
+This task writes only this local evidence file and Gradle build outputs. It does not tag, sign, upload, publish,
+dispatch workflows, publish documentation, change environments, or mutate GitHub.
+"""
+    }
+}
+
 tasks.named('check') {
     dependsOn ':publication-smoke-tests:test'
     dependsOn tasks.named('verifyPublicationReleaseConfiguration')
