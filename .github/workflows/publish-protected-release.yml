@@ -1,0 +1,174 @@
+name: Publish protected AnnoDocimal release
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Exact independently authorized release stage
+        required: true
+        type: choice
+        options: [rc, final]
+      version:
+        description: Exact immutable X.Y.Z-rc.N or X.Y.Z version
+        required: true
+        type: string
+      revision:
+        description: Full lowercase source commit SHA on master
+        required: true
+        type: string
+      pending_documentation_path:
+        description: Existing protected pending documentation path for this exact stage, version, and source SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protected-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  validate-release-input:
+    name: Validate release identity and protected handoff
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.select-environment.outputs.name }}
+      pending_documentation_path: ${{ steps.validate-pages-handoff.outputs.path }}
+    steps:
+      - id: select-environment
+        shell: bash
+        env:
+          RELEASE_STAGE: ${{ inputs.stage }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          REVISION: ${{ inputs.revision }}
+        run: |
+          set -euo pipefail
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$RELEASE_STAGE" == rc && "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]; then
+            echo 'name=annodocimal-release-rc' >> "$GITHUB_OUTPUT"
+          elif [[ "$RELEASE_STAGE" == final && "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'name=annodocimal-release-final' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Stage must be rc or final and match the exact immutable version.' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.revision }}
+      - name: Require the requested source to be current master
+        shell: bash
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$REVISION"
+          test "$(git rev-parse "$REVISION^{commit}")" = "$REVISION"
+          master_revision="$(git ls-remote --exit-code origin refs/heads/master | awk '{print $1}')"
+          test "$master_revision" = "$REVISION"
+          test -z "$(git status --porcelain=v1)"
+      - name: Reject a used tag or GitHub Release record
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          ! git show-ref --verify --quiet "refs/tags/v$VERSION"
+          release_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/v$VERSION")"
+          test "$release_status" = 404
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          fetch-depth: 1
+          persist-credentials: false
+      - id: validate-pages-handoff
+        name: Require the exact pending documentation handoff and absent public target
+        shell: bash
+        env:
+          RELEASE_STAGE: ${{ inputs.stage }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          REVISION: ${{ inputs.revision }}
+          PENDING_DOCUMENTATION_PATH: ${{ inputs.pending_documentation_path }}
+        run: |
+          set -euo pipefail
+          expected_path="pending/$RELEASE_VERSION/$REVISION"
+          test "$PENDING_DOCUMENTATION_PATH" = "$expected_path"
+          test ! -e "pages/$RELEASE_VERSION"
+          manifest="pages/$PENDING_DOCUMENTATION_PATH/source-manifest.json"
+          test -f "$manifest"
+          documentation_stage=candidate
+          if [[ "$RELEASE_STAGE" == final ]]; then documentation_stage=final; fi
+          jq -e --arg revision "$REVISION" --arg version "$RELEASE_VERSION" --arg stage "$documentation_stage" \
+            '.source.revision == $revision and .documentation.version == $version and .documentation.status == "pending" and .documentation.releaseStage == $stage' \
+            "$manifest" >/dev/null
+          echo "path=$PENDING_DOCUMENTATION_PATH" >> "$GITHUB_OUTPUT"
+
+  publish-complete-product:
+    name: Publish ${{ inputs.stage }} ${{ inputs.version }}
+    needs: validate-release-input
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: ${{ needs.validate-release-input.outputs.environment }}
+    env:
+      ANNODOCIMAL_RELEASE_AUTHORIZED: ${{ inputs.stage }}
+      ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
+      ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
+      ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+      ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
+      GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+      GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.revision }}
+      - name: Verify the protected source and pending documentation handoff
+        shell: bash
+        env:
+          REVISION: ${{ inputs.revision }}
+          PENDING_DOCUMENTATION_PATH: ${{ needs.validate-release-input.outputs.pending_documentation_path }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$REVISION"
+          master_revision="$(git ls-remote --exit-code origin refs/heads/master | awk '{print $1}')"
+          test "$master_revision" = "$REVISION"
+          test "$PENDING_DOCUMENTATION_PATH" = "pending/${{ inputs.version }}/$REVISION"
+          test -z "$(git status --porcelain=v1)"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Require every protected credential before publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          for credential in \
+            ORG_GRADLE_PROJECT_sonatypeUsername \
+            ORG_GRADLE_PROJECT_sonatypePassword \
+            ORG_GRADLE_PROJECT_signingKey \
+            ORG_GRADLE_PROJECT_signingPassword \
+            GRADLE_PUBLISH_KEY \
+            GRADLE_PUBLISH_SECRET
+          do
+            test -n "${!credential}" || {
+              echo "The selected protected environment is missing $credential." >&2
+              exit 1
+            }
+          done
+      - name: Verify, sign, stage, and publish the complete product
+        run: >-
+          ./gradlew publishCompleteProduct
+          -Prelease.stage=${{ inputs.stage }}
+          -Prelease.version=${{ inputs.version }}
+          --no-build-cache
+          --no-daemon

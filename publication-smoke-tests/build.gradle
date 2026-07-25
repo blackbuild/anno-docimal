@@ -67,14 +67,14 @@ tasks.register('preparePublicRcFixtures', Sync) {
 }
 
 tasks.register('publicRcGradleSmoke', GradleBuild) {
-    dependsOn tasks.named('preparePublicRcFixtures')
+    dependsOn project.tasks.named('preparePublicRcFixtures')
     dir publicRcFixtureDirectory.map { it.dir('gradle') }
     tasks = ['exerciseConsumer']
     startParameter.gradleUserHomeDir = publicRcGradleUserHome.get().asFile
 }
 
 tasks.register('publicRcMavenSmoke', Exec) {
-    dependsOn tasks.named('preparePublicRcFixtures')
+    dependsOn project.tasks.named('preparePublicRcFixtures')
     dependsOn rootProject.tasks.named('extractMaven')
     workingDir publicRcFixtureDirectory.map { it.dir('maven') }
     executable rootProject.layout.buildDirectory

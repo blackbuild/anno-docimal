@@ -321,6 +321,87 @@ tasks.register('verifyPublicationReleaseConfiguration') {
     }
 }
 
+def protectedReleaseStage = providers.gradleProperty('release.stage')
+def protectedReleaseVersion = providers.gradleProperty('release.version')
+def protectedReleaseAuthorization = providers.environmentVariable('ANNODOCIMAL_RELEASE_AUTHORIZED')
+def validateProtectedReleaseAuthorization = {
+    if (!protectedReleaseStage.present || !(protectedReleaseStage.get() in ['rc', 'final']))
+        throw new GradleException('Set -Prelease.stage to exactly rc or final')
+    if (!protectedReleaseVersion.present)
+        throw new GradleException('Set -Prelease.version to the exact authorized RC or final version')
+
+    String stage = protectedReleaseStage.get()
+    String version = protectedReleaseVersion.get()
+    boolean versionMatchesStage = stage == 'rc'
+            ? version ==~ /\d+\.\d+\.\d+-rc\.[1-9]\d*/
+            : version ==~ /\d+\.\d+\.\d+/
+    if (!versionMatchesStage)
+        throw new GradleException("Release stage $stage does not match exact version $version")
+    if (!protectedReleaseAuthorization.present || protectedReleaseAuthorization.get() != stage)
+        throw new GradleException('Protected release authorization does not match -Prelease.stage')
+    if (project.version.toString() != version)
+        throw new GradleException("Configured release version $version does not match the build version $project.version")
+    if (!gradle.includedBuilds.empty)
+        throw new GradleException('Protected release publication does not allow composite builds')
+}
+def verifyProtectedReleaseAuthorization = tasks.register('verifyProtectedReleaseAuthorization') {
+    group = 'verification'
+    description = 'Rejects an unapproved, non-exact, or composite RC/final publication before remote tasks run.'
+    inputs.property('releaseStage', protectedReleaseStage.orElse(''))
+    inputs.property('releaseVersion', protectedReleaseVersion.orElse(''))
+    inputs.property('releaseAuthorization', protectedReleaseAuthorization.orElse(''))
+    doLast(validateProtectedReleaseAuthorization)
+}
+
+def protectedReleaseCentralPublicationTaskNames = [
+        [':anno-docimal-annotations', 'publishMavenJavaPublicationToSonatypeRepository'],
+        [':anno-docimal-apt', 'publishMavenJavaPublicationToSonatypeRepository'],
+        [':anno-docimal-ast', 'publishMavenJavaPublicationToSonatypeRepository'],
+        [':anno-docimal-global-ast', 'publishMavenJavaPublicationToSonatypeRepository'],
+        [':anno-docimal-generator', 'publishShadowPublicationToSonatypeRepository'],
+        [':anno-docimal-gradle-plugin', 'publishPluginMavenPublicationToSonatypeRepository']
+]
+def publishCompleteProduct = tasks.register('publishCompleteProduct') {
+    group = 'publishing'
+    description = 'Publishes the guarded six-coordinate product, releases Central staging, then publishes both plugin markers.'
+}
+def verifyCompleteProductPublication = tasks.register('verifyCompleteProductPublication') {
+    group = 'verification'
+    description = 'Rejects direct partial publication tasks that bypass the complete-product entry point.'
+    dependsOn verifyProtectedReleaseAuthorization
+    doLast {
+        if (!gradle.taskGraph.allTasks.any { it.path == ':publishCompleteProduct' })
+            throw new GradleException('Remote publication must use publishCompleteProduct for the complete product')
+    }
+}
+gradle.projectsEvaluated {
+    def centralPublicationTasks = protectedReleaseCentralPublicationTaskNames.collect { taskName ->
+        project(taskName[0]).tasks.named(taskName[1])
+    }
+    centralPublicationTasks.each { publicationTask ->
+        publicationTask.configure {
+            dependsOn rootProject.tasks.named('check')
+            dependsOn verifyCompleteProductPublication
+        }
+    }
+    def pluginMarkers = project(':anno-docimal-gradle-plugin').tasks.named('publishPlugins')
+    pluginMarkers.configure {
+        dependsOn rootProject.tasks.named('check')
+        dependsOn verifyCompleteProductPublication
+    }
+    def closeAndRelease = tasks.named('closeAndReleaseSonatypeStagingRepository') {
+        dependsOn centralPublicationTasks
+        mustRunAfter centralPublicationTasks
+    }
+    pluginMarkers.configure {
+        mustRunAfter closeAndRelease
+    }
+    publishCompleteProduct.configure {
+        dependsOn closeAndRelease
+        dependsOn pluginMarkers
+    }
+}
+
 tasks.register('publicRcSmoke') {
     group = 'verification'
     description = 'Runs exact-version consumer validation against public repositories only.'
