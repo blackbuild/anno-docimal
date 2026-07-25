@@ -84,9 +84,24 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         !ordinaryWorkflow.contains('SIGNING_KEY')
         !ordinaryWorkflow.contains('GRADLE_PUBLISH_KEY')
 
-        and: 'individual registry tasks cannot bypass the complete-product entry point'
-        new File(repository, 'build.gradle').text.contains("tasks.register('verifyCompleteProductPublication')")
-        new File(repository, 'build.gradle').text.contains('Remote publication must use publishCompleteProduct for the complete product')
+        and: 'the root declares product coordinates while the convention owns guarded task wiring'
+        String rootBuild = new File(repository, 'build.gradle').text
+        String convention = new File(repository, 'buildSrc/src/main/groovy/annodocimal-release.conventions.gradle').text
+        rootBuild.contains("id 'annodocimal-release.conventions'")
+        rootBuild.contains('protectedRelease {')
+        [
+                ':anno-docimal-annotations:publishMavenJavaPublicationToSonatypeRepository',
+                ':anno-docimal-apt:publishMavenJavaPublicationToSonatypeRepository',
+                ':anno-docimal-ast:publishMavenJavaPublicationToSonatypeRepository',
+                ':anno-docimal-global-ast:publishMavenJavaPublicationToSonatypeRepository',
+                ':anno-docimal-generator:publishShadowPublicationToSonatypeRepository',
+                ':anno-docimal-gradle-plugin:publishPluginMavenPublication'
+        ].every { taskPath -> rootBuild.contains(taskPath) }
+        rootBuild.contains(':anno-docimal-gradle-plugin:publishPlugins')
+        !rootBuild.contains("tasks.register('verifyCompleteProductPublication')")
+        convention.contains("tasks.register('verifyCompleteProductPublication')")
+        convention.contains("tasks.register('publishCompleteProduct')")
+        convention.contains('Remote publication must use publishCompleteProduct for the complete product')
 
         and: 'the runbook keeps Page authority, public resolve-back, tags, and CHANGES-derived releases outside this workflow'
         runbook.contains('`annodocimal-release-rc`')
