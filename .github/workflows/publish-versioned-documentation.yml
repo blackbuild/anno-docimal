@@ -30,7 +30,7 @@ on:
         required: false
         type: string
       alias_proof:
-        description: HTTPS reference to #45-recorded public-artifact proof; required before a public route advances an alias
+        description: "HTTPS reference to #45-recorded public-artifact proof; required before a public route advances an alias"
         required: false
         type: string
       deploy:
