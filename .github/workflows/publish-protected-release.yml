@@ -36,7 +36,7 @@ jobs:
       environment: ${{ steps.select-environment.outputs.name }}
       pending_documentation_path: ${{ steps.validate-pages-handoff.outputs.path }}
     steps:
-      - id: select-environment
+      - name: Reject malformed release inputs
         shell: bash
         env:
           RELEASE_STAGE: ${{ inputs.stage }}
@@ -45,14 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
-          if [[ "$RELEASE_STAGE" == rc && "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]; then
-            echo 'name=annodocimal-release-rc' >> "$GITHUB_OUTPUT"
-          elif [[ "$RELEASE_STAGE" == final && "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo 'name=annodocimal-release-final' >> "$GITHUB_OUTPUT"
-          else
-            echo 'Stage must be rc or final and match the exact immutable version.' >&2
-            exit 1
-          fi
+          [[ "$RELEASE_STAGE" == rc || "$RELEASE_STAGE" == final ]]
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -69,6 +62,37 @@ jobs:
           master_revision="$(git ls-remote --exit-code origin refs/heads/master | awk '{print $1}')"
           test "$master_revision" = "$REVISION"
           test -z "$(git status --porcelain=v1)"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Verify the exact source release identity before selecting an environment
+        shell: bash
+        env:
+          RELEASE_STAGE: ${{ inputs.stage }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: >-
+          ./gradlew verifyUnprivilegedReleaseInputs
+          -Prelease.stage="$RELEASE_STAGE"
+          -Prelease.version="$RELEASE_VERSION"
+          --no-build-cache
+          --no-daemon
+      - id: select-environment
+        shell: bash
+        env:
+          RELEASE_STAGE: ${{ inputs.stage }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_STAGE" == rc && "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]; then
+            echo 'name=annodocimal-release-rc' >> "$GITHUB_OUTPUT"
+          elif [[ "$RELEASE_STAGE" == final && "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'name=annodocimal-release-final' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Stage must be rc or final and match the exact immutable version.' >&2
+            exit 1
+          fi
       - name: Reject a used tag or GitHub Release record
         shell: bash
         env:

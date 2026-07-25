@@ -25,12 +25,17 @@ package com.blackbuild.annodocimal.publication
 
 import org.gradle.testkit.runner.GradleRunner
 import spock.lang.Issue
+import spock.lang.See
 import spock.lang.Specification
+import spock.lang.Tag
+import spock.lang.Unroll
 
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 @Issue('45')
+@Tag('documentary')
+@See('https://github.com/blackbuild/anno-docimal/blob/master/RELEASING.md#protected-authorization-workflow')
 class ProtectedReleaseAuthorizationContractTest extends Specification {
 
     def 'keeps RC and final authority in separately selected protected environments'() {
@@ -64,6 +69,8 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         workflow.contains('expected_path="pending/$RELEASE_VERSION/$REVISION"')
         workflow.contains('test ! -e "pages/$RELEASE_VERSION"')
         workflow.contains('.documentation.status == "pending"')
+        workflow.contains('./gradlew verifyUnprivilegedReleaseInputs')
+        workflow.contains('test "$master_revision" = "$REVISION"')
 
         and: 'only the dependent protected job receives publication credentials'
         publishing.contains('needs: validate-release-input')
@@ -117,6 +124,28 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
 
         then: 'the gate admits the identity without invoking a remote publication task'
         accepted.output.contains('BUILD SUCCESSFUL')
+    }
+
+    @Unroll
+    def 'rejects malformed #stage release identity #version before environment selection'() {
+        given: 'the credential-free Gradle preflight'
+        File repository = new File(System.getProperty('annodocimal.repository.root'))
+
+        when:
+        def rejected = GradleRunner.create()
+                .withProjectDir(repository)
+                .withArguments('verifyUnprivilegedReleaseInputs', "-Prelease.stage=$stage", "-Prelease.version=$version")
+                .buildAndFail()
+
+        then:
+        rejected.output.contains(message)
+
+        where:
+        stage       | version        || message
+        'candidate' | '1.0.0-rc.1'   || 'Set -Prelease.stage to exactly rc or final'
+        'rc'        | '1.0.0'        || 'Release stage rc does not match exact version 1.0.0'
+        'final'     | '1.0.0-rc.1'   || 'Release stage final does not match exact version 1.0.0-rc.1'
+        'rc'        | '1.0.0-rc.0'   || 'Release stage rc does not match exact version 1.0.0-rc.0'
     }
 
     private static String job(String workflow, String name) {

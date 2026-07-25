@@ -41,9 +41,9 @@ The protected release workflow itself needs an unprivileged preflight job. It st
 
 `Publish protected AnnoDocimal release` (`.github/workflows/publish-protected-release.yml`) is manually dispatched with
 the exact `stage`, `version`, full lowercase `revision`, and an existing
-`pending/<version>/<full-source-sha>` documentation path. The unprivileged preflight rejects any mismatched stage/version,
-non-current-master SHA, existing `v<version>` tag or GitHub Release record, missing/mismatched pending manifest, or an
-already occupied public `/<version>/` Pages target. It maps only `rc` to `annodocimal-release-rc` and `final` to
+`pending/<version>/<full-source-sha>` documentation path. The unprivileged preflight rejects any mismatched stage/version
+or source build identity, non-current-master SHA, existing `v<version>` tag or GitHub Release record,
+missing/mismatched pending manifest, or an already occupied public `/<version>/` Pages target. It maps only `rc` to `annodocimal-release-rc` and `final` to
 `annodocimal-release-final`; there is no default environment.
 
 Those two reviewer-gated, credential-bearing environments are separate from both `annodocimal-pages-writer` and the

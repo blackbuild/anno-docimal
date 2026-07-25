@@ -324,7 +324,7 @@ tasks.register('verifyPublicationReleaseConfiguration') {
 def protectedReleaseStage = providers.gradleProperty('release.stage')
 def protectedReleaseVersion = providers.gradleProperty('release.version')
 def protectedReleaseAuthorization = providers.environmentVariable('ANNODOCIMAL_RELEASE_AUTHORIZED')
-def validateProtectedReleaseAuthorization = {
+def validateUnprivilegedReleaseIdentity = {
     if (!protectedReleaseStage.present || !(protectedReleaseStage.get() in ['rc', 'final']))
         throw new GradleException('Set -Prelease.stage to exactly rc or final')
     if (!protectedReleaseVersion.present)
@@ -337,12 +337,22 @@ def validateProtectedReleaseAuthorization = {
             : version ==~ /\d+\.\d+\.\d+/
     if (!versionMatchesStage)
         throw new GradleException("Release stage $stage does not match exact version $version")
-    if (!protectedReleaseAuthorization.present || protectedReleaseAuthorization.get() != stage)
-        throw new GradleException('Protected release authorization does not match -Prelease.stage')
     if (project.version.toString() != version)
         throw new GradleException("Configured release version $version does not match the build version $project.version")
     if (!gradle.includedBuilds.empty)
         throw new GradleException('Protected release publication does not allow composite builds')
+}
+def verifyUnprivilegedReleaseInputs = tasks.register('verifyUnprivilegedReleaseInputs') {
+    group = 'verification'
+    description = 'Validates exact RC/final identity and rejects composite builds before environment selection.'
+    inputs.property('releaseStage', protectedReleaseStage.orElse(''))
+    inputs.property('releaseVersion', protectedReleaseVersion.orElse(''))
+    doLast(validateUnprivilegedReleaseIdentity)
+}
+def validateProtectedReleaseAuthorization = {
+    validateUnprivilegedReleaseIdentity()
+    if (!protectedReleaseAuthorization.present || protectedReleaseAuthorization.get() != protectedReleaseStage.get())
+        throw new GradleException('Protected release authorization does not match -Prelease.stage')
 }
 def verifyProtectedReleaseAuthorization = tasks.register('verifyProtectedReleaseAuthorization') {
     group = 'verification'
