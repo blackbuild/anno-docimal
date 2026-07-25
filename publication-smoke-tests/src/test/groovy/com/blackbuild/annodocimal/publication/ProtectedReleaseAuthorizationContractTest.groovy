@@ -55,13 +55,13 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         preflight.contains('[[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]')
         preflight.contains('RELEASE_STAGE" == rc')
         preflight.contains('RELEASE_STAGE" == final')
-        preflight.contains("echo 'name=annodocimal-release-rc'")
-        preflight.contains("echo 'name=annodocimal-release-final'")
+        preflight.contains("echo 'name=release-candidate'")
+        preflight.contains("echo 'name=final-release'")
         !preflight.contains('secrets.')
         !preflight.contains('\n    environment:\n')
 
         and: 'the preflight fails closed before environment selection and proves source, tag, release record, and Pages handoff state'
-        !workflow.contains("&& 'annodocimal-release-rc' || 'annodocimal-release-final'")
+        !workflow.contains("&& 'release-candidate' || 'final-release'")
         workflow.contains('master_revision=')
         workflow.contains('refs/tags/v$VERSION')
         workflow.contains('release_status')
@@ -104,8 +104,8 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         convention.contains('Remote publication must use publishCompleteProduct for the complete product')
 
         and: 'the runbook keeps Page authority, public resolve-back, tags, and CHANGES-derived releases outside this workflow'
-        runbook.contains('`annodocimal-release-rc`')
-        runbook.contains('`annodocimal-release-final`')
+        runbook.contains('`release-candidate`')
+        runbook.contains('`final-release`')
         runbook.contains('`annodocimal-pages-writer`')
         runbook.contains('credential-free public resolve-back')
         runbook.contains('GitHub Release body is copied or derived from the exact final `CHANGES.md` section')

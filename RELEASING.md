@@ -43,8 +43,8 @@ The protected release workflow itself needs an unprivileged preflight job. It st
 the exact `stage`, `version`, full lowercase `revision`, and an existing
 `pending/<version>/<full-source-sha>` documentation path. The unprivileged preflight rejects any mismatched stage/version
 or source build identity, non-current-master SHA, existing `v<version>` tag or GitHub Release record,
-missing/mismatched pending manifest, or an already occupied public `/<version>/` Pages target. It maps only `rc` to `annodocimal-release-rc` and `final` to
-`annodocimal-release-final`; there is no default environment.
+missing/mismatched pending manifest, or an already occupied public `/<version>/` Pages target. It maps only `rc` to `release-candidate` and `final` to
+`final-release`; there is no default environment.
 
 Those two reviewer-gated, credential-bearing environments are separate from both `annodocimal-pages-writer` and the
 credential-free `github-pages` service environment. The publishing job alone receives `SONATYPE_USERNAME`,
@@ -62,7 +62,7 @@ stage pending documentation, then publish the product, then complete #44 public 
 and CHANGES-derived GitHub Release, and only then dispatch the proof-gated public Pages handoff.
 
 This repository workflow defines names and code only. A maintainer must separately create and reviewer-protect
-`annodocimal-release-rc` and `annodocimal-release-final`, add only the listed secrets to their matching environment, and
+`release-candidate` and `final-release`, add only the listed secrets to their matching environment, and
 retain the existing Pages environment/ruleset setup. It does not create or configure environments, secrets, credentials,
 rulesets, Pages, tags, releases, uploads, or workflow runs.
 
