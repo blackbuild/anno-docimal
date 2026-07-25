@@ -35,12 +35,24 @@ that superseded the RC, but the RC tree and its manifest are never changed. A su
 final render with an explicit exact RC predecessor; #45 must provide release proof before requesting that update.
 
 Pending evidence is immutable, deployed-but-unlisted pre-publication proof. The protected workflow places it at
-`/pending/<version>/<revision>/`; it creates no public root status record and advances no public, stable, or line alias.
+`/pending/<version>/<full-source-sha>/`; it creates no public root status record and advances no public, stable, or line alias.
 It is not a public RC or final-release claim, and its path is single-use release evidence rather than a disposable test.
 
-Historical releases live at `/archive/<version>/`. They are final-version snapshots with `Archived (legacy)` chrome,
-may be rendered from README-only historic tags, may omit historical branding, and never receive current Javadocs.
-Ordinary immutable RC and final snapshots remain at `/<version>/`.
+Every immutable public RC, final, and historical snapshot lives at `/<version>/`. Historical snapshots use
+`Archived (legacy)` chrome, may be rendered from README-only historic tags, may omit historical branding, and never
+receive current Javadocs. `/archive/` is a discovery index owned by the writer that links to those immutable version routes;
+it is never a historical snapshot prefix.
+
+`/stable/`, `/<maintained-line>/`, and `/preview/` are labelled, mutable proof-gated aliases. `preview` names one
+publicly proven RC; `stable` names one publicly proven final snapshot; and the maintained-line alias (for example,
+`/1.0/`) names the publicly proven final snapshot for that line. There is no moving development site. The protected
+writer advances `preview` only for `public-rc` and `stable` plus the exact major/minor alias only for `current`, after
+a `deploy=true` dispatch supplies an HTTPS reference to #45-recorded public-artifact proof. Artifact-only validation
+uses `deploy=false`, accepts no proof input, and advances no alias. `pending` and `archived` reject that proof input and
+cannot advance an alias.
+
+The executable routing contract is
+`VersionedDocumentationDocumentaryTest.keeps public documentation routing immutable and proof-gated`.
 
 Product renders require a versioned presentation/logo manifest. A public RC or pending candidate may select a candidate
 manifest. A current or pending final render must select `docs/branding/annodocimal-current.json`, whose logo digest is
@@ -53,12 +65,12 @@ collisions, and non-empty output directories. The mandatory JDK-only presentatio
 real `/anno-docimal/` Pages base path and crawls the renderer-owned output selector, exact-tree landing, every local page
 and asset, Javadocs, and fragments. Markdown URLs, missing targets, missing anchors, and base-path escapes fail the check.
 
-The protected release deployment adds exactly one previously absent `/<version>/`,
-`/pending/<version>/<revision>/`, or `/archive/<version>/` tree to `gh-pages`. Pending evidence does not touch root
-`status/`. A public deployment may update only those root status records, never a snapshot or manifest, and creates no
-mutable development, stable, or preview alias. [Issue #45](https://github.com/blackbuild/anno-docimal/issues/45) owns
-release authorization, proof, metadata links, recovery, and supersession; this renderer has no artifact-publication
-authority.
+The protected release deployment adds exactly one previously absent `/<version>/` or
+`/pending/<version>/<full-source-sha>/` tree to `gh-pages`. Pending evidence does not touch root `status/`. A public deployment
+may update only root status records and its explicitly proof-gated alias pages, never a snapshot or manifest. An archived
+deployment may additionally regenerate only the `/archive/` discovery index. [Issue #45](https://github.com/blackbuild/anno-docimal/issues/45)
+owns release authorization, public-artifact proof, metadata links, recovery, and supersession; this renderer has no
+artifact-publication authority.
 
 The release workflow defaults to artifact-only validation. It renders, crawls, and uploads the complete site but skips
 the protected canonical writer job. Public statuses additionally require the matching version tag; pending proof precedes
@@ -68,10 +80,12 @@ writer App material.
 ## Protected canonical writer
 
 The credential-bearing `annodocimal-pages-writer` environment gates the distinct canonical writer job. Only that
-master-only, reviewed job may receive the environment-scoped dedicated Pages-writer App identifier and private key, and
-it mints that App's installation token only after the artifact has been staged. The workflow token remains read-only;
-the App token is used only for the `gh-pages` push. Before that push, the writer resolves `refs/heads/master` remotely
-and refuses to continue unless its exact commit equals the requested source revision. It also verifies that the staged
+reviewed job may receive the environment-scoped dedicated Pages-writer App identifier and private key, and it mints that
+App's installation token only after the artifact has been staged. The workflow token remains read-only; the App token is
+used only for the `gh-pages` push. Before that push, the writer resolves `refs/heads/master` remotely and refuses to
+continue unless a pending, public-RC, or current source revision is its exact tip. The narrow archived exception accepts
+only an exact tagged historical source (`v<version>`), so a legacy snapshot can be published at its immutable version
+route and added to `/archive/` without weakening the non-archive master boundary. It also verifies that the staged
 `source-manifest.json` binds that source, version, and status. After the push, a fresh remote checkout must resolve to
 the pushed commit and contain byte-identical manifest content with the same source/version/status binding. A missing
 protected-environment value fails the writer before token minting or canonical mutation.
@@ -150,10 +164,12 @@ This compiles all six module Javadocs and produces a local selector plus static 
 selector. The documentary happy path is
 `VersionedDocumentationDocumentaryTest.demonstrates an immutable exact-site rehearsal`.
 
-An archive render instead uses `-PdocumentationStatus=archived`. A final successor update additionally uses
+An archive render instead uses `-PdocumentationStatus=archived`; its exact tree is still
+`build/versioned-documentation/<version>/`, while the protected writer later updates `/archive/` as a discovery index.
+A final successor update additionally uses
 `-PdocumentationSuccessorOf=1.0.0-rc.1`, `-PdocumentationVersion=1.0.0`, and `-PdocumentationStatus=current`; it
 produces `status/1.0.0-rc.1.json` without writing inside the prior RC snapshot.
 
 A pending candidate proof uses `-PdocumentationStatus=pending` and `-PdocumentationReleaseStage=candidate`. Its local
 artifact remains under `<output>/1.0.0-rc.1/`; only the protected deployment seam maps it to the single-use
-`/pending/1.0.0-rc.1/<revision>/` evidence path.
+`/pending/1.0.0-rc.1/<full-source-sha>/` evidence path.

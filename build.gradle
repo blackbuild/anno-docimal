@@ -108,8 +108,7 @@ tasks.register('verifyVersionedDocumentationRenderer', VerifyVersionedDocumentat
 }
 
 def renderedDocumentationEntryPath = providers.provider {
-    documentationStatus.get() == 'archived' ? "archive/${providers.gradleProperty('documentationVersion').get()}" :
-            providers.gradleProperty('documentationVersion').get()
+    providers.gradleProperty('documentationVersion').get()
 }
 tasks.register('verifyRenderedVersionedDocumentationSite', VerifyRenderedDocumentationSiteTask) {
     group = 'verification'

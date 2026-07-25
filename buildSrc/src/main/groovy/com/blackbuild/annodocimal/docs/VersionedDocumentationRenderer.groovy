@@ -86,7 +86,7 @@ class VersionedDocumentationRenderer {
         if (outputDirectory.exists() && outputDirectory.listFiles()?.length)
             fail("Output directory must be empty so an immutable snapshot cannot be overwritten: $outputDirectory")
         outputDirectory.mkdirs()
-        String snapshotPath = status == 'archived' ? "archive/$version" : version
+        String snapshotPath = version
         File exactDirectory = new File(outputDirectory, snapshotPath)
 
         Map<String, byte[]> authoredMarkdown = new TreeMap<>()
