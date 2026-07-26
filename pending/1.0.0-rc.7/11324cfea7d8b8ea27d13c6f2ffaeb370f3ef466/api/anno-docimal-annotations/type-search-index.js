@@ -1,0 +1,1 @@
+typeSearchIndex = [{"l":"All Classes and Interfaces","u":"allclasses-index.html"},{"p":"com.blackbuild.annodocimal.annotations","l":"AnnoDoc"},{"p":"com.blackbuild.annodocimal.annotations","l":"GroovyPropertyDocumentation"},{"p":"com.blackbuild.annodocimal.annotations","l":"InlineJavadocs"}];updateSearchResults();
