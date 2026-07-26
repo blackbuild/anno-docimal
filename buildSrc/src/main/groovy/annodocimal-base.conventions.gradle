@@ -43,7 +43,8 @@ afterEvaluate {
         required {
             gradle.taskGraph.hasTask("publish") ||
                     gradle.taskGraph.hasTask("publishToMavenLocal") ||
-                    gradle.taskGraph.hasTask(':publishCompleteProduct')
+                    gradle.taskGraph.hasTask(':publishCompleteProduct') ||
+                    gradle.taskGraph.hasTask(':verifyProtectedSigningReadiness')
         }
         publishing.publications.configureEach {
             sign it

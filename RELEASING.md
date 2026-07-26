@@ -54,8 +54,8 @@ writer/service jobs have read-only repository access and none of those release s
 persisted.
 
 After reviewer approval, the publishing job repeats the exact-master and pending-handoff checks, requires Java 17, and
-runs `publishCompleteProduct`. Before Maven Central staging can initialize, its credential-free signing-readiness gate
-requires a usable in-memory signatory for every configured publication. The entry point then requires each configured
+runs `publishCompleteProduct`. Before Maven Central staging can initialize, its non-publishing signing-readiness gate
+executes every configured publication signature with the protected in-memory signatory. The entry point then requires each configured
 publication signature to execute, rejects a non-matching protected stage/version authorization or a composite build, runs `check` and the
 six-coordinate/two-marker product gate before remote tasks, then stages/releases
 the Maven Central product and publishes both Plugin Portal markers. It does not create a tag, GitHub Release, or public
