@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AnnoDocimal — AnnoDocimal 1.0.0-rc.1</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="site-header"><div class="site-header__inner">
+    <a class="brand" href="./"><img src="assets/branding/annodocimallogo.png" alt="AnnoDocimal logo"><span>AnnoDocimal</span></a>
+    <span class="version-badge">1.0.0-rc.1 · pending candidate proof</span>
+  </div></header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Documentation"><ul>
+<li><a rel="nofollow" href="./">Overview</a></li>
+<li><a rel="nofollow" href="usage/">Using AnnoDocimal</a></li>
+<li><a rel="nofollow" href="source-projection/">Advanced source projection</a></li>
+<li><a rel="nofollow" href="supported-api/">Supported API</a></li>
+<li>Migration
+<ul>
+<li><a rel="nofollow" href="migration/0.x-to-1.0-supported-api/">Supported API from 0.x</a></li>
+<li><a rel="nofollow" href="migration/0.x-to-1.0-authoring-language/">Documentation authoring from 0.x</a></li>
+<li><a rel="nofollow" href="migration/0.x-to-1.0-module-path/">Java module path from 0.x</a></li>
+</ul>
+</li>
+</ul>
+<ul class="renderer-navigation"><li><a href="api/">API reference</a></li><li><a href="status/">Version status</a></li></ul></nav>
+    <main class="content">
+      <aside class="status-banner" data-status="pending">Pending candidate release evidence. This immutable proof is deployed but unlisted and advances no alias. <a href="status/">Version status</a>.</aside>
+      <h1 id="annodocimal">AnnoDocimal</h1>
+<p>AnnoDocimal is an independent documentation transport and source-projection library for generated JVM APIs. It captures
+documentation during Java or Groovy compilation, carries it in compiled output, and reconstructs documentation-oriented
+Java source for the standard Javadoc tool or an IDE source mirror. KlumAST is an important consumer, not the product
+boundary.</p>
+<p>AnnoDocimal 1.0 supports Java 17 and one artifact set across Groovy 3, 4, and 5. The Gradle integration supports
+Gradle 7.3.3 through the current 8.14.5 wrapper baseline; both endpoints have TestKit coverage.</p>
+<p>Groovy's runtime <code>Groovydoc</code> annotation is accepted as an interoperable input carrier. AnnoDocimal's <code>AnnoDoc</code> and
+documentation-properties protocol remains the canonical cross-language and evolution boundary; carrier precedence,
+normalization, and duplicate-avoidance behavior are documented in the <a rel="nofollow" href="usage/#runtime-groovydoc-interoperability">usage guide</a>.</p>
+<h2 id="quick-start-transformation-authors">Quick start: transformation authors</h2>
+<p>Use the annotations artifact wherever compiled declarations must carry documentation, and the AST artifact in the
+compile-time transformation that creates those declarations:</p>
+<pre><code class="language-groovy">dependencies {
+    api &quot;com.blackbuild.annodocimal:anno-docimal-annotations:&lt;version&gt;&quot;
+    compileOnly &quot;com.blackbuild.annodocimal:anno-docimal-ast:&lt;version&gt;&quot;
+}
+</code></pre>
+<p>Attach documentation through the supported facade, rather than through the older visitor, extractor, or formatting
+helpers:</p>
+<pre><code class="language-groovy">import com.blackbuild.annodocimal.ast.AstDocumentation
+
+def generatedMethod = classNode.addMethod(/* generated method details */)
+AstDocumentation.attachText(generatedMethod, 'Creates the generated value.')
+</code></pre>
+<p>For composition, templates, links, exact extraction, and the supported API boundary, see the
+<a rel="nofollow" href="usage/#ast-transformation-author-api">authoring guide</a> and
+<a rel="nofollow" href="supported-api/">supported API record</a>.</p>
+<h2 id="quick-start-source-projection">Quick start: source projection</h2>
+<p>Use <code>anno-docimal-generator</code> when a build owns its class-file selection and needs source text or a managed output file:</p>
+<pre><code class="language-java">import com.blackbuild.annodocimal.generator.ProjectionPolicy;
+import com.blackbuild.annodocimal.generator.SourceProjector;
+
+import java.nio.file.Path;
+
+SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation());
+Path sourceFile = projector.projectToDirectory(classFile, outputDirectory);
+</code></pre>
+<p>The projector is documentation-oriented declaration reconstruction, not decompilation. It preserves selected API shape
+and documentation, but not original bodies, initializers, whitespace, or imports. The
+<a rel="nofollow" href="source-projection/">source-projection guide</a> specifies the policy and fidelity contract.</p>
+<h2 id="documentation-map">Documentation map</h2>
+<ul>
+<li><a rel="nofollow" href="usage/">Artifact, capture, plugin, Javadoc, and IDE integration guide</a></li>
+<li><a rel="nofollow" href="supported-api/">Supported API and implementation-only boundary</a></li>
+<li><a rel="nofollow" href="source-projection/">Advanced source-projection policy and fidelity</a></li>
+<li><a rel="nofollow" href="migration/0.x-to-1.0-supported-api/">0.x-to-1.0 migration</a></li>
+<li><a rel="nofollow" href="migration/0.x-to-1.0-module-path/">Module-path migration</a></li>
+<li><a rel="nofollow" href="https://github.com/blackbuild/anno-docimal/blob/master/CHANGES.md">Change history</a></li>
+</ul>
+<h2 id="java-modules">Java modules</h2>
+<p>The Java-facing artifacts have stable automatic module names: <code>com.blackbuild.annodocimal.annotations</code>,
+<code>com.blackbuild.annodocimal.apt</code>, <code>com.blackbuild.annodocimal.ast</code>, <code>com.blackbuild.annodocimal.global.ast</code>, and
+<code>com.blackbuild.annodocimal.generator</code>. The Gradle plugin is build-tool-only and intentionally has no JPMS identity.
+See the <a rel="nofollow" href="migration/0.x-to-1.0-module-path/">module-path migration notes</a> for named consumers.</p>
+
+    </main>
+  </div>
+  <footer class="site-footer"><p>AnnoDocimal — preserve documentation through compilation.</p>
+<p>Rendered from exact repository sources. <a href="https://github.com/blackbuild/anno-docimal/blob/3eaef7fe572f29c3a088b50bbfad43423933a85b/docs/user/Home.md">Exact source</a>.</p></footer>
+</body>
+</html>

@@ -1,0 +1,5 @@
+com.blackbuild.annodocimal.ast
+com.blackbuild.annodocimal.ast.extractor
+com.blackbuild.annodocimal.ast.formatting
+com.blackbuild.annodocimal.ast.parser
+com.blackbuild.annodocimal.ast.parser.groovy3
