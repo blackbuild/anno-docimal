@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation-authoring migration from 0.x to 1.0 — AnnoDocimal 1.0.0-rc.6</title>
+  <link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+  <header class="site-header"><div class="site-header__inner">
+    <a class="brand" href="../../"><img src="../../assets/branding/annodocimallogo.png" alt="AnnoDocimal logo"><span>AnnoDocimal</span></a>
+    <span class="version-badge">1.0.0-rc.6 · pending candidate proof</span>
+  </div></header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Documentation"><ul>
+<li><a rel="nofollow" href="../../">Overview</a></li>
+<li><a rel="nofollow" href="../../usage/">Using AnnoDocimal</a></li>
+<li><a rel="nofollow" href="../../source-projection/">Advanced source projection</a></li>
+<li><a rel="nofollow" href="../../supported-api/">Supported API</a></li>
+<li>Migration
+<ul>
+<li><a rel="nofollow" href="../0.x-to-1.0-supported-api/">Supported API from 0.x</a></li>
+<li><a rel="nofollow" href="./">Documentation authoring from 0.x</a></li>
+<li><a rel="nofollow" href="../0.x-to-1.0-module-path/">Java module path from 0.x</a></li>
+</ul>
+</li>
+</ul>
+<ul class="renderer-navigation"><li><a href="../../api/">API reference</a></li><li><a href="../../status/">Version status</a></li></ul></nav>
+    <main class="content">
+      <aside class="status-banner" data-status="pending">Pending candidate release evidence. This immutable proof is deployed but unlisted and advances no alias. <a href="../../status/">Version status</a>.</aside>
+      <h1 id="documentation-authoring-migration-from-0x-to-10">Documentation-authoring migration from 0.x to 1.0</h1>
+<p>AnnoDocimal 1.0 replaces the 0.x authoring helpers rather than preserving their names as compatibility API. Persisted
+<code>@AnnoDoc(String)</code> content remains readable; this migration concerns transformation-author source code.</p>
+<table>
+<thead>
+<tr>
+<th>0.x concept</th>
+<th>1.0 replacement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DocText</code></td>
+<td><code>Documentation.parse(text)</code> and immutable value accessors</td>
+</tr>
+<tr>
+<td><code>DocBuilder</code> / <code>JavadocDocBuilder</code></td>
+<td><code>Documentation.builder()</code> and <code>build().render()</code></td>
+</tr>
+<tr>
+<td><code>TemplateHandler</code></td>
+<td>explicit <code>Documentation.Builder.template</code> / <code>templateValues</code> and <code>Documentation.render</code></td>
+</tr>
+<tr>
+<td><code>AnnoDocUtil.addDocumentation</code></td>
+<td><code>AstDocumentation.attachText</code> or <code>AstDocumentation.attach</code></td>
+</tr>
+<tr>
+<td><code>ASTExtractor.extractDocumentation</code> / <code>extractDocText</code></td>
+<td><code>AstDocumentation.extractExact</code></td>
+</tr>
+<tr>
+<td><code>JavaDocUtil.toLinkString</code></td>
+<td><code>AstDocumentation.referenceTo</code> plus <code>Documentation.Link</code></td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>summary</code>, <code>paragraph</code>, and <code>codeBlock</code> to author ordered content. Use <code>append</code>, <code>replace</code>, and
+<code>filterParameters</code> when composing a captured document for a generated member. Rendered parameter tags follow the final
+method signature automatically during <code>AstDocumentation.attach</code>.</p>
+<p>Absence is explicit in the 1.0 Java API. <code>getSummary()</code>, <code>getReturnDescription()</code>, and <code>Link.getLabel()</code> return
+<code>Optional&lt;String&gt;</code>. Public arguments reject <code>null</code>; clear singular content with <code>clearSummary()</code> or <code>clearReturn()</code>,
+replace categories with empty collections, and remove attached documentation with <code>Documentation.empty()</code>. Use
+<code>paragraph</code> and <code>returns</code>; the redundant <code>appendParagraph</code> and <code>replaceReturn</code> aliases are not supported 1.0 methods.</p>
+<p>The supported facade and model are JSpecify <code>@NullMarked</code>. Compatible Java and Groovy tooling can therefore interpret
+unannotated API types as non-null, while the nullable comparison input of value-based <code>equals(Object)</code> is explicit.
+JSpecify does not turn optional scalar accessors into nullable returns and does not replace the runtime rejection above.
+KlumAST should consume this metadata directly rather than adding a second nullability-annotation standard.</p>
+<p>A generated-declaration rewrite can stay entirely on the supported surface:</p>
+<pre><code class="language-java">Documentation captured = AstDocumentation.extractExact(source).orElse(Documentation.empty());
+Documentation generated = captured.toBuilder()
+        .summary(&quot;Creates {{kind}} documentation.&quot;)
+        .template(&quot;kind&quot;, &quot;builder&quot;)
+        .paragraph(&quot;The generated builder preserves model semantics.&quot;)
+        .codeBlock(&quot;owner.copyBuilder(source)&quot;)
+        .filterParameters(List.of(&quot;source&quot;))
+        .see(AstDocumentation.referenceTo(source))
+        .build();
+AstDocumentation.attach(target, generated);
+</code></pre>
+<p><code>attach</code> also filters parameter descriptions against the target's final signature. Template validation completes before
+the carrier is replaced, so a malformed or incomplete template does not partially rewrite existing documentation.</p>
+<h2 id="groovy-property-documentation">Groovy property documentation</h2>
+<p>In 0.x, a Groovy property's source documentation was observable only on its backing field. In 1.0, it is semantic
+property documentation: capture retains it on the backing field, applies it to undocumented custom accessors, and
+source projection applies it to Groovy-generated accessors. Explicit getter and setter documentation has precedence.
+This is not a general JavaBeans inference rule, so unrelated JavaBeans-shaped methods do not gain documentation.
+See the <a rel="nofollow" href="../../usage/#groovy-property-documentation">Groovy property documentation policy</a>.</p>
+<p>Replace implicit template defaults and value-presence conditionals with required <code>{{key}}</code> placeholders. Supply values
+explicitly as <code>String</code>s through <code>Map&lt;String, String&gt;</code>. <code>{{param:key?fragment}}</code> is the only conditional form; it omits the fragment only when the
+generated target lacks that parameter. Do not rely on <code>@template</code> tags to supply values.</p>
+<p>KlumAST's 4.0 migration is owned by KlumAST #461. Its authoring portion maps to this document; it does not retain any
+of the 0.x AnnoDocimal helper names. The separate multi-Groovy decision remains KlumAST #455.</p>
+
+    </main>
+  </div>
+  <footer class="site-footer"><p>AnnoDocimal — preserve documentation through compilation.</p>
+<p>Rendered from exact repository sources. <a href="https://github.com/blackbuild/anno-docimal/blob/9f5c7e6979de0ea1062447304a2b9e92a5655e92/docs/user/migration/0.x-to-1.0-authoring-language.md">Exact source</a>.</p></footer>
+</body>
+</html>

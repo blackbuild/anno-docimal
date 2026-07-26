@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AnnoDocimal 1.0 supported API — AnnoDocimal 1.0.0-rc.6</title>
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="site-header"><div class="site-header__inner">
+    <a class="brand" href="../"><img src="../assets/branding/annodocimallogo.png" alt="AnnoDocimal logo"><span>AnnoDocimal</span></a>
+    <span class="version-badge">1.0.0-rc.6 · pending candidate proof</span>
+  </div></header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Documentation"><ul>
+<li><a rel="nofollow" href="../">Overview</a></li>
+<li><a rel="nofollow" href="../usage/">Using AnnoDocimal</a></li>
+<li><a rel="nofollow" href="../source-projection/">Advanced source projection</a></li>
+<li><a rel="nofollow" href="./">Supported API</a></li>
+<li>Migration
+<ul>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-supported-api/">Supported API from 0.x</a></li>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-authoring-language/">Documentation authoring from 0.x</a></li>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-module-path/">Java module path from 0.x</a></li>
+</ul>
+</li>
+</ul>
+<ul class="renderer-navigation"><li><a href="../api/">API reference</a></li><li><a href="../status/">Version status</a></li></ul></nav>
+    <main class="content">
+      <aside class="status-banner" data-status="pending">Pending candidate release evidence. This immutable proof is deployed but unlisted and advances no alias. <a href="../status/">Version status</a>.</aside>
+      <h1 id="annodocimal-10-supported-api">AnnoDocimal 1.0 supported API</h1>
+<p>This record is the human-authoritative classification produced by issue #37. Java <code>public</code> visibility, inclusion in a
+published JAR, a service-provider name, or relocation into the generator artifact does not by itself make a type
+supported. The scoped allowlists for issues #35, #38, and #39 are recorded here. Release compatibility work generates
+the complete mechanical snapshots from those classifications.</p>
+<p>The inventory began with all six artifacts at commit <code>981a511</code> and was refreshed through <code>505a4ae</code>, after the issue #51
+authoring implementation merged. It contains all 120 public top-level and nested types in those JARs: the original 113,
+the seven authoring types added by #51, and the 79 public relocated types within the generator total. The artifact counts
+are annotations 2, APT 2, AST 24, global AST 1, generator shadow JAR 88, and Gradle plugin 3.</p>
+<p>Classification terms are:</p>
+<ul>
+<li><strong>supported</strong>: part of the 1.0 source/binary contract;</li>
+<li><strong>implementation-only</strong>: may remain public in bytecode when a framework or shading mechanism requires it, but is not a
+consumer API; and</li>
+<li><strong>provisional</strong>: must receive its stated disposition before the 1.0 baseline is locked.</li>
+</ul>
+<p>No public type remains provisional after the issue #37 and #51 decisions. The authoring implementation incorporated the
+pre-baseline member corrections in ADR 0058 before its scoped allowlist was delivered.</p>
+<h2 id="nullability-contract">Nullability contract</h2>
+<p>The supported Java API is non-null by default under JSpecify 1.0.0. Each currently implemented supported top-level type
+is <code>@NullMarked</code>: <code>AnnoDoc</code>, <code>InlineJavadocs</code>, <code>AstDocumentation</code>, <code>Documentation</code>, <code>SourceProjector</code>,
+<code>ProjectionPolicy</code>, <code>DeclarationVisibility</code>, <code>SourceProjectionException</code>, and <code>SourceProjectionTask</code>. Supported nested
+builders and value types inherit the null-marked scope of <code>Documentation</code> or <code>ProjectionPolicy</code>.</p>
+<p>Type-level marking is intentional. These packages also contain implementation-only classes, so package- or module-level
+marking would incorrectly promote their unspecified nullness into supported API. Public raw nullable values are limited
+to contracts such as the comparison argument of value-based <code>equals(Object)</code> and are explicitly <code>@Nullable</code>. Absent
+documentation scalars and declaration identifiers remain non-null <code>Optional</code> results; collection members, map entries,
+paths, documentation text, and builder/facade arguments remain non-null.</p>
+<p>JSpecify metadata is a compile-time/tooling contract, not a replacement for runtime validation. Java and Groovy
+consumers continue to receive the same null rejection, explicit empty/clear operations, and template validation. The
+published artifacts expose the JSpecify dependency; the generator keeps it external to its shadow JAR to avoid a split
+package on the module path. JetBrains <code>@Language</code> annotations in tests remain unrelated language-injection metadata.</p>
+<p>ADR 0059 records the decision and its publication constraints.</p>
+<h2 id="10-allowlists-by-artifact">1.0 allowlists by artifact</h2>
+<h3 id="anno-docimal-annotations"><code>anno-docimal-annotations</code></h3>
+<p>Supported Java types and members:</p>
+<ul>
+<li><code>com.blackbuild.annodocimal.annotations.AnnoDoc</code>, including <code>value()</code>, runtime retention, and type/method/field/
+constructor targets;</li>
+<li><code>com.blackbuild.annodocimal.annotations.InlineJavadocs</code> as a source-retained package/type marker whose presence
+triggers local capture.</li>
+</ul>
+<p>The externally observable <code>__annodoc.properties</code> resource suffix and the class, method, and field key semantics
+are supported data-protocol behavior. <code>InlineJavadocs.JAVADOC_PROPERTIES_SUFFIX</code> remains a public implementation
+compatibility field, but is not supported Java API; consumers must rely on the documented protocol rather than that
+constant. No new public properties utility is introduced merely to expose it.</p>
+<h3 id="anno-docimal-apt"><code>anno-docimal-apt</code></h3>
+<p>The Java API allowlist is empty. Service-discovered annotation processing and its documentation-properties output are
+supported behavior. The processor provider name is a packaging obligation, not a construction or subclassing API.</p>
+<h3 id="anno-docimal-ast"><code>anno-docimal-ast</code></h3>
+<p>Supported Java types:</p>
+<ul>
+<li><code>com.blackbuild.annodocimal.ast.AstDocumentation</code>;</li>
+<li><code>com.blackbuild.annodocimal.ast.Documentation</code>;</li>
+<li><code>com.blackbuild.annodocimal.ast.Documentation.Builder</code>;</li>
+<li><code>com.blackbuild.annodocimal.ast.Documentation.Block</code>;</li>
+<li><code>com.blackbuild.annodocimal.ast.Documentation.Tag</code>;</li>
+<li><code>com.blackbuild.annodocimal.ast.Documentation.Link</code>; and</li>
+<li><code>com.blackbuild.annodocimal.ast.Documentation.TemplateException</code>.</li>
+</ul>
+<p>The supported members after ADR 0058's pre-baseline corrections are:</p>
+<ul>
+<li><code>AstDocumentation</code>: <code>extractExact(AnnotatedNode)</code>, <code>attach(AnnotatedNode, Documentation)</code>,
+<code>attachText(AnnotatedNode, String)</code>, and <code>referenceTo(AnnotatedNode)</code>;</li>
+<li><code>Documentation</code>: <code>empty()</code>, <code>builder()</code>, <code>parse(String)</code>, optional <code>getSummary()</code> and
+<code>getReturnDescription()</code>, immutable <code>getBlocks()</code>, <code>getParameters()</code>, <code>getExceptions()</code>, <code>getTags()</code>, and
+<code>getTemplateValues()</code>, <code>isEmpty()</code>, <code>toBuilder()</code>, both <code>render</code> forms, and value-based <code>equals</code>/<code>hashCode</code> plus
+diagnostic <code>toString</code>;</li>
+<li><code>Documentation.Builder</code>: <code>summary</code>, <code>clearSummary</code>, <code>paragraph</code>, <code>codeBlock</code>, <code>replaceBlocks</code>, <code>param</code>,
+<code>replaceParameters</code>, <code>returns</code>, <code>clearReturn</code>, <code>throwsException</code>, <code>replaceExceptions</code>, <code>tag</code>, <code>deprecated</code>, <code>see</code>,
+<code>seeText</code>, <code>replaceTags</code>, <code>template</code>, <code>templateValues(Map&lt;String, String&gt;)</code>, <code>append</code>, <code>replace</code>,
+<code>filterParameters</code>, and <code>build</code>;</li>
+<li><code>Documentation.Block</code>: <code>getText</code>, <code>isCode</code>, and value methods;</li>
+<li><code>Documentation.Tag</code>: <code>getName</code>, <code>getValue</code>, and value methods;</li>
+<li><code>Documentation.Link</code>: both <code>text</code> factories, <code>getTarget</code>, optional <code>getLabel</code>, <code>inline</code>, and value methods; and</li>
+<li><code>Documentation.TemplateException</code>: the catchable runtime failure type for malformed or incomplete templates, without
+a public construction or subclassing contract.</li>
+</ul>
+<p><code>appendParagraph</code> and <code>replaceReturn</code> are not in the 1.0 allowlist. Exact extraction remains distinct from issue #10's
+future resolved/inherited extraction. All public arguments reject null; blank text parsing and attachment map to empty
+documentation, and explicit empty/clear operations own removal semantics.</p>
+<p>Local <code>@InlineJavadocs</code> capture and its transformation registration are supported behavior. Transformation, visitor,
+parser, metadata, cache, and Groovy-version-adapter class names are packaging or implementation details.</p>
+<h3 id="anno-docimal-global-ast"><code>anno-docimal-global-ast</code></h3>
+<p>The Java API allowlist is empty. Adding the artifact to a Groovy compilation and discovering its global transformation
+provider are supported behavior. The provider class name remains a packaging obligation rather than a consumer API.</p>
+<h3 id="anno-docimal-generator"><code>anno-docimal-generator</code></h3>
+<p>Supported Java types:</p>
+<ul>
+<li><code>com.blackbuild.annodocimal.generator.SourceProjector</code>;</li>
+<li><code>com.blackbuild.annodocimal.generator.ProjectionPolicy</code>;</li>
+<li><code>com.blackbuild.annodocimal.generator.ProjectionPolicy.Builder</code>;</li>
+<li><code>com.blackbuild.annodocimal.generator.DeclarationVisibility</code>;</li>
+<li><code>com.blackbuild.annodocimal.generator.SourceProjectionException</code>.</li>
+</ul>
+<p>Supported members:</p>
+<ul>
+<li><code>SourceProjector(ProjectionPolicy)</code>, <code>projectToText(Path)</code>, and <code>projectToDirectory(Path, Path)</code>;</li>
+<li><code>ProjectionPolicy.documentation()</code>, <code>builder()</code>, <code>toBuilder()</code>, the four policy accessors, and value-based
+<code>equals</code>/<code>hashCode</code> plus diagnostic <code>toString</code>;</li>
+<li><code>ProjectionPolicy.Builder.includedVisibilities(Collection)</code>, <code>includeNestedDeclarations(boolean)</code>,
+<code>includeSyntheticDeclarations(boolean)</code>, <code>includeGroovyRuntimeArtifacts(boolean)</code>, and <code>build()</code>;</li>
+<li>all four <code>DeclarationVisibility</code> constants; and</li>
+<li><code>SourceProjectionException.getInputPath()</code> and <code>getDeclarationIdentifier()</code>.</li>
+</ul>
+<p>ADR 0054 defines their lifecycle, policy, output, and failure contracts. The detailed
+<a rel="nofollow" href="../source-projection/">source-projection guide</a> records the implemented inclusion policy. No ASM, JavaPoet, visitor,
+converter, parser, filter, annotation-reader, or shaded type is supported. The scoped checked-in
+<code>1.0-projection-api-baseline.txt</code> mechanically rejects accidental changes to this allowlist across Groovy 3, 4, and 5;
+the complete release-baseline mechanism remains the release compatibility gate described below.</p>
+<h3 id="anno-docimal-gradle-plugin"><code>anno-docimal-gradle-plugin</code></h3>
+<p>The supported Java task type is <code>com.blackbuild.annodocimal.plugin.SourceProjectionTask</code>. Its supported members are
+only <code>getClassesDirectories()</code>, <code>getIncludes()</code>, <code>getExcludes()</code>, <code>getProjectionPolicy()</code>, and <code>getOutputDirectory()</code>.
+It is a final task contract: fluent helpers, a task-action SPI, and subclassing are not supported. The getter inputs,
+output, defaults, duplicate behavior, managed-tree replacement, cacheability, and configuration-cache behavior are
+defined by ADR 0055.</p>
+<p>The supported plugin IDs are <code>com.blackbuild.annodocimal.base-plugin</code> and
+<code>com.blackbuild.annodocimal.groovy-plugin</code>. The base ID is a neutral Java-model Javadoc integration; the Groovy ID
+applies Gradle's Groovy plugin and the base layer. Plugin implementation classes remain implementation-only.</p>
+<h2 id="current-public-type-classification">Current public-type classification</h2>
+<h3 id="annotations-artifact">Annotations artifact</h3>
+<table>
+<thead>
+<tr>
+<th>Current public type</th>
+<th>Classification</th>
+<th>1.0 disposition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>com.blackbuild.annodocimal.annotations.AnnoDoc</code></td>
+<td>supported</td>
+<td>Retain the annotation and <code>value()</code> carrier contract.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.annotations.InlineJavadocs</code></td>
+<td>supported</td>
+<td>Retain the marker; leave its public suffix constant unsupported.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.annotations.GroovyPropertyDocumentation</code></td>
+<td>implementation-only</td>
+<td>Retain as capture-to-projection metadata; documentation content stays in <code>AnnoDoc</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="apt-artifact">APT artifact</h3>
+<table>
+<thead>
+<tr>
+<th>Current public type</th>
+<th>Classification</th>
+<th>1.0 disposition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.AnnoDocimalAnnotationProcessor</code></td>
+<td>implementation-only</td>
+<td>Retain only as the service provider; no construction/subclassing compatibility.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.JavadocPropertiesBuilder</code></td>
+<td>implementation-only</td>
+<td>Hide or replace behind processor behavior.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ast-artifact">AST artifact</h3>
+<table>
+<thead>
+<tr>
+<th>Current public type</th>
+<th>Classification</th>
+<th>1.0 disposition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.AstDocumentation</code></td>
+<td>supported</td>
+<td>Retain the capability facade with only the four operations listed above.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.Documentation</code></td>
+<td>supported</td>
+<td>Retain as the immutable semantic value after ADR 0058's member corrections.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.Documentation.Builder</code></td>
+<td>supported</td>
+<td>Retain as a transient builder with the explicit member allowlist above.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.Documentation.Block</code></td>
+<td>supported</td>
+<td>Retain as immutable prose/code vocabulary with uniform value semantics.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.Documentation.Tag</code></td>
+<td>supported</td>
+<td>Retain as immutable ordered generic-tag vocabulary with uniform value semantics.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.Documentation.Link</code></td>
+<td>supported</td>
+<td>Retain as immutable author-owned/canonical-reference vocabulary with an optional label.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.Documentation.TemplateException</code></td>
+<td>supported</td>
+<td>Retain as the catchable template-render failure type; expose no construction SPI.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.extractor.ASTExtractor</code></td>
+<td>implementation-only</td>
+<td>Replace with <code>AstDocumentation.extractExact</code>; do not retain its names, metadata constants, string fallback, or cache surface.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.extractor.ClassDocExtractor</code></td>
+<td>implementation-only</td>
+<td>Hide behind exact extraction.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.extractor.InheritanceUtil</code></td>
+<td>implementation-only</td>
+<td>Remove from 1.0 API; issue #10 owns later resolved extraction.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.parser.SourceExtractor</code></td>
+<td>implementation-only</td>
+<td>Keep source capture separate from transformation-author extraction.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.parser.AbstractSourceExtractor</code></td>
+<td>implementation-only</td>
+<td>Hide implementation inheritance.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.parser.SourceExtractorFactory</code></td>
+<td>implementation-only</td>
+<td>Hide implementation selection.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.parser.GroovyVersionHandler</code></td>
+<td>implementation-only</td>
+<td>Hide Groovy-version adaptation.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.parser.groovy3.Groovy3SourceExtractor</code></td>
+<td>implementation-only</td>
+<td>Hide Groovy-generation implementation.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.formatting.DocText</code></td>
+<td>implementation-only</td>
+<td>Replace with immutable semantic <code>Documentation</code>; no raw-text compatibility.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.formatting.DocBuilder</code></td>
+<td>implementation-only</td>
+<td>Replace with <code>Documentation.Builder</code>; no shim.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.formatting.AbstractDocBuilder</code></td>
+<td>implementation-only</td>
+<td>Remove implementation inheritance.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.formatting.JavadocDocBuilder</code></td>
+<td>implementation-only</td>
+<td>Replace with <code>Documentation.Builder</code>; no shim.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.formatting.TemplateHandler</code></td>
+<td>implementation-only</td>
+<td>Remove from API; ADR 0057 defines the replacement authoring language.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.formatting.JavaDocUtil</code></td>
+<td>implementation-only</td>
+<td>Replace declaration-link capability with <code>AstDocumentation.referenceTo</code>.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.formatting.AnnoDocUtil</code></td>
+<td>implementation-only</td>
+<td>Replace attachment capability with <code>AstDocumentation.attach</code> and <code>attachText</code>.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.InlineJavadocsVisitor</code></td>
+<td>implementation-only</td>
+<td>Hide capture visitor and metadata/cache technology.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.ast.InlineJavadocsTransformation</code></td>
+<td>implementation-only</td>
+<td>Retain only as local transformation packaging behavior.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="global-ast-artifact">Global AST artifact</h3>
+<table>
+<thead>
+<tr>
+<th>Current public type</th>
+<th>Classification</th>
+<th>1.0 disposition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>com.blackbuild.annodocimal.global.ast.InlineJavadocsGlobalTransformation</code></td>
+<td>implementation-only</td>
+<td>Retain only as the owning artifact's service provider adapter.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="generator-artifact-annodocimal-owned-types">Generator artifact: AnnoDocimal-owned types</h3>
+<table>
+<thead>
+<tr>
+<th>Current public type</th>
+<th>Classification</th>
+<th>1.0 disposition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.AnnoDocGenerator</code></td>
+<td>implementation-only</td>
+<td>Removed and replaced with <code>SourceProjector</code>; no shim.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.JavaPoetClassVisitor</code></td>
+<td>implementation-only</td>
+<td>Hidden as package-private projection technology.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.MemberAnnotationVisitor</code></td>
+<td>implementation-only</td>
+<td>Hidden as package-private annotation-reading technology.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.MemberAnnotationVisitor.Javadoc</code></td>
+<td>implementation-only</td>
+<td>Hide annotation-reading technology.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.MemberAnnotationVisitor.MemberArray</code></td>
+<td>implementation-only</td>
+<td>Hide annotation-reading technology.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.MemberAnnotationVisitor.Regular</code></td>
+<td>implementation-only</td>
+<td>Hide annotation-reading technology.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.SpecConverter</code></td>
+<td>implementation-only</td>
+<td>Hidden behind <code>SourceProjector</code>.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.TypeConversion</code></td>
+<td>implementation-only</td>
+<td>Hidden as package-private signature/type conversion.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.generator.TypeFilter</code></td>
+<td>implementation-only</td>
+<td>Removed; filtering is owned by <code>ProjectionPolicy</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Every public relocated type in the current generator shadow JAR is implementation-only with the disposition <strong>remain
+relocated/hidden as required by implementation, but never enter the supported baseline</strong>:</p>
+<pre><code class="language-text">shadow.asm.AnnotationVisitor
+shadow.asm.Attribute
+shadow.asm.ByteVector
+shadow.asm.ClassReader
+shadow.asm.ClassTooLargeException
+shadow.asm.ClassVisitor
+shadow.asm.ClassWriter
+shadow.asm.ConstantDynamic
+shadow.asm.FieldVisitor
+shadow.asm.Handle
+shadow.asm.Label
+shadow.asm.MethodTooLargeException
+shadow.asm.MethodVisitor
+shadow.asm.ModuleVisitor
+shadow.asm.Opcodes
+shadow.asm.RecordComponentVisitor
+shadow.asm.Type
+shadow.asm.TypePath
+shadow.asm.TypeReference
+shadow.asm.signature.SignatureReader
+shadow.asm.signature.SignatureVisitor
+shadow.asm.signature.SignatureWriter
+shadow.asm.tree.AbstractInsnNode
+shadow.asm.tree.AnnotationNode
+shadow.asm.tree.ClassNode
+shadow.asm.tree.FieldInsnNode
+shadow.asm.tree.FieldNode
+shadow.asm.tree.FrameNode
+shadow.asm.tree.IincInsnNode
+shadow.asm.tree.InnerClassNode
+shadow.asm.tree.InsnList
+shadow.asm.tree.InsnNode
+shadow.asm.tree.IntInsnNode
+shadow.asm.tree.InvokeDynamicInsnNode
+shadow.asm.tree.JumpInsnNode
+shadow.asm.tree.LabelNode
+shadow.asm.tree.LdcInsnNode
+shadow.asm.tree.LineNumberNode
+shadow.asm.tree.LocalVariableAnnotationNode
+shadow.asm.tree.LocalVariableNode
+shadow.asm.tree.LookupSwitchInsnNode
+shadow.asm.tree.MethodInsnNode
+shadow.asm.tree.MethodNode
+shadow.asm.tree.ModuleExportNode
+shadow.asm.tree.ModuleNode
+shadow.asm.tree.ModuleOpenNode
+shadow.asm.tree.ModuleProvideNode
+shadow.asm.tree.ModuleRequireNode
+shadow.asm.tree.MultiANewArrayInsnNode
+shadow.asm.tree.ParameterNode
+shadow.asm.tree.RecordComponentNode
+shadow.asm.tree.TableSwitchInsnNode
+shadow.asm.tree.TryCatchBlockNode
+shadow.asm.tree.TypeAnnotationNode
+shadow.asm.tree.TypeInsnNode
+shadow.asm.tree.UnsupportedClassVersionException
+shadow.asm.tree.VarInsnNode
+shadow.javapoet.AnnotationSpec
+shadow.javapoet.AnnotationSpec.Builder
+shadow.javapoet.ArrayTypeName
+shadow.javapoet.ClassName
+shadow.javapoet.CodeBlock
+shadow.javapoet.CodeBlock.Builder
+shadow.javapoet.FieldSpec
+shadow.javapoet.FieldSpec.Builder
+shadow.javapoet.JavaFile
+shadow.javapoet.JavaFile.Builder
+shadow.javapoet.MethodSpec
+shadow.javapoet.MethodSpec.Builder
+shadow.javapoet.NameAllocator
+shadow.javapoet.ParameterSpec
+shadow.javapoet.ParameterSpec.Builder
+shadow.javapoet.ParameterizedTypeName
+shadow.javapoet.TypeName
+shadow.javapoet.TypeSpec
+shadow.javapoet.TypeSpec.Builder
+shadow.javapoet.TypeSpec.Kind
+shadow.javapoet.TypeVariableName
+shadow.javapoet.WildcardTypeName
+</code></pre>
+<h3 id="gradle-plugin-artifact">Gradle plugin artifact</h3>
+<table>
+<thead>
+<tr>
+<th>Current public type</th>
+<th>Classification</th>
+<th>1.0 disposition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>com.blackbuild.annodocimal.plugin.SourceProjectionTask</code></td>
+<td>supported</td>
+<td>Retain only the five declarative property getters.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.plugin.AnnoDocimalBasePlugin</code></td>
+<td>implementation-only</td>
+<td>Retain as implementation of the supported base plugin ID.</td>
+</tr>
+<tr>
+<td><code>com.blackbuild.annodocimal.plugin.AnnoDocimalGroovyPlugin</code></td>
+<td>implementation-only</td>
+<td>Retain as implementation of the supported Groovy plugin ID.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="mechanical-compatibility-baseline">Mechanical compatibility baseline</h2>
+<p>The human classification above remains authoritative. Implementation must produce one machine-readable allowlist and one
+generated signature snapshot for each of the six published artifacts, checked into version control. An empty Java
+allowlist remains an explicit checked record for APT or global-AST artifacts whose supported contract is behavioral. The
+build derives each snapshot from the built artifact filtered by that artifact's allowlist; a snapshot is never produced
+by accepting every public class.</p>
+<p>The snapshots include supported top-level and nested types, constructors, methods, fields, enum constants, annotation
+members and defaults, generic signatures, superclass and interface relationships, visibility, and compatibility-relevant
+annotations. They exclude implementation-only types, provider names, shaded packages, task actions, and plugin
+implementation classes even when those remain public in bytecode.</p>
+<p>The scoped <code>1.0-authoring-api-baseline.txt</code>, <code>1.0-projection-api-baseline.txt</code>, and <code>1.0-gradle-api-baseline.txt</code> checks
+record their selected signatures plus JSpecify <code>@NullMarked</code> declarations and public <code>@Nullable</code> parameter contracts.
+They remain evidence rather than the
+complete mechanism: release-baseline work must additionally capture every artifact's constructors, fields, generic
+signatures, type relationships, annotation contracts/defaults, nested-type membership, and the other rules above.</p>
+<p>The compatibility check compares both source and binary contracts against the most recent released baseline and fails on
+incompatible removal, visibility reduction, descriptor or generic-signature change, superclass/interface change, or
+compatibility-relevant annotation change. A compatible addition still requires an intentional allowlist update and
+review; the tool must not silently widen the supported surface. An accepted incompatibility requires a release-facing
+rationale and corresponding migration documentation.</p>
+<p>Behavioral and data contracts are verified separately: annotation-processing and AST service discovery, protocol
+resources, exact attachment/extraction behavior, projection semantics and determinism, task cacheability and managed
+output, plugin-ID behavior, and JPMS module names are not reduced to JVM signatures. The module names delivered by issue
+#36 remain stable and the baseline must not reopen KlumAST #455's separate multi-Groovy build decision.</p>
+<p>Issue #51 resolved the former builder slot and introduced a scoped authoring baseline. Issue #38 applied ADR 0058's
+pre-1.0 corrections, issue #39 added the scoped projection baseline, and issue #59 made their nullability annotations
+compatibility evidence. The scoped baseline includes the Gradle type. Release compatibility work then generates and
+verifies complete per-artifact snapshots from this record rather than from the 0.x public surface or from all public
+bytecode.</p>
+
+    </main>
+  </div>
+  <footer class="site-footer"><p>AnnoDocimal — preserve documentation through compilation.</p>
+<p>Rendered from exact repository sources. <a href="https://github.com/blackbuild/anno-docimal/blob/9f5c7e6979de0ea1062447304a2b9e92a5655e92/docs/user/supported-api.md">Exact source</a>.</p></footer>
+</body>
+</html>
