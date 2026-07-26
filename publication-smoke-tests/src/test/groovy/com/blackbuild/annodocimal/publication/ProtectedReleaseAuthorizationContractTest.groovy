@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.publication
 
+import groovy.xml.XmlSlurper
 import org.gradle.testkit.runner.GradleRunner
 import spock.lang.Issue
 import spock.lang.See
@@ -70,6 +71,7 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         workflow.contains('test ! -e "pages/$RELEASE_VERSION"')
         workflow.contains('.documentation.status == "pending"')
         workflow.contains('./gradlew verifyUnprivilegedReleaseInputs')
+        workflow.contains('./gradlew verifyProtectedPublicationPomParity')
         workflow.contains('test "$master_revision" = "$REVISION"')
 
         and: 'only the dependent protected job receives publication credentials'
@@ -109,6 +111,7 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         baseConvention.contains("gradle.taskGraph.hasTask(':verifyProtectedSigningReadiness')")
         baseConvention.contains('useInMemoryPgpKeys(signingKey.get(), signingPassword.get())')
         rootBuild.contains("tasks.register('verifyProtectedSigningReadiness')")
+        rootBuild.contains("tasks.register('verifyProtectedPublicationPomParity')")
         rootBuild.contains("tasks.named('initializeSonatypeStagingRepository')")
         rootBuild.contains('dependsOn "${module.project}:sign${module.publication.capitalize()}Publication"')
         runbook.contains('publication signature to execute')
@@ -190,6 +193,30 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         then: 'every publication is signed without initializing Central staging'
         accepted.output.contains('BUILD SUCCESSFUL')
         !accepted.output.contains('Created staging repository')
+    }
+
+    def 'requires every generated POM to match the protected release version before Central staging'() {
+        given: 'the protected release validation environment'
+        File repository = new File(System.getProperty('annodocimal.repository.root'))
+        Map<String, String> environment = new LinkedHashMap<>(System.getenv())
+        environment.remove('ANNODOCIMAL_RELEASE_AUTHORIZED')
+
+        when: 'two immutable RC versions generate their protected publication POMs in sequence without protected authorization'
+        GradleRunner.create()
+                .withProjectDir(repository)
+                .withArguments('verifyProtectedPublicationPomParity', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
+                .withEnvironment(environment)
+                .build()
+        def accepted = GradleRunner.create()
+                .withProjectDir(repository)
+                .withArguments('verifyProtectedPublicationPomParity', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.5')
+                .withEnvironment(environment)
+                .build()
+
+        then: 'each generated POM carries the second exact release identity without staging'
+        accepted.output.contains('BUILD SUCCESSFUL')
+        !accepted.output.contains('Created staging repository')
+        protectedPomVersions(repository).every { it == '1.0.0-rc.5' }
     }
 
     @Unroll
@@ -296,5 +323,20 @@ esac
         assert directory.mkdir()
         directory.deleteOnExit()
         directory
+    }
+
+    private static List<String> protectedPomVersions(File repository) {
+        [
+                'anno-docimal-annotations/build/publications/mavenJava/pom-default.xml',
+                'anno-docimal-apt/build/publications/mavenJava/pom-default.xml',
+                'anno-docimal-ast/build/publications/mavenJava/pom-default.xml',
+                'anno-docimal-global-ast/build/publications/mavenJava/pom-default.xml',
+                'anno-docimal-generator/build/publications/shadow/pom-default.xml',
+                'anno-docimal-gradle-plugin/build/publications/pluginMaven/pom-default.xml',
+                'anno-docimal-gradle-plugin/build/publications/annoDocimalBasePluginPluginMarkerMaven/pom-default.xml',
+                'anno-docimal-gradle-plugin/build/publications/annoDocimalGroovyPluginPluginMarkerMaven/pom-default.xml'
+        ].collect { path ->
+            new XmlSlurper(false, false).parse(new File(repository, path)).version.text()
+        }
     }
 }

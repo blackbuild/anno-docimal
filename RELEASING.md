@@ -35,7 +35,7 @@ Complete these checks while no protected environment has been selected. This is 
 4. Confirm the authorized RC or final protected environment contains only its scoped Maven Central, Plugin Portal, signing, and release-record credentials. Confirm the dedicated `annodocimal-pages-writer` environment and App credentials remain available only to the protected canonical Pages writer. Do not print, copy, inspect, or test a secret value in a command or evidence record.
 5. Confirm the proposed tag `v<version>`, all Maven coordinates, both Plugin Portal marker coordinates, Pages snapshot paths, and the GitHub Release record are absent. A release must not replace an existing public version.
 
-The protected release workflow itself needs an unprivileged preflight job. It strictly accepts only `rc` or `final`, maps that accepted value to exactly the corresponding protected environment, and exports that selected environment as a job output. The publishing job consumes that output. Invalid input must reach neither protected environment nor secret; do not use a fallback expression that could select the final environment before rejecting an unexpected stage.
+The protected release workflow itself needs an unprivileged preflight job. It strictly accepts only `rc` or `final`, regenerates every product and Plugin Portal-marker POM, and rejects any POM whose root version differs from the exact release input before selecting an environment. It maps an accepted value to exactly the corresponding protected environment and exports that selected environment as a job output. The publishing job consumes that output. Invalid input or POM identity must reach neither protected environment nor secret; do not use a fallback expression that could select the final environment before rejecting an unexpected stage.
 
 ## Protected authorization workflow
 
@@ -54,7 +54,7 @@ writer/service jobs have read-only repository access and none of those release s
 persisted.
 
 After reviewer approval, the publishing job repeats the exact-master and pending-handoff checks, requires Java 17, and
-runs `publishCompleteProduct`. Before Maven Central staging can initialize, its non-publishing signing-readiness gate
+runs `publishCompleteProduct`. Before Maven Central staging can initialize, its unprivileged POM-parity and non-publishing signing-readiness gates
 executes every configured publication signature with the protected in-memory signatory. The entry point then requires each configured
 publication signature to execute, rejects a non-matching protected stage/version authorization or a composite build, runs `check` and the
 six-coordinate/two-marker product gate before remote tasks, then stages/releases

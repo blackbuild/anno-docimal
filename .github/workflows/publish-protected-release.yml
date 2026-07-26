@@ -78,6 +78,17 @@ jobs:
           -Prelease.version="$RELEASE_VERSION"
           --no-build-cache
           --no-daemon
+      - name: Require every generated publication POM to match before selecting an environment
+        shell: bash
+        env:
+          RELEASE_STAGE: ${{ inputs.stage }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: >-
+          ./gradlew verifyProtectedPublicationPomParity
+          -Prelease.stage="$RELEASE_STAGE"
+          -Prelease.version="$RELEASE_VERSION"
+          --no-build-cache
+          --no-daemon
       - id: select-environment
         shell: bash
         env:
