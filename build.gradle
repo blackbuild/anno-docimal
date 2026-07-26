@@ -339,6 +339,30 @@ tasks.register('verifyPublicationReleaseConfiguration') {
     }
 }
 
+def verifyProtectedSigningReadiness = tasks.register('verifyProtectedSigningReadiness') {
+    group = 'verification'
+    description = 'Signs every configured publication before Central staging can initialize.'
+    dependsOn tasks.named('verifyProtectedReleaseAuthorization')
+    publicationAuditModules.each { module ->
+        dependsOn "${module.project}:sign${module.publication.capitalize()}Publication"
+    }
+
+    doLast {
+        publicationAuditModules.each { module ->
+            def publicationProject = project(module.project)
+            def signTask = publicationProject.tasks.findByName("sign${module.publication.capitalize()}Publication")
+            if (signTask == null)
+                throw new GradleException("${module.project}:${module.publication} has no protected release signing task")
+            if (signTask.signatures.empty)
+                throw new GradleException("${module.project}:${module.publication} has no configured protected release signatures")
+        }
+    }
+}
+
+tasks.named('initializeSonatypeStagingRepository') {
+    dependsOn verifyProtectedSigningReadiness
+}
+
 tasks.register('publicRcSmoke') {
     group = 'verification'
     description = 'Runs exact-version consumer validation against public repositories only.'
