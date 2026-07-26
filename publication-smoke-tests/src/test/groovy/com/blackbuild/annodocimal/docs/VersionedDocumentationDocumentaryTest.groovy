@@ -63,6 +63,12 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         writerJob.contains('Require the requested source to be current master')
         writerJob.contains('Assert the staged artifact is bound to the requested source')
         writerJob.contains('Read back the canonical commit and source manifest')
+        writerJob.contains('cp -R "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"')
+        !writerJob.contains('mv "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"')
+        writerJob.indexOf('cp -R "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"') <
+                writerJob.indexOf('staged_manifest="rendered/$RENDER_PATH/source-manifest.json"')
+        writerJob.indexOf('staged_manifest="rendered/$RENDER_PATH/source-manifest.json"') <
+                writerJob.indexOf('cmp -- "$staged_manifest" "$written_manifest"')
         writerJob.contains('PAGES_WRITER_TOKEN')
         writerJob.contains('HEAD:gh-pages')
         writerJob.contains('if [[ "$STATUS" == archived ]]')

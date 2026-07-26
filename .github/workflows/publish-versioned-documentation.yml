@@ -224,7 +224,7 @@ jobs:
           mkdir -p pages
           touch pages/.nojekyll
           mkdir -p "pages/$(dirname "$SNAPSHOT_PATH")"
-          mv "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"
+          cp -R "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"
 
           write_alias() {
             local alias="$1"
