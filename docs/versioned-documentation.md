@@ -86,9 +86,10 @@ used only for the `gh-pages` push. Before that push, the writer resolves `refs/h
 continue unless a pending, public-RC, or current source revision is its exact tip. The narrow archived exception accepts
 only an exact tagged historical source (`v<version>`), so a legacy snapshot can be published at its immutable version
 route and added to `/archive/` without weakening the non-archive master boundary. It also verifies that the staged
-`source-manifest.json` binds that source, version, and status. After the push, a fresh remote checkout must resolve to
-the pushed commit and contain byte-identical manifest content with the same source/version/status binding. A missing
-protected-environment value fails the writer before token minting or canonical mutation.
+`source-manifest.json` binds that source, version, and status. The staged render remains available until read-back
+completes. After the push, a fresh remote checkout must resolve to the pushed commit and contain byte-identical manifest
+content with the same source/version/status binding. A missing protected-environment value fails the writer before token
+minting or canonical mutation.
 
 The separately named `github-pages` environment is the credential-free GitHub Pages service deployment from the
 protected `gh-pages` branch. It receives neither the Pages-writer App material nor its installation token and is not a
