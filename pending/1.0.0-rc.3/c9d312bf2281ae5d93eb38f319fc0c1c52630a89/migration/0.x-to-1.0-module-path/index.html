@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Module-path migration from 0.x to 1.0 — AnnoDocimal 1.0.0-rc.3</title>
+  <link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+  <header class="site-header"><div class="site-header__inner">
+    <a class="brand" href="../../"><img src="../../assets/branding/annodocimallogo.png" alt="AnnoDocimal logo"><span>AnnoDocimal</span></a>
+    <span class="version-badge">1.0.0-rc.3 · pending candidate proof</span>
+  </div></header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Documentation"><ul>
+<li><a rel="nofollow" href="../../">Overview</a></li>
+<li><a rel="nofollow" href="../../usage/">Using AnnoDocimal</a></li>
+<li><a rel="nofollow" href="../../source-projection/">Advanced source projection</a></li>
+<li><a rel="nofollow" href="../../supported-api/">Supported API</a></li>
+<li>Migration
+<ul>
+<li><a rel="nofollow" href="../0.x-to-1.0-supported-api/">Supported API from 0.x</a></li>
+<li><a rel="nofollow" href="../0.x-to-1.0-authoring-language/">Documentation authoring from 0.x</a></li>
+<li><a rel="nofollow" href="./">Java module path from 0.x</a></li>
+</ul>
+</li>
+</ul>
+<ul class="renderer-navigation"><li><a href="../../api/">API reference</a></li><li><a href="../../status/">Version status</a></li></ul></nav>
+    <main class="content">
+      <aside class="status-banner" data-status="pending">Pending candidate release evidence. This immutable proof is deployed but unlisted and advances no alias. <a href="../../status/">Version status</a>.</aside>
+      <h1 id="module-path-migration-from-0x-to-10">Module-path migration from 0.x to 1.0</h1>
+<p>AnnoDocimal 1.0 assigns stable automatic Java module names to the published Java-facing artifacts. This replaces
+filename-derived names, which were not a supported compatibility contract in 0.x.</p>
+<p>Update a named consumer's <code>module-info.java</code> to use these names:</p>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Stable automatic module name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>anno-docimal-annotations</code></td>
+<td><code>com.blackbuild.annodocimal.annotations</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-apt</code></td>
+<td><code>com.blackbuild.annodocimal.apt</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-ast</code></td>
+<td><code>com.blackbuild.annodocimal.ast</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-global-ast</code></td>
+<td><code>com.blackbuild.annodocimal.global.ast</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-generator</code></td>
+<td><code>com.blackbuild.annodocimal.generator</code></td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>anno-docimal-apt</code> on the annotation-processor path, not as an application dependency. Keep
+<code>anno-docimal-gradle-plugin</code> in the build-tool classpath: it intentionally has no JPMS module contract.</p>
+<p><code>anno-docimal-global-ast</code> still enables global documentation transformation through ordinary classpath service discovery.
+On the module path its service descriptor now names a provider in the same artifact, which delegates to the local
+transformation in <code>anno-docimal-ast</code>.</p>
+<p>The same AnnoDocimal artifact coordinates work with Groovy 3, 4, and 5. A named consumer that directly requires Groovy
+must use the module name provided by the selected Groovy generation (<code>org.codehaus.groovy</code> for Groovy 3 and
+<code>org.apache.groovy</code> for Groovy 4 and 5); AnnoDocimal does not impose an explicit descriptor that would choose between
+them.</p>
+
+    </main>
+  </div>
+  <footer class="site-footer"><p>AnnoDocimal — preserve documentation through compilation.</p>
+<p>Rendered from exact repository sources. <a href="https://github.com/blackbuild/anno-docimal/blob/c9d312bf2281ae5d93eb38f319fc0c1c52630a89/docs/user/migration/0.x-to-1.0-module-path.md">Exact source</a>.</p></footer>
+</body>
+</html>
