@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Using AnnoDocimal — AnnoDocimal 1.0.0-rc.5</title>
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="site-header"><div class="site-header__inner">
+    <a class="brand" href="../"><img src="../assets/branding/annodocimallogo.png" alt="AnnoDocimal logo"><span>AnnoDocimal</span></a>
+    <span class="version-badge">1.0.0-rc.5 · pending candidate proof</span>
+  </div></header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Documentation"><ul>
+<li><a rel="nofollow" href="../">Overview</a></li>
+<li><a rel="nofollow" href="./">Using AnnoDocimal</a></li>
+<li><a rel="nofollow" href="../source-projection/">Advanced source projection</a></li>
+<li><a rel="nofollow" href="../supported-api/">Supported API</a></li>
+<li>Migration
+<ul>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-supported-api/">Supported API from 0.x</a></li>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-authoring-language/">Documentation authoring from 0.x</a></li>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-module-path/">Java module path from 0.x</a></li>
+</ul>
+</li>
+</ul>
+<ul class="renderer-navigation"><li><a href="../api/">API reference</a></li><li><a href="../status/">Version status</a></li></ul></nav>
+    <main class="content">
+      <aside class="status-banner" data-status="pending">Pending candidate release evidence. This immutable proof is deployed but unlisted and advances no alias. <a href="../status/">Version status</a>.</aside>
+      <h1 id="using-annodocimal">Using AnnoDocimal</h1>
+<p>AnnoDocimal transports normalized documentation from compilation to generated JVM APIs and source-oriented tools. It is
+not a DSL framework and it does not own IDE model configuration in consuming builds.</p>
+<h2 id="compatibility-and-coordinates">Compatibility and coordinates</h2>
+<p>AnnoDocimal supports Java 17 and one artifact set across Groovy 3, 4, and 5. The version catalog records the tested
+Groovy baselines; it does not restrict consumers to those exact patch releases. The Gradle integration supports Gradle
+7.3.3 through the current 8.14.5 wrapper baseline, with TestKit coverage at both endpoints.</p>
+<p>All artifacts use group <code>com.blackbuild.annodocimal</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Use it when</th>
+<th>Runtime or build role</th>
+<th>Automatic module</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>anno-docimal-annotations</code></td>
+<td>declarations or consumers need <code>@AnnoDoc</code> / <code>@InlineJavadocs</code></td>
+<td>Runtime protocol dependency</td>
+<td><code>com.blackbuild.annodocimal.annotations</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-apt</code></td>
+<td>Java source documentation must survive compilation</td>
+<td>annotation-processor path tooling</td>
+<td><code>com.blackbuild.annodocimal.apt</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-ast</code></td>
+<td>a Groovy transformation captures or writes documentation</td>
+<td>compile-time transformation dependency</td>
+<td><code>com.blackbuild.annodocimal.ast</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-global-ast</code></td>
+<td>every Groovy source in a compilation should be captured through service discovery</td>
+<td>compile-time transformation dependency</td>
+<td><code>com.blackbuild.annodocimal.global.ast</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-generator</code></td>
+<td>class files must become documentation-oriented Java source</td>
+<td>build tooling</td>
+<td><code>com.blackbuild.annodocimal.generator</code></td>
+</tr>
+<tr>
+<td><code>anno-docimal-gradle-plugin</code></td>
+<td>a Gradle build wants the conventional projection/Javadoc integration</td>
+<td>build plugin</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The annotation processor is processor-path tooling, not a normal application-module dependency. The Gradle plugin is
+not intended for an application module path. Named consumers should use the stable module names rather than deriving
+names from JAR files; see <a rel="nofollow" href="../migration/0.x-to-1.0-module-path/">the module-path migration</a>.</p>
+<h2 id="capture-documentation">Capture documentation</h2>
+<h3 id="java-annotation-processing">Java annotation processing</h3>
+<p>Add annotations to the source and put the processor on the annotation-processor path. The processor is service
+discovered; consumers do not construct its implementation class.</p>
+<pre><code class="language-groovy">dependencies {
+    implementation &quot;com.blackbuild.annodocimal:anno-docimal-annotations:&lt;version&gt;&quot;
+    annotationProcessor &quot;com.blackbuild.annodocimal:anno-docimal-apt:&lt;version&gt;&quot;
+}
+</code></pre>
+<pre><code class="language-java">import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+
+/** Documents the API that a later transformation reads. */
+@InlineJavadocs
+public class SourceType {
+    /** Performs the documented action. */
+    public void action() {
+    }
+}
+</code></pre>
+<p>The processor writes documentation properties to the class output. Their <code>__annodoc.properties</code> suffix and class,
+method, and field key semantics are protocol behavior. They are read by AnnoDocimal extraction; they are not generated
+Javadoc files.</p>
+<h3 id="local-groovy-capture">Local Groovy capture</h3>
+<p>For an explicitly selected package or type, use <code>@InlineJavadocs</code> and place <code>anno-docimal-ast</code> on the Groovy
+compilation classpath:</p>
+<pre><code class="language-groovy">dependencies {
+    compileOnly &quot;com.blackbuild.annodocimal:anno-docimal-ast:&lt;version&gt;&quot;
+}
+</code></pre>
+<pre><code class="language-groovy">import com.blackbuild.annodocimal.annotations.InlineJavadocs
+
+@InlineJavadocs
+class LocalCapture {
+    /** This source documentation becomes embedded documentation. */
+    String name
+}
+</code></pre>
+<p>The marker activates local capture; the transformation, visitor, parser, metadata, and Groovy-version adapter classes
+are implementation-only. <code>@InlineJavadocs</code> is source-retained, while <code>@AnnoDoc</code> is the runtime documentation carrier.</p>
+<h3 id="groovy-property-documentation">Groovy property documentation</h3>
+<p>Documentation on a Groovy property is semantic property documentation, not documentation for a field selected only by
+its JavaBeans-shaped name. Capture retains the normalized textual carrier on the backing field and classfile metadata
+that names its associated accessors while the Groovy property model is available. The metadata contains no documentation
+content and does not change the textual carrier. An undocumented custom getter or setter receives that property
+documentation; an explicitly documented accessor keeps its own documentation.</p>
+<pre><code class="language-groovy">@InlineJavadocs
+class DocumentedProperties {
+    /** A service endpoint. */
+    String endpoint
+
+    /** Returns the normalized endpoint. */
+    String getEndpoint() { endpoint }
+
+    void setEndpoint(String endpoint) { this.endpoint = endpoint }
+}
+</code></pre>
+<p>Source projection consumes that captured association. A readable and writable property documents its generated getter
+and setter; a read-only or write-only property documents only the accessor that exists. Boolean properties retain the
+getter forms emitted by the active Groovy compiler. Custom accessors use their explicit documentation when present and
+otherwise use the property documentation. Projection does not attach documentation to arbitrary JavaBeans-shaped
+methods. The carrier remains normalized text; the association metadata does not introduce the future structured
+documentation schema.</p>
+<p>The executable happy path is
+<code>GroovyPropertyDocumentationDocumentaryTest.captures property documentation and respects explicit accessor documentation</code>
+(issue #9).</p>
+<h3 id="global-groovy-capture">Global Groovy capture</h3>
+<p>To enable capture by Groovy global-AST service discovery, add the global artifact to the compilation that processes
+Groovy source:</p>
+<pre><code class="language-groovy">dependencies {
+    compileOnly &quot;com.blackbuild.annodocimal:anno-docimal-global-ast:&lt;version&gt;&quot;
+}
+</code></pre>
+<p>The global artifact packages both the provider and its service descriptor, and delegates to the reusable local
+transformation. Its provider class name is a packaging detail, not a consumer Java API. Do not combine it with an
+assumption that documentation will be inherited: capture stores exact documentation; a separately named resolved
+documentation capability remains owned by issue <a rel="nofollow" href="https://github.com/blackbuild/anno-docimal/issues/10">#10</a>.</p>
+<h3 id="runtime-groovydoc-interoperability">Runtime GroovyDoc interoperability</h3>
+<p>AnnoDocimal accepts Groovy's runtime <code>groovy.lang.Groovydoc</code> annotation as an interoperable carrier across Groovy 3, 4,
+and 5. It does not replace AnnoDocimal's protocol: <code>@AnnoDoc</code> and documentation properties remain the canonical
+cross-language representation and the boundary for future protocol evolution.</p>
+<p>Exact extraction uses deterministic precedence: a non-blank <code>@AnnoDoc</code> value wins, followed by a non-blank runtime
+<code>@Groovydoc</code> value, followed by the declaration's documentation-properties entry. Runtime GroovyDoc values are
+normalized on read: <code>/** */</code> delimiters, Groovy's <code>/**@</code> runtime marker, leading <code>*</code> decoration, shared indentation, and
+surrounding blank space are not part of the resulting documentation content.</p>
+<p>Groovy can generate the runtime carrier from <code>/**@ ... */</code> comments when its <code>runtimeGroovydoc</code> optimization is enabled.
+If AnnoDocimal local or global capture sees that carrier, it does not emit a duplicate <code>@AnnoDoc</code> annotation. Builds that
+want both compiler-model Groovydoc and runtime GroovyDoc can enable both options explicitly:</p>
+<pre><code class="language-groovy">tasks.withType(GroovyCompile).configureEach {
+    groovyOptions.optimizationOptions.groovydoc = true
+    groovyOptions.optimizationOptions.runtimeGroovydoc = true
+}
+</code></pre>
+<p>Source projection applies the same annotation-carrier precedence, renders the selected normalized content as Javadoc,
+and omits both carrier annotations from the projected Java. Documentation properties remain an extraction carrier for
+resolved compiler-model classes; a projector given only a class file does not discover adjacent properties resources.</p>
+<h2 id="ast-transformation-author-api">AST-transformation-author API</h2>
+<p>The AST-transformation-author API is for developers writing Groovy AST transformations that generate classes or members
+and want those generated APIs to carry useful documentation. <code>AstDocumentation</code> and immutable <code>Documentation</code> values
+are its supported surface: read exact documentation from a source or helper declaration, adapt it to the generated
+member, and attach the result without depending on AnnoDocimal's extractors, metadata, or annotations directly.</p>
+<p>For example, a KlumAST-style transformation can delegate a generated method to a Java helper. The helper keeps its
+templated Javadoc beside its implementation, and Java APT preserves it during compilation:</p>
+<pre><code class="language-java">import com.blackbuild.annodocimal.annotations.InlineJavadocs;
+
+@InlineJavadocs
+final class WidgetHelper {
+    /**
+     * Creates a {{kind}} from the supplied source.
+     *
+     * @param source source data
+     */
+    static Widget create(String source) {
+        // Helper implementation omitted.
+        return null;
+    }
+}
+</code></pre>
+<p>When the transformation creates a method that delegates to <code>WidgetHelper.create</code>, it reads the helper method's exact
+documentation from its compiler model and attaches a template-specialized copy to the generated method:</p>
+<pre><code class="language-java">import com.blackbuild.annodocimal.ast.AstDocumentation;
+import com.blackbuild.annodocimal.ast.Documentation;
+
+import org.codehaus.groovy.ast.MethodNode;
+
+MethodNode helperMethod = /* resolved WidgetHelper.create compiler-model method */;
+MethodNode generatedMethod = /* newly created delegation method */;
+
+Documentation helperDocumentation = AstDocumentation.extractExact(helperMethod)
+        .orElse(Documentation.empty());
+Documentation generatedDocumentation = helperDocumentation.toBuilder()
+        .template(&quot;kind&quot;, &quot;widget&quot;)
+        .build();
+AstDocumentation.attach(generatedMethod, generatedDocumentation);
+</code></pre>
+<p><code>extractExact</code> hides the capture carrier. It applies the documented canonical/runtime/properties precedence without
+requiring transformations to inspect any representation directly. The transformation can further use <code>summary</code>,
+<code>paragraph</code>, <code>codeBlock</code>, <code>filterParameters</code>, and
+<code>AstDocumentation.referenceTo</code> before attachment.</p>
+<p><code>extractExact</code> does not search supertypes. <code>attach</code> replaces AnnoDocimal's carrier, keeps third-party carriers, filters
+parameter descriptions to the target signature, and removes AnnoDocimal documentation for an empty value. Values are
+immutable and builders are mutable, non-thread-safe snapshots. Public inputs reject <code>null</code>; optional scalar accessors
+use <code>Optional</code>, and JSpecify marks the supported Java types non-null by default. See the
+<a rel="nofollow" href="../migration/0.x-to-1.0-authoring-language/">authoring migration guide</a> for template and clean-cut details.</p>
+<h2 id="source-projection-javadoc-and-ide-mirrors">Source projection, Javadoc, and IDE mirrors</h2>
+<p><code>SourceProjector</code> projects one caller-selected top-level class file to deterministic Java source or one managed
+package-relative output file. <code>ProjectionPolicy.documentation()</code> includes public/protected declarations and named nested
+types, excludes synthetic and Groovy runtime scaffolding, retains visible language-level generated APIs, and always
+applies signature closure. It is not a decompiler. The full fidelity, inclusion, and failure policy is in
+<a rel="nofollow" href="../source-projection/">source-projection.md</a>.</p>
+<p>The neutral <code>com.blackbuild.annodocimal.base-plugin</code> applies neither Java nor Groovy. When a Java model is present, it
+registers the conventional <code>createClassStubs</code> <code>SourceProjectionTask</code> over all main class directories and makes
+<code>javadoc</code> consume its output. This is a Javadoc convenience, not an IDE source-set registration.</p>
+<p>For an independently managed IDE-only source mirror, register <code>SourceProjectionTask</code> directly. The task owns its
+output directory, so the mirror must not be compiled, packaged, or published as a second API:</p>
+<pre><code class="language-groovy">import com.blackbuild.annodocimal.plugin.SourceProjectionTask
+
+plugins {
+    id 'java'
+    id 'com.blackbuild.annodocimal.base-plugin'
+}
+
+tasks.register('dslSourceMirror', SourceProjectionTask) {
+    classesDirectories.from(sourceSets.main.output.classesDirs)
+    includes.add('**/*_DSL.class')
+    excludes.add('**/internal/**')
+    outputDirectory.set(layout.buildDirectory.dir('source-mirrors/dsl'))
+}
+</code></pre>
+<p><code>classesDirectories</code> is documentation-sensitive classpath input. <code>includes</code> and <code>excludes</code> are declared Ant-style
+patterns over slash-normalized paths relative to every input directory, including <code>.class</code>; exclusions win. The default
+includes all top-level class files. The task rejects duplicate binary names from different inputs and input/output
+overlap, projects to a staging tree, and replaces the managed output only after every projection succeeds. It is
+cacheable and configuration-cache safe. <code>projectionPolicy</code> defaults to <code>ProjectionPolicy.documentation()</code> and can be
+set to another immutable policy value when the consuming build needs a broader documented projection.</p>
+<p>The opinionated <code>com.blackbuild.annodocimal.groovy-plugin</code> applies Gradle's Groovy plugin and the neutral base plugin,
+then configures Groovy and Java compilation to retain documentation and parameter metadata. Plugin implementation
+classes and task actions remain implementation details; <code>SourceProjectionTask</code> is the supported Gradle Java API.</p>
+<h2 id="supported-versus-implementation-only-apis">Supported versus implementation-only APIs</h2>
+<p>The supported surface is deliberately smaller than the set of <code>public</code> classes in published JARs. In particular,
+<code>AstDocumentation</code>/<code>Documentation</code> form the authoring facade and <code>SourceProjector</code>/<code>ProjectionPolicy</code> form the
+projection facade. Processors and global providers are supported behavioral integrations with empty Java API
+allowlists. Visitors, extractors, parser and Groovy-version helpers, metadata caches, ASM, JavaPoet, shaded classes,
+plugin implementation classes, and task actions are implementation-only. The complete allowlists and nullability
+contract are recorded in <a rel="nofollow" href="../supported-api/">the supported API document</a>.</p>
+
+    </main>
+  </div>
+  <footer class="site-footer"><p>AnnoDocimal — preserve documentation through compilation.</p>
+<p>Rendered from exact repository sources. <a href="https://github.com/blackbuild/anno-docimal/blob/a99fe80e90d4dfa4dce5929ac49a83bdf793b953/docs/user/usage.md">Exact source</a>.</p></footer>
+</body>
+</html>
