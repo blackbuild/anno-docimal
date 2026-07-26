@@ -59,6 +59,11 @@ class ReleaseRehearsalContractTest extends Specification {
         runbook.contains('must not advance an alias or public status')
         runbook.contains('credential-free public resolve-back')
 
+        and: 'Central staging targets the confirmed parent namespace instead of inferring a leaf artifact group'
+        build.contains("stagingProfileId.set('com.blackbuild')")
+        build.contains('Unexpected Sonatype staging profile: ${sonatype.stagingProfileId.get()}')
+        runbook.contains('`com.blackbuild` Central namespace')
+
         and: 'partial publication burns a version while safe retries remain local or idempotent'
         runbook.contains('burned version')
         runbook.contains('Safe retry')

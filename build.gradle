@@ -59,6 +59,7 @@ nexusPublishing {
         sonatype {
             nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
             snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+            stagingProfileId.set('com.blackbuild')
         }
     }
 }
@@ -331,6 +332,8 @@ tasks.register('verifyPublicationReleaseConfiguration') {
         if (sonatype.snapshotRepositoryUrl.get().toString() !=
                 'https://central.sonatype.com/repository/maven-snapshots/')
             throw new GradleException("Unexpected Sonatype snapshot URL: ${sonatype.snapshotRepositoryUrl.get()}")
+        if (sonatype.stagingProfileId.get() != 'com.blackbuild')
+            throw new GradleException("Unexpected Sonatype staging profile: ${sonatype.stagingProfileId.get()}")
         if (project(':anno-docimal-gradle-plugin').tasks.findByName('publishPlugins') == null)
             throw new GradleException('The Gradle Plugin Portal publication task is not configured')
     }
