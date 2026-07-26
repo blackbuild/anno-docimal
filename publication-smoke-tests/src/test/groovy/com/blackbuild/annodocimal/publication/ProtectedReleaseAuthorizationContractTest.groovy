@@ -24,6 +24,7 @@
 package com.blackbuild.annodocimal.publication
 
 import groovy.xml.XmlSlurper
+import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import spock.lang.Issue
 import spock.lang.See
@@ -31,6 +32,7 @@ import spock.lang.Specification
 import spock.lang.Tag
 import spock.lang.Unroll
 
+import java.nio.file.Files
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
@@ -134,22 +136,16 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         environment.remove('ANNODOCIMAL_RELEASE_AUTHORIZED')
 
         when: 'an RC-shaped version lacks the protected authorization sentinel'
-        def rejected = GradleRunner.create()
-                .withProjectDir(repository)
-                .withArguments('verifyProtectedReleaseAuthorization', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
-                .withEnvironment(environment)
-                .buildAndFail()
+        def rejected = isolatedReleaseBuild(repository, environment)
+                .buildAndFail('verifyProtectedReleaseAuthorization', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
 
         then: 'the guard fails before any publication task can run'
         rejected.output.contains('Protected release authorization does not match -Prelease.stage')
 
         when: 'the exact protected sentinel and version are supplied'
         environment.put('ANNODOCIMAL_RELEASE_AUTHORIZED', 'rc')
-        def accepted = GradleRunner.create()
-                .withProjectDir(repository)
-                .withArguments('verifyProtectedReleaseAuthorization', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
-                .withEnvironment(environment)
-                .build()
+        def accepted = isolatedReleaseBuild(repository, environment)
+                .build('verifyProtectedReleaseAuthorization', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
 
         then: 'the gate admits the identity without invoking a remote publication task'
         accepted.output.contains('BUILD SUCCESSFUL')
@@ -164,11 +160,8 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         environment.remove('ORG_GRADLE_PROJECT_signingPassword')
 
         when: 'the non-publishing signing readiness guard runs'
-        def rejected = GradleRunner.create()
-                .withProjectDir(repository)
-                .withArguments('verifyProtectedSigningReadiness', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
-                .withEnvironment(environment)
-                .buildAndFail()
+        def rejected = isolatedReleaseBuild(repository, environment)
+                .buildAndFail('verifyProtectedSigningReadiness', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
 
         then: 'it stops before any staging repository can be initialized'
         rejected.output.contains('no configured signatory')
@@ -184,11 +177,8 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         environment.put('ORG_GRADLE_PROJECT_signingPassword', 'annodocimal-test-signing-passphrase')
 
         when: 'the protected signing readiness guard runs'
-        def accepted = GradleRunner.create()
-                .withProjectDir(repository)
-                .withArguments('verifyProtectedSigningReadiness', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
-                .withEnvironment(environment)
-                .build()
+        def accepted = isolatedReleaseBuild(repository, environment)
+                .build('verifyProtectedSigningReadiness', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
 
         then: 'every publication is signed without initializing Central staging'
         accepted.output.contains('BUILD SUCCESSFUL')
@@ -200,23 +190,20 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         File repository = new File(System.getProperty('annodocimal.repository.root'))
         Map<String, String> environment = new LinkedHashMap<>(System.getenv())
         environment.remove('ANNODOCIMAL_RELEASE_AUTHORIZED')
+        Map<String, String> sourcePomContents = protectedPomContents(repository)
 
         when: 'two immutable RC versions generate their protected publication POMs in sequence without protected authorization'
-        GradleRunner.create()
-                .withProjectDir(repository)
-                .withArguments('verifyProtectedPublicationPomParity', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
-                .withEnvironment(environment)
-                .build()
-        def accepted = GradleRunner.create()
-                .withProjectDir(repository)
-                .withArguments('verifyProtectedPublicationPomParity', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.5')
-                .withEnvironment(environment)
-                .build()
+        def isolatedBuild = isolatedReleaseBuild(repository, environment)
+        isolatedBuild.build('verifyProtectedPublicationPomParity', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
+        def accepted = isolatedBuild.build('verifyProtectedPublicationPomParity', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.5')
 
         then: 'each generated POM carries the second exact release identity without staging'
         accepted.output.contains('BUILD SUCCESSFUL')
         !accepted.output.contains('Created staging repository')
-        protectedPomVersions(repository).every { it == '1.0.0-rc.5' }
+        protectedPomVersions(isolatedBuild.projectRoot).every { it == '1.0.0-rc.5' }
+
+        and: 'the contract fixtures never overwrite the protected publisher output in the checked-out repository'
+        protectedPomContents(repository) == sourcePomContents
     }
 
     @Unroll
@@ -242,10 +229,8 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         File repository = new File(System.getProperty('annodocimal.repository.root'))
 
         when:
-        def rejected = GradleRunner.create()
-                .withProjectDir(repository)
-                .withArguments('verifyUnprivilegedReleaseInputs', "-Prelease.stage=$stage", "-Prelease.version=$version")
-                .buildAndFail()
+        def rejected = isolatedReleaseBuild(repository, System.getenv())
+                .buildAndFail('verifyUnprivilegedReleaseInputs', "-Prelease.stage=$stage", "-Prelease.version=$version")
 
         then:
         rejected.output.contains(message)
@@ -326,6 +311,19 @@ esac
     }
 
     private static List<String> protectedPomVersions(File repository) {
+        protectedPomPaths().collect { path ->
+            new XmlSlurper(false, false).parse(new File(repository, path)).version.text()
+        }
+    }
+
+    private static Map<String, String> protectedPomContents(File repository) {
+        protectedPomPaths().collectEntries { path ->
+            File pom = new File(repository, path)
+            [(path): pom.file ? pom.text : null]
+        }
+    }
+
+    private static List<String> protectedPomPaths() {
         [
                 'anno-docimal-annotations/build/publications/mavenJava/pom-default.xml',
                 'anno-docimal-apt/build/publications/mavenJava/pom-default.xml',
@@ -335,8 +333,60 @@ esac
                 'anno-docimal-gradle-plugin/build/publications/pluginMaven/pom-default.xml',
                 'anno-docimal-gradle-plugin/build/publications/annoDocimalBasePluginPluginMarkerMaven/pom-default.xml',
                 'anno-docimal-gradle-plugin/build/publications/annoDocimalGroovyPluginPluginMarkerMaven/pom-default.xml'
-        ].collect { path ->
-            new XmlSlurper(false, false).parse(new File(repository, path)).version.text()
+        ]
+    }
+
+    private static IsolatedReleaseBuild isolatedReleaseBuild(File repository, Map<String, String> environment) {
+        File workingDirectory = Files.createTempDirectory('protected-release-contract-').toFile()
+        File projectCacheDirectory = new File(workingDirectory, 'project-cache')
+        File initScript = new File(workingDirectory, 'isolated-build.gradle')
+        String workingDirectoryPath = workingDirectory.absolutePath.replace('\\', '\\\\').replace("'", "\\'")
+        initScript.text = """def isolatedProjectRoot = new File('$workingDirectoryPath')
+gradle.beforeProject { project ->
+    String relativeProjectPath = project.path == ':' ? '' : project.path.substring(1).replace(':', '/')
+    project.layout.buildDirectory.set(new File(isolatedProjectRoot, "\${relativeProjectPath}/build"))
+}
+"""
+        new IsolatedReleaseBuild(repository, environment, workingDirectory, projectCacheDirectory, initScript)
+    }
+
+    private static class IsolatedReleaseBuild {
+        private final File repository
+        private final Map<String, String> environment
+        final File projectRoot
+        private final File projectCacheDirectory
+        private final File initScript
+
+        IsolatedReleaseBuild(
+                File repository,
+                Map<String, String> environment,
+                File projectRoot,
+                File projectCacheDirectory,
+                File initScript) {
+            this.repository = repository
+            this.environment = environment
+            this.projectRoot = projectRoot
+            this.projectCacheDirectory = projectCacheDirectory
+            this.initScript = initScript
+        }
+
+        BuildResult build(String... arguments) {
+            runner(arguments).build()
+        }
+
+        BuildResult buildAndFail(String... arguments) {
+            runner(arguments).buildAndFail()
+        }
+
+        private GradleRunner runner(String... arguments) {
+            List<String> isolatedArguments = arguments.toList() + [
+                    '--init-script', initScript.absolutePath,
+                    '--project-cache-dir', projectCacheDirectory.absolutePath
+            ]
+            GradleRunner.create()
+                    .withProjectDir(repository)
+                    .withArguments(isolatedArguments)
+                    .withEnvironment(environment)
         }
     }
 }
