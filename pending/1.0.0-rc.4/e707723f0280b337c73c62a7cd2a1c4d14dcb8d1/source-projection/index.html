@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Source projection — AnnoDocimal 1.0.0-rc.4</title>
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="site-header"><div class="site-header__inner">
+    <a class="brand" href="../"><img src="../assets/branding/annodocimallogo.png" alt="AnnoDocimal logo"><span>AnnoDocimal</span></a>
+    <span class="version-badge">1.0.0-rc.4 · pending candidate proof</span>
+  </div></header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Documentation"><ul>
+<li><a rel="nofollow" href="../">Overview</a></li>
+<li><a rel="nofollow" href="../usage/">Using AnnoDocimal</a></li>
+<li><a rel="nofollow" href="./">Advanced source projection</a></li>
+<li><a rel="nofollow" href="../supported-api/">Supported API</a></li>
+<li>Migration
+<ul>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-supported-api/">Supported API from 0.x</a></li>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-authoring-language/">Documentation authoring from 0.x</a></li>
+<li><a rel="nofollow" href="../migration/0.x-to-1.0-module-path/">Java module path from 0.x</a></li>
+</ul>
+</li>
+</ul>
+<ul class="renderer-navigation"><li><a href="../api/">API reference</a></li><li><a href="../status/">Version status</a></li></ul></nav>
+    <main class="content">
+      <aside class="status-banner" data-status="pending">Pending candidate release evidence. This immutable proof is deployed but unlisted and advances no alias. <a href="../status/">Version status</a>.</aside>
+      <h1 id="source-projection">Source projection</h1>
+<p>AnnoDocimal reconstructs documentation-oriented Java declarations from compiled JVM classes. A projection is a class
+stub or IDE source mirror: it preserves selected declaration meaning and documentation, but it is not original source or
+a decompilation.</p>
+<h2 id="project-one-top-level-class">Project one top-level class</h2>
+<p><code>SourceProjector</code> is final, thread-safe, and reusable. Construct it with one immutable policy:</p>
+<pre><code class="language-java">SourceProjector projector = new SourceProjector(ProjectionPolicy.documentation());
+
+String source = projector.projectToText(classFile);
+Path sourceFile = projector.projectToDirectory(classFile, outputDirectory);
+</code></pre>
+<p>Both operations project exactly one caller-selected top-level <code>.class</code> file. A direct nested, local, or anonymous class
+file is rejected as a projection root. Directory scanning, top-level class-file filtering, and stale-output cleanup stay
+with the caller or Gradle task.</p>
+<p><code>projectToText</code> returns deterministic Java text with LF endings. <code>projectToDirectory</code> writes the identical UTF-8 text to
+the package/type-relative <code>.java</code> path beneath the supplied output directory. It creates parent directories and replaces
+only that managed file, atomically when the file system supports atomic moves. It does not clean sibling output.</p>
+<p>Annotation members are projected in lexicographic member-name order at every nesting level. This normalization applies
+equally to primitive, enum, class, nested-annotation, and array-valued members; array elements retain their declared
+sequence. The member-name rule is a source-projection determinism guarantee, not a claim that Java annotation semantics
+assign an order to members, and it deliberately does not preserve incidental source, compiler, or bytecode order.</p>
+<p>Embedded documentation is selected independently of classfile annotation order. Canonical <code>@AnnoDoc</code> content wins over
+runtime <code>groovy.lang.Groovydoc</code>; blank values do not mask a usable lower-precedence carrier. Runtime values are normalized
+without source-comment delimiters, Groovy's <code>/**@</code> marker, leading line decoration, or shared indentation. The selected
+content is rendered as Javadoc, and neither carrier annotation is copied into the projected Java. Documentation
+properties are compiler-model extraction resources rather than classfile annotations and are therefore outside a
+single-class-file projection input.</p>
+<p>For a captured Groovy property, projection carries the backing-field documentation to the accessor names recorded while
+Groovy's property model was available. An accessor's own documentation takes precedence. The association metadata has no
+documentation content and projection does not infer property documentation for arbitrary JavaBeans-shaped methods. See
+the <a rel="nofollow" href="../usage/#groovy-property-documentation">capture policy</a>.</p>
+<h2 id="documentation-inclusion-policy">Documentation inclusion policy</h2>
+<p><code>ProjectionPolicy.documentation()</code> has the stable documentation-oriented defaults:</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Default and invariant</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Projection root</td>
+<td>Always included. The visibility selection does not remove it.</td>
+</tr>
+<tr>
+<td>Visibility</td>
+<td>Public and protected members are included. Package-private and private members are excluded unless signature closure requires them.</td>
+</tr>
+<tr>
+<td>Nested declarations</td>
+<td>Named member types are included recursively when their visibility is selected. Local and anonymous classes are excluded.</td>
+</tr>
+<tr>
+<td>Synthetic declarations</td>
+<td>Excluded. Enabling them cannot disable valid-source checks; conflicting bridge declarations fail projection.</td>
+</tr>
+<tr>
+<td>Groovy runtime artifacts</td>
+<td>Groovy runtime interfaces, metadata fields/accessors, and similarly named scaffolding are excluded. Visible language-level APIs such as generated property accessors remain included.</td>
+</tr>
+<tr>
+<td>Signature closure</td>
+<td>Always enabled. It includes otherwise-excluded named member types and their enclosing chain when selected signatures or annotations refer to them. External dependency declarations are never copied.</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>ProjectionPolicy.builder()</code> or <code>policy.toBuilder()</code> to replace the included <code>DeclarationVisibility</code> values or toggle
+named nested, synthetic, and Groovy-runtime inclusion. Builders are mutable and not thread-safe; every <code>build()</code> call
+returns an independent immutable value. Signature closure and valid Java output are not optional policy switches.</p>
+<p>Groovy runtime classification uses compiler metadata and the owning declaration's role. A declaration name alone never
+turns a user-authored Groovy member into runtime scaffolding.</p>
+<p>Source projection preserves declaration kind and nesting, visibility and modifiers, generic and inheritance signatures,
+selected constructors/methods/fields, parameter metadata, annotations, exceptions, and embedded documentation. It does
+not promise original bodies or initializers: deterministic default statements and values are synthesized where Java
+requires them for a valid stub. Synthetic implementation details under the documentation preset, original whitespace,
+and import layout are likewise not preserved.</p>
+<p>Supported Java records retain their record kind, component list, generic bounds, implemented interfaces, and named
+nested declarations. When the inclusion policy selects a canonical constructor, the projection emits deterministic
+component assignments; otherwise the record declaration relies on Java's implicit canonical constructor. Both forms
+remain compilable without reconstructing the original constructor implementation.</p>
+<p>Generic signatures retain the declaration context needed to resolve every type variable. In particular, a nested member
+type reached through a parameterized enclosing type keeps that owner qualification in method, field, superclass, and
+interface signatures, including inherited signatures with bounds and wildcards. When implementation bytecode retains a
+type variable declared by an inherited API, projection resolves it through the parameterized superclass or interface
+path before rendering the implementation signature.</p>
+<h2 id="failures">Failures</h2>
+<p>Ordinary class-input and managed-output file-system failures are <code>IOException</code>. A readable class whose selected
+declaration cannot be represented as valid Java throws <code>SourceProjectionException</code>; the exception retains the input path
+and exposes a stable declaration identifier when one is available.</p>
+<h2 id="supported-api-boundary-and-migration">Supported API boundary and migration</h2>
+<p>The supported generator API contains only <code>SourceProjector</code>, <code>ProjectionPolicy</code>, <code>ProjectionPolicy.Builder</code>,
+<code>DeclarationVisibility</code>, and <code>SourceProjectionException</code>. ASM, JavaPoet, signature parsers, visitors, converters,
+annotation readers, and shaded types are implementation details and are excluded from the compatibility baseline.</p>
+<p>Those supported types are JSpecify <code>@NullMarked</code>. Paths, policies, and selected visibility values are non-null; absent
+declaration identifiers remain non-null <code>Optional</code> results. Runtime null rejection remains in place for dynamic Groovy
+and other callers whose tooling does not interpret JSpecify metadata. The published JSpecify dependency stays external
+to the generator shadow JAR so module-path consumers do not receive a duplicate annotation package.</p>
+<p>The provisional 0.x <code>AnnoDocGenerator</code> helper is removed without a compatibility shim. See the
+<a rel="nofollow" href="../migration/0.x-to-1.0-supported-api/">0.x-to-1.0 supported-API migration</a> for the direct replacement. The reusable
+<code>SourceProjectionTask</code> handles collection filtering and stale-output cleanup; its supported Gradle contract is described
+in the <a rel="nofollow" href="../usage/#source-projection-javadoc-and-ide-mirrors">usage guide</a>.</p>
+
+    </main>
+  </div>
+  <footer class="site-footer"><p>AnnoDocimal — preserve documentation through compilation.</p>
+<p>Rendered from exact repository sources. <a href="https://github.com/blackbuild/anno-docimal/blob/e707723f0280b337c73c62a7cd2a1c4d14dcb8d1/docs/user/source-projection.md">Exact source</a>.</p></footer>
+</body>
+</html>
