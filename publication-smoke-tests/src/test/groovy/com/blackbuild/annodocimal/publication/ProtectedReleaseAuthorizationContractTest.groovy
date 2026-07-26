@@ -200,7 +200,7 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         then: 'each generated POM carries the second exact release identity without staging'
         accepted.output.contains('BUILD SUCCESSFUL')
         !accepted.output.contains('Created staging repository')
-        protectedPomVersions(isolatedBuild.buildDirectory).every { it == '1.0.0-rc.5' }
+        protectedPomVersions(isolatedBuild.projectRoot).every { it == '1.0.0-rc.5' }
 
         and: 'the contract fixtures never overwrite the protected publisher output in the checked-out repository'
         protectedPomContents(repository) == sourcePomContents
@@ -353,19 +353,19 @@ gradle.beforeProject { project ->
     private static class IsolatedReleaseBuild {
         private final File repository
         private final Map<String, String> environment
-        final File buildDirectory
+        final File projectRoot
         private final File projectCacheDirectory
         private final File initScript
 
         IsolatedReleaseBuild(
                 File repository,
                 Map<String, String> environment,
-                File buildDirectory,
+                File projectRoot,
                 File projectCacheDirectory,
                 File initScript) {
             this.repository = repository
             this.environment = environment
-            this.buildDirectory = buildDirectory
+            this.projectRoot = projectRoot
             this.projectCacheDirectory = projectCacheDirectory
             this.initScript = initScript
         }
