@@ -3,6 +3,7 @@ import com.blackbuild.annodocimal.docs.PreviewRenderedDocumentationTask
 import com.blackbuild.annodocimal.docs.VersionedDocumentationRenderer
 import com.blackbuild.annodocimal.docs.VerifyRenderedDocumentationSiteTask
 import com.blackbuild.annodocimal.docs.VerifyVersionedDocumentationRendererTask
+import groovy.xml.XmlSlurper
 
 buildscript {
     repositories {
@@ -359,8 +360,34 @@ def verifyProtectedSigningReadiness = tasks.register('verifyProtectedSigningRead
     }
 }
 
+def verifyProtectedPublicationPomParity = tasks.register('verifyProtectedPublicationPomParity') {
+    group = 'verification'
+    description = 'Requires every generated protected-release POM to carry the exact release version before environment selection or staging.'
+    dependsOn tasks.named('verifyUnprivilegedReleaseInputs')
+    publicationAuditModules.each { module ->
+        dependsOn "${module.project}:generatePomFileFor${module.publication.capitalize()}Publication"
+    }
+
+    doLast {
+        String releaseVersion = providers.gradleProperty('release.version').get()
+        publicationAuditModules.each { module ->
+            def publicationProject = project(module.project)
+            def publication = publicationProject.publishing.publications.getByName(module.publication)
+            if (publication.version.toString() != releaseVersion)
+                throw new GradleException("${module.project}:${module.publication} version ${publication.version} does not match protected release $releaseVersion")
+
+            File pom = publicationProject.layout.buildDirectory.file(
+                    "publications/${module.publication}/pom-default.xml").get().asFile
+            String pomVersion = new XmlSlurper(false, false).parse(pom).version.text()
+            if (pomVersion != releaseVersion)
+                throw new GradleException("${module.project}:${module.publication} POM version $pomVersion does not match protected release $releaseVersion")
+        }
+    }
+}
+
 tasks.named('initializeSonatypeStagingRepository') {
     dependsOn verifyProtectedSigningReadiness
+    dependsOn verifyProtectedPublicationPomParity
 }
 
 tasks.register('publicRcSmoke') {

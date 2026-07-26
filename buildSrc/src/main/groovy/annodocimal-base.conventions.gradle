@@ -52,6 +52,21 @@ afterEvaluate {
     }
 }
 
+def protectedReleaseVersion = rootProject.providers.gradleProperty('release.version')
+gradle.projectsEvaluated {
+    if (protectedReleaseVersion.present) {
+        publishing.publications.configureEach { publication ->
+            publication.version = protectedReleaseVersion.get()
+            publication.pom.withXml {
+                def versionNodes = asNode().version
+                if (versionNodes.size() != 1)
+                    throw new GradleException("${project.path}:${publication.name} POM has no unique root version")
+                versionNodes[0].setValue(protectedReleaseVersion.get())
+            }
+        }
+    }
+}
+
 publishing.publications.configureEach {
     pom { pom ->
         project.getName()
