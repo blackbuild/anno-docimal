@@ -36,7 +36,11 @@ dependencies {
 
 afterEvaluate {
     signing {
-        required { gradle.taskGraph.hasTask("publish") || gradle.taskGraph.hasTask("publishToMavenLocal") }
+        required {
+            gradle.taskGraph.hasTask("publish") ||
+                    gradle.taskGraph.hasTask("publishToMavenLocal") ||
+                    gradle.taskGraph.hasTask(':publishCompleteProduct')
+        }
         publishing.publications.configureEach {
             sign it
         }

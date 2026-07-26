@@ -103,6 +103,11 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         convention.contains("tasks.register('publishCompleteProduct')")
         convention.contains('Remote publication must use publishCompleteProduct for the complete product')
 
+        and: 'the protected aggregate task makes every configured publication signature mandatory'
+        String baseConvention = new File(repository, 'buildSrc/src/main/groovy/annodocimal-base.conventions.gradle').text
+        baseConvention.contains("gradle.taskGraph.hasTask(':publishCompleteProduct')")
+        runbook.contains('requires each configured publication signature to execute')
+
         and: 'the runbook keeps Page authority, public resolve-back, tags, and CHANGES-derived releases outside this workflow'
         runbook.contains('`release-candidate`')
         runbook.contains('`final-release`')
