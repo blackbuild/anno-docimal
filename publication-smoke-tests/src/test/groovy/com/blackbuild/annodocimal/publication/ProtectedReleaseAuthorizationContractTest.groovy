@@ -106,7 +106,11 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
         and: 'the protected aggregate task makes every configured publication signature mandatory'
         String baseConvention = new File(repository, 'buildSrc/src/main/groovy/annodocimal-base.conventions.gradle').text
         baseConvention.contains("gradle.taskGraph.hasTask(':publishCompleteProduct')")
-        runbook.contains('requires each configured publication signature to execute')
+        baseConvention.contains('useInMemoryPgpKeys(signingKey.get(), signingPassword.get())')
+        rootBuild.contains("tasks.register('verifyProtectedSigningReadiness')")
+        rootBuild.contains("tasks.named('initializeSonatypeStagingRepository')")
+        runbook.contains('publication signature to execute')
+        runbook.contains('credential-free signing-readiness gate')
 
         and: 'the runbook keeps Page authority, public resolve-back, tags, and CHANGES-derived releases outside this workflow'
         runbook.contains('`release-candidate`')
@@ -144,6 +148,26 @@ class ProtectedReleaseAuthorizationContractTest extends Specification {
 
         then: 'the gate admits the identity without invoking a remote publication task'
         accepted.output.contains('BUILD SUCCESSFUL')
+    }
+
+    def 'rejects missing protected signing configuration before Central staging can initialize'() {
+        given: 'the protected release validation environment without signing credentials'
+        File repository = new File(System.getProperty('annodocimal.repository.root'))
+        Map<String, String> environment = new LinkedHashMap<>(System.getenv())
+        environment.put('ANNODOCIMAL_RELEASE_AUTHORIZED', 'rc')
+        environment.remove('ORG_GRADLE_PROJECT_signingKey')
+        environment.remove('ORG_GRADLE_PROJECT_signingPassword')
+
+        when: 'the credential-free signing readiness guard runs'
+        def rejected = GradleRunner.create()
+                .withProjectDir(repository)
+                .withArguments('verifyProtectedSigningReadiness', '-Prelease.stage=rc', '-Prelease.version=1.0.0-rc.1')
+                .withEnvironment(environment)
+                .buildAndFail()
+
+        then: 'it stops before any staging repository can be initialized'
+        rejected.output.contains('has no configured protected release signatory')
+        !rejected.output.contains('Created staging repository')
     }
 
     @Unroll

@@ -36,6 +36,10 @@ dependencies {
 
 afterEvaluate {
     signing {
+        def signingKey = providers.gradleProperty('signingKey')
+        def signingPassword = providers.gradleProperty('signingPassword')
+        if (signingKey.present && signingPassword.present)
+            useInMemoryPgpKeys(signingKey.get(), signingPassword.get())
         required {
             gradle.taskGraph.hasTask("publish") ||
                     gradle.taskGraph.hasTask("publishToMavenLocal") ||

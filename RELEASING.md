@@ -54,8 +54,9 @@ writer/service jobs have read-only repository access and none of those release s
 persisted.
 
 After reviewer approval, the publishing job repeats the exact-master and pending-handoff checks, requires Java 17, and
-runs `publishCompleteProduct`. That Gradle entry point requires each configured publication signature to execute,
-rejects a non-matching protected stage/version authorization or a composite build, runs `check` and the
+runs `publishCompleteProduct`. Before Maven Central staging can initialize, its credential-free signing-readiness gate
+requires a usable in-memory signatory for every configured publication. The entry point then requires each configured
+publication signature to execute, rejects a non-matching protected stage/version authorization or a composite build, runs `check` and the
 six-coordinate/two-marker product gate before remote tasks, then stages/releases
 the Maven Central product and publishes both Plugin Portal markers. It does not create a tag, GitHub Release, or public
 Pages snapshot. The exact protected workflow is not a replacement for the existing protected Pages dispatches: first
