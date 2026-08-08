@@ -235,18 +235,27 @@ plugins {
 
 tasks.register('dslSourceMirror', SourceProjectionTask) {
     classesDirectories.from(sourceSets.main.output.classesDirs)
+    referencedClassesClasspath.from(configurations.compileClasspath)
     includes.add('**/*_DSL.class')
     excludes.add('**/internal/**')
     outputDirectory.set(layout.buildDirectory.dir('source-mirrors/dsl'))
 }
 ```
 
-`classesDirectories` is documentation-sensitive classpath input. `includes` and `excludes` are declared Ant-style
-patterns over slash-normalized paths relative to every input directory, including `.class`; exclusions win. The default
-includes all top-level class files. The task rejects duplicate binary names from different inputs and input/output
-overlap, projects to a staging tree, and replaces the managed output only after every projection succeeds. It is
-cacheable and configuration-cache safe. `projectionPolicy` defaults to `ProjectionPolicy.documentation()` and can be
-set to another immutable policy value when the consuming build needs a broader documented projection.
+`classesDirectories` and `referencedClassesClasspath` are documentation-sensitive classpath inputs. The former selects
+projection roots; the latter is never projected, but supplies directories or JARs used to classify referenced types.
+Set `referencedClassesClasspath` to the schema's `compileClasspath`, as above, or to a proven narrower runtime classpath
+that contains every referenced declaration needed by the projection. This is especially necessary for nested dependency
+types: without their class file, an external binary name containing `$` remains deliberately ambiguous and fails with an
+actionable diagnostic rather than producing invalid Java source. The documented example is exercised by
+`AnnoDocimalPluginTest#source mirror resolves a referenced nested declaration from its configured classpath`.
+
+`includes` and `excludes` are declared Ant-style patterns over slash-normalized paths relative to every input directory,
+including `.class`; exclusions win. The default includes all top-level class files. The task rejects duplicate binary
+names from different inputs and input/output overlap, projects to a staging tree, and replaces the managed output only
+after every projection succeeds. It is cacheable and configuration-cache safe. `projectionPolicy` defaults to
+`ProjectionPolicy.documentation()` and can be set to another immutable policy value when the consuming build needs a
+broader documented projection.
 
 The opinionated `com.blackbuild.annodocimal.groovy-plugin` applies Gradle's Groovy plugin and the neutral base plugin,
 then configures Groovy and Java compilation to retain documentation and parameter metadata. Plugin implementation

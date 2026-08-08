@@ -132,10 +132,10 @@ the complete release-baseline mechanism remains the release compatibility gate d
 ### `anno-docimal-gradle-plugin`
 
 The supported Java task type is `com.blackbuild.annodocimal.plugin.SourceProjectionTask`. Its supported members are
-only `getClassesDirectories()`, `getIncludes()`, `getExcludes()`, `getProjectionPolicy()`, and `getOutputDirectory()`.
-It is a final task contract: fluent helpers, a task-action SPI, and subclassing are not supported. The getter inputs,
-output, defaults, duplicate behavior, managed-tree replacement, cacheability, and configuration-cache behavior are
-defined by ADR 0055.
+only `getClassesDirectories()`, `getReferencedClassesClasspath()`, `getIncludes()`, `getExcludes()`,
+`getProjectionPolicy()`, and `getOutputDirectory()`. It is a final task contract: fluent helpers, a task-action SPI,
+and subclassing are not supported. The getter inputs, output, defaults, duplicate behavior, managed-tree replacement,
+cacheability, and configuration-cache behavior are defined by ADR 0055.
 
 The supported plugin IDs are `com.blackbuild.annodocimal.base-plugin` and
 `com.blackbuild.annodocimal.groovy-plugin`. The base ID is a neutral Java-model Javadoc integration; the Groovy ID
@@ -296,7 +296,7 @@ shadow.javapoet.WildcardTypeName
 
 | Current public type | Classification | 1.0 disposition |
 |---|---|---|
-| `com.blackbuild.annodocimal.plugin.SourceProjectionTask` | supported | Retain only the five declarative property getters. |
+| `com.blackbuild.annodocimal.plugin.SourceProjectionTask` | supported | Retain only the six declarative property getters. |
 | `com.blackbuild.annodocimal.plugin.AnnoDocimalBasePlugin` | implementation-only | Retain as implementation of the supported base plugin ID. |
 | `com.blackbuild.annodocimal.plugin.AnnoDocimalGroovyPlugin` | implementation-only | Retain as implementation of the supported Groovy plugin ID. |
 

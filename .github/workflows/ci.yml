@@ -110,7 +110,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Produce Java 17 baseline coverage for analysis
-        run: ./gradlew jacocoTestReport
+        run: ./gradlew test jacocoTestReport
       - name: Analyze with auto-provisioned Sonar JRE
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any

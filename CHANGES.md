@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `SourceProjectionTask` now accepts a cacheable `referencedClassesClasspath` of directories or JARs for resolving
+  referenced declarations. Consumers can pass their schema compile classpath (or a proven narrower runtime classpath),
+  so nested dependency types project with legal Java names while ambiguous binary `$` names still fail diagnostically.
+  See [the usage guide](docs/user/usage.md#source-projection-javadoc-and-ide-mirrors).
+
 - Groovy property documentation is now retained as property semantics across capture and source projection. The
   normalized textual carrier stays on the backing field, undocumented custom accessors inherit it, and projected
   Groovy-generated getters and setters receive it while explicitly documented accessors keep precedence. Projection does
