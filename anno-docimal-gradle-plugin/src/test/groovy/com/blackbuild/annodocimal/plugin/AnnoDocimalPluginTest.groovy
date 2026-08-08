@@ -139,7 +139,7 @@ class AnnoDocimalPluginTest extends Specification {
         runMirrorTask('sourceMirror', '--build-cache')
         new File(testProjectDir, 'build/source-mirror').deleteDir()
         def restored = runMirrorTask('sourceMirror', '--build-cache')
-        compileReferencedClasspathFixture('public String changed() { return "changed"; }')
+        compileReferencedClasspathFixture("public String changed() { return \"${testProjectDir.name}\"; }")
 
         when:
         def result = runMirrorTask('sourceMirror', '--build-cache')
@@ -148,6 +148,7 @@ class AnnoDocimalPluginTest extends Specification {
         restored.output.contains(':sourceMirror FROM-CACHE')
         result.output.contains(':sourceMirror')
         !result.output.contains(':sourceMirror UP-TO-DATE')
+        !result.output.contains(':sourceMirror FROM-CACHE')
     }
 
     @Issue("94")

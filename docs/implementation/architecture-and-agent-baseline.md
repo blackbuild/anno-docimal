@@ -104,10 +104,11 @@ Recorded in ADRs 0009 and 0054.
 
 ### Reusable Gradle task contract
 
-`SourceProjectionTask` is the supported reusable task type. Its API is limited to the five Gradle property getters for
-classpath-sensitive class directories, include/exclude patterns, nested projection policy, and output directory. It owns
-all-or-nothing synchronized output, deterministic duplicate detection, stale cleanup, cacheability, and configuration-
-cache-safe execution. `CreateClassStubs` is replaced without a shim. IDE model wiring remains consumer-owned.
+`SourceProjectionTask` is the supported reusable task type. Its API is limited to the six Gradle property getters for
+classpath-sensitive class directories, referenced-declaration classpath, include/exclude patterns, nested projection
+policy, and output directory. It owns all-or-nothing synchronized output, deterministic duplicate detection, stale
+cleanup, cacheability, and configuration-cache-safe execution. `CreateClassStubs` is replaced without a shim. IDE model
+wiring remains consumer-owned.
 
 Recorded in ADRs 0010 and 0055; TestKit verifies the supported task contract.
 
