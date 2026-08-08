@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.plugin
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testfixtures.ProjectBuilder
 import shadow.asm.ClassReader
 import shadow.asm.ClassWriter
 import shadow.asm.tree.ClassNode
@@ -118,6 +119,24 @@ class AnnoDocimalPluginTest extends Specification {
         def source = new File(testProjectDir, 'build/source-mirror/schema/Schema_DSL.java').text
         source.contains('Outer.Nested')
         !source.contains('Outer$Nested')
+    }
+
+    @Issue("94")
+    def "task execution resolves a referenced nested declaration from its configured classpath"() {
+        given:
+        prepareReferencedClasspathProject()
+        def project = ProjectBuilder.builder().withProjectDir(testProjectDir).build()
+        def task = project.tasks.create('sourceMirror', SourceProjectionTask)
+        task.classesDirectories.from(new File(testProjectDir, 'classes'))
+        task.referencedClassesClasspath.from(new File(testProjectDir, 'referenced.jar'))
+        task.includes.add('**/Schema_DSL.class')
+        task.outputDirectory.set(new File(testProjectDir, 'in-process-source-mirror'))
+
+        when:
+        task.projectSources()
+
+        then:
+        new File(testProjectDir, 'in-process-source-mirror/schema/Schema_DSL.java').text.contains('Outer.Nested')
     }
 
     @Issue("94")
