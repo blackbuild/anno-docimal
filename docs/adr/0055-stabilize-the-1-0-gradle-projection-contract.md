@@ -4,15 +4,18 @@ The supported reusable task type is `com.blackbuild.annodocimal.plugin.SourcePro
 `CreateClassStubs` without a shim. Its supported member allowlist is limited to the declarative getters for:
 
 - `@Classpath ConfigurableFileCollection classesDirectories`;
+- `@Classpath ConfigurableFileCollection referencedClassesClasspath`;
 - `@Input SetProperty<String> includes` and `excludes`;
 - `@Nested Property<ProjectionPolicy> projectionPolicy`; and
 - `@OutputDirectory DirectoryProperty outputDirectory`.
 
 There are no supported fluent configuration helpers, public task-action method, or subclassing SPI. The default selects
-all top-level class files and uses `ProjectionPolicy.documentation()`. Include and exclude values are Gradle/Ant patterns
-over slash-normalized paths relative to each classes directory, including the `.class` suffix; exclusions win. Matching
-creates candidates and class metadata then determines top-level status. Duplicate binary names from different input
-directories fail deterministically with both origins.
+all top-level class files and uses `ProjectionPolicy.documentation()`. `referencedClassesClasspath` accepts directories
+and JARs solely to resolve referenced declarations; it does not add projection roots. Consumers configure the selected
+classes' compile classpath or a proven narrower runtime classpath containing every declaration needed for classification.
+Include and exclude values are Gradle/Ant patterns over slash-normalized paths relative to each classes directory,
+including the `.class` suffix; exclusions win. Matching creates candidates and class metadata then determines top-level
+status. Duplicate binary names from different input directories fail deterministically with both origins.
 
 The task exclusively owns its output directory. It projects the complete selection into staging and replaces the managed
 tree only after all projections succeed. A successful execution therefore removes stale files; a failed execution leaves

@@ -25,11 +25,19 @@ package com.blackbuild.annodocimal.plugin
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import shadow.asm.ClassReader
+import shadow.asm.ClassWriter
+import shadow.asm.tree.ClassNode
 import spock.lang.Issue
+import spock.lang.See
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Tag
 import spock.lang.TempDir
+
+import javax.tools.ToolProvider
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
 
 class AnnoDocimalPluginTest extends Specification {
 
@@ -94,6 +102,67 @@ class AnnoDocimalPluginTest extends Specification {
 
         then:
         !new File(testProjectDir, 'build/source-mirror/example/Widget_DSL.java').exists()
+    }
+
+    @Issue("94")
+    @Tag('documentary')
+    @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/user/usage.md#source-projection-javadoc-and-ide-mirrors')
+    def "source mirror resolves a referenced nested declaration from its configured classpath"() {
+        given:
+        prepareReferencedClasspathProject()
+
+        when:
+        runMirrorTask('sourceMirror')
+
+        then:
+        def source = new File(testProjectDir, 'build/source-mirror/schema/Schema_DSL.java').text
+        source.contains('Outer.Nested')
+        !source.contains('Outer$Nested')
+    }
+
+    @Issue("94")
+    def "source mirror rejects an ambiguous referenced binary nested name without its configured classpath"() {
+        given:
+        prepareReferencedClasspathProject()
+
+        when:
+        def result = runMirrorTaskAndFail('sourceMirrorWithoutReferences')
+
+        then:
+        result.output.contains("Cannot classify referenced declaration containing '\$': external.Outer.Nested")
+    }
+
+    @Issue("94")
+    def "referenced classpath changes invalidate the source mirror"() {
+        given:
+        prepareReferencedClasspathProject()
+        runMirrorTask('sourceMirror', '--build-cache')
+        new File(testProjectDir, 'build/source-mirror').deleteDir()
+        def restored = runMirrorTask('sourceMirror', '--build-cache')
+        compileReferencedClasspathFixture('public String changed() { return "changed"; }')
+
+        when:
+        def result = runMirrorTask('sourceMirror', '--build-cache')
+
+        then:
+        restored.output.contains(':sourceMirror FROM-CACHE')
+        result.output.contains(':sourceMirror')
+        !result.output.contains(':sourceMirror UP-TO-DATE')
+    }
+
+    @Issue("94")
+    @Tag('compatibility-gradle')
+    @Tag('gradle-configuration-cache')
+    def "referenced classpath supports strict configuration-cache reuse"() {
+        given:
+        prepareReferencedClasspathProject()
+
+        when:
+        runMirrorTask('sourceMirror', '--configuration-cache', '--configuration-cache-problems=fail')
+        def reused = runMirrorTask('sourceMirror', '--configuration-cache', '--configuration-cache-problems=fail')
+
+        then:
+        reused.output.contains('Reusing configuration cache.')
     }
 
     @Issue("35")
@@ -306,5 +375,89 @@ class AnnoDocimalPluginTest extends Specification {
                 }
             }
         '''.stripIndent()
+    }
+
+    private void prepareReferencedClasspathProject() {
+        new File(testProjectDir, 'settings.gradle').text = "rootProject.name = 'referenced-classpath-test'"
+        new File(testProjectDir, 'build.gradle').text = '''
+            import com.blackbuild.annodocimal.plugin.SourceProjectionTask
+
+            plugins {
+                id 'com.blackbuild.annodocimal.base-plugin'
+            }
+
+            tasks.register('sourceMirror', SourceProjectionTask) {
+                classesDirectories.from(layout.projectDirectory.dir('classes'))
+                referencedClassesClasspath.from(layout.projectDirectory.file('referenced.jar'))
+                includes.add('**/Schema_DSL.class')
+                outputDirectory.set(layout.buildDirectory.dir('source-mirror'))
+            }
+
+            tasks.register('sourceMirrorWithoutReferences', SourceProjectionTask) {
+                classesDirectories.from(layout.projectDirectory.dir('classes'))
+                includes.add('**/Schema_DSL.class')
+                outputDirectory.set(layout.buildDirectory.dir('source-mirror-without-references'))
+            }
+        '''.stripIndent()
+
+        compileReferencedClasspathFixture()
+    }
+
+    private void compileReferencedClasspathFixture(String nestedBody = '') {
+        def sourcesDirectory = new File(testProjectDir, 'fixture-sources')
+        def schemaDirectory = new File(sourcesDirectory, 'schema')
+        schemaDirectory.mkdirs()
+        new File(schemaDirectory, 'Schema_DSL.java').text = '''
+            package schema;
+
+            import external.Outer.Nested;
+
+            public class Schema_DSL {
+                public Nested nested() {
+                    return null;
+                }
+            }
+        '''.stripIndent()
+        def dependencyDirectory = new File(sourcesDirectory, 'external')
+        dependencyDirectory.mkdirs()
+        new File(dependencyDirectory, 'Outer.java').text = """
+            package external;
+
+            public class Outer {
+                public static class Nested {
+                    $nestedBody
+                }
+            }
+        """.stripIndent()
+        def compiler = ToolProvider.systemJavaCompiler
+        assert compiler != null
+        def referencedClasses = new File(testProjectDir, 'referenced-classes')
+        referencedClasses.mkdirs()
+        assert compiler.run(null, null, null, '-d', referencedClasses.absolutePath,
+                new File(dependencyDirectory, 'Outer.java').absolutePath) == 0
+        def referencedJar = new File(testProjectDir, 'referenced.jar')
+        new JarOutputStream(referencedJar.newOutputStream()).withCloseable { output ->
+            referencedClasses.eachFileRecurse { file ->
+                if (!file.isFile()) return
+                def entry = new JarEntry(referencedClasses.toPath().relativize(file.toPath()).toString())
+                output.putNextEntry(entry)
+                output.write(file.bytes)
+                output.closeEntry()
+            }
+        }
+        def classesDirectory = new File(testProjectDir, 'classes')
+        classesDirectory.mkdirs()
+        assert compiler.run(null, null, null, '-classpath', referencedJar.absolutePath, '-d', classesDirectory.absolutePath,
+                new File(schemaDirectory, 'Schema_DSL.java').absolutePath) == 0
+        removeReferencedNestedMetadata(new File(classesDirectory, 'schema/Schema_DSL.class'))
+    }
+
+    private static void removeReferencedNestedMetadata(File schemaClass) {
+        def node = new ClassNode()
+        new ClassReader(schemaClass.bytes).accept(node, 0)
+        node.innerClasses.removeIf { it.name == 'external/Outer$Nested' }
+        def writer = new ClassWriter(0)
+        node.accept(writer)
+        schemaClass.bytes = writer.toByteArray()
     }
 }

@@ -45,6 +45,9 @@ import javax.inject.Inject;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -87,6 +90,17 @@ public abstract class SourceProjectionTask extends DefaultTask {
     public abstract ConfigurableFileCollection getClassesDirectories();
 
     /**
+     * Directories and JARs used to resolve referenced declarations while projecting selected classes.
+     *
+     * <p>Configure this with the selected classes' compile classpath, or a narrower runtime classpath that contains
+     * every referenced declaration whose nested Java name must be classified. It is not scanned for projection roots.</p>
+     *
+     * @return referenced-declaration classpath
+     */
+    @Classpath
+    public abstract ConfigurableFileCollection getReferencedClassesClasspath();
+
+    /**
      * Ant-style include patterns over slash-normalized relative class-file paths.
      *
      * @return selected candidate patterns
@@ -124,7 +138,10 @@ public abstract class SourceProjectionTask extends DefaultTask {
         List<Candidate> candidates = selectedCandidates(outputDirectory);
         Path stagingDirectory = createStagingDirectory(outputDirectory);
         boolean replaced = false;
-        try {
+        Thread thread = Thread.currentThread();
+        ClassLoader originalContextLoader = thread.getContextClassLoader();
+        try (URLClassLoader referencedClassLoader = referencedClassLoader(originalContextLoader)) {
+            thread.setContextClassLoader(referencedClassLoader);
             SourceProjector projector = new SourceProjector(getProjectionPolicy().get());
             for (Candidate candidate : candidates) {
                 projector.projectToDirectory(candidate.classFile, stagingDirectory);
@@ -134,7 +151,23 @@ public abstract class SourceProjectionTask extends DefaultTask {
         } catch (IOException exception) {
             throw new GradleException("Could not project selected source classes", exception);
         } finally {
+            thread.setContextClassLoader(originalContextLoader);
             if (!replaced) deleteRecursively(stagingDirectory);
+        }
+    }
+
+    private URLClassLoader referencedClassLoader(ClassLoader parent) {
+        URL[] urls = getReferencedClassesClasspath().getFiles().stream()
+                .map(file -> toUrl(file.toPath()))
+                .toArray(URL[]::new);
+        return new URLClassLoader(urls, parent);
+    }
+
+    private static URL toUrl(Path path) {
+        try {
+            return path.toUri().toURL();
+        } catch (MalformedURLException exception) {
+            throw new GradleException("Could not add referenced classes path " + path + " to source projection", exception);
         }
     }
 

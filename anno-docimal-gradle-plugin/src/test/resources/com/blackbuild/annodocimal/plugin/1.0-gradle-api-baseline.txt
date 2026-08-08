@@ -6,4 +6,5 @@ method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getExcludes():org.
 method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getIncludes():org.gradle.api.provider.SetProperty<java.lang.String>
 method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getOutputDirectory():org.gradle.api.file.DirectoryProperty
 method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getProjectionPolicy():org.gradle.api.provider.Property<com.blackbuild.annodocimal.generator.ProjectionPolicy>
+method com.blackbuild.annodocimal.plugin.SourceProjectionTask#getReferencedClassesClasspath():org.gradle.api.file.ConfigurableFileCollection
 type public abstract com.blackbuild.annodocimal.plugin.SourceProjectionTask
