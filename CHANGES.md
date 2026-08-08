@@ -1,6 +1,6 @@
 # Changes
 
-## Unreleased
+## 1.0.0 (unreleased)
 
 - `SourceProjectionTask` now accepts a cacheable `referencedClassesClasspath` of directories or JARs for resolving
   referenced declarations. Consumers can pass their schema compile classpath (or a proven narrower runtime classpath),
