@@ -1,0 +1,1 @@
+typeSearchIndex = [{"l":"All Classes and Interfaces","u":"allclasses-index.html"},{"p":"com.blackbuild.annodocimal.plugin","l":"AnnoDocimalBasePlugin"},{"p":"com.blackbuild.annodocimal.plugin","l":"AnnoDocimalGroovyPlugin"},{"p":"com.blackbuild.annodocimal.plugin","l":"SourceProjectionTask"}];updateSearchResults();
