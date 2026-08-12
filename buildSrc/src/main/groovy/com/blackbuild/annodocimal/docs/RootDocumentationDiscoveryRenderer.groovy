@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.docs
 
 import groovy.json.JsonSlurper
 
+import java.io.FileFilter
 import java.nio.charset.StandardCharsets
 
 /** Renders the mutable Pages root from the public, manifest-bound documentation ledger. */
