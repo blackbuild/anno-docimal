@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
     "status": "public-rc",
-    "successor": null,
+    "successor": "1.0.0",
     "version": "1.0.0-rc.8"
 }
