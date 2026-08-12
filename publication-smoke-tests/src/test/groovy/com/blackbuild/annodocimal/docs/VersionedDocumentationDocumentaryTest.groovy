@@ -84,6 +84,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
 
         and: 'a root-only repair retains the same writer boundary and rejects every other Pages mutation'
         repairWorkflow.contains('name: annodocimal-pages-writer')
+        repairWorkflow.contains('ref: ${{ inputs.revision }}')
         repairWorkflow.contains('actions/create-github-app-token@v1')
         repairWorkflow.contains('git -C pages diff --exit-code -- . \':!index.html\'')
         repairWorkflow.contains('cmp -- pages/index.html written-pages/index.html')
