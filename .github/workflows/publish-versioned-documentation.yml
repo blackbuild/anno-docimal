@@ -273,10 +273,12 @@ jobs:
             mkdir -p pages/status
             cp -R rendered/status/. pages/status/
           fi
+          ./gradlew renderRootDocumentationDiscovery -PdocumentationPagesDirectory="$GITHUB_WORKSPACE/pages"
           git -C pages config user.name github-actions[bot]
           git -C pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git -C pages add "$SNAPSHOT_PATH"
           git -C pages add .nojekyll
+          git -C pages add index.html
           if [[ "$STATUS" != pending ]]; then git -C pages add status; fi
           if [[ "$STATUS" == public-rc ]]; then git -C pages add preview; fi
           if [[ "$STATUS" == current ]]; then git -C pages add stable "$maintained_line"; fi
@@ -312,7 +314,7 @@ jobs:
           path: written-pages
           fetch-depth: 1
           persist-credentials: false
-      - name: Read back the canonical commit and source manifest
+      - name: Read back the canonical commit, source manifest, and root discovery page
         shell: bash
         env:
           PUSHED_COMMIT: ${{ env.pushed_commit }}
@@ -326,8 +328,13 @@ jobs:
           test "$(git -C written-pages rev-parse HEAD)" = "$PUSHED_COMMIT"
           staged_manifest="rendered/$RENDER_PATH/source-manifest.json"
           written_manifest="written-pages/$SNAPSHOT_PATH/source-manifest.json"
+          staged_root="pages/index.html"
+          written_root="written-pages/index.html"
           test -f "$written_manifest"
+          test -f "$staged_root"
+          test -f "$written_root"
           cmp -- "$staged_manifest" "$written_manifest"
+          cmp -- "$staged_root" "$written_root"
           jq -e --arg revision "$REVISION" --arg version "$VERSION" --arg status "$STATUS" \
             '.source.revision == $revision and .documentation.version == $version and .documentation.status == $status' \
             "$written_manifest" >/dev/null
