@@ -1,0 +1,1 @@
+typeSearchIndex = [{"l":"All Classes and Interfaces","u":"allclasses-index.html"},{"p":"com.blackbuild.annodocimal.ast","l":"AnnoDocimalAnnotationProcessor"},{"p":"com.blackbuild.annodocimal.ast","l":"JavadocPropertiesBuilder"}];updateSearchResults();
