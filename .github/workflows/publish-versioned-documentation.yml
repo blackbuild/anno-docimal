@@ -241,6 +241,48 @@ jobs:
             } > "pages/$alias/index.html"
           }
 
+          write_root_discovery() {
+            local public_record public_version public_status manifest
+            local -a public_records=() snapshot_entries=()
+            mapfile -t public_records < <(
+              for status_record in pages/status/*.json; do
+                [[ -f "$status_record" ]] || continue
+                if jq -e 'select(.status == "current" or .status == "public-rc")' "$status_record" >/dev/null &&
+                    jq -e 'select(.schemaVersion == 1 and (.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[1-9][0-9]*)?$")))' "$status_record" >/dev/null; then
+                  jq -r '[.version, .status] | @tsv' "$status_record"
+                fi
+              done | sort -V
+            )
+            for public_record in "${public_records[@]}"; do
+              IFS=$'\t' read -r public_version public_status <<< "$public_record"
+              manifest="pages/$public_version/source-manifest.json"
+              if [[ -f "$manifest" ]] && jq -e --arg version "$public_version" --arg status "$public_status" \
+                  '.documentation.version == $version and .documentation.status == $status' "$manifest" >/dev/null; then
+                snapshot_entries+=("$public_record")
+              fi
+            done
+            {
+              printf '%s\n' '<!doctype html>' '<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+              printf '%s\n' '<title>AnnoDocimal documentation</title></head><body><h1>AnnoDocimal documentation</h1>'
+              printf '%s\n' '<p>This discovery page links only to public, proof-gated documentation routes. Pending release evidence is deliberately unlisted.</p><ul>'
+              if [[ -f pages/stable/index.html ]]; then printf '%s\n' '<li><a href="/anno-docimal/stable/">Stable documentation (proof-gated)</a></li>'; fi
+              if [[ -f pages/preview/index.html ]]; then printf '%s\n' '<li><a href="/anno-docimal/preview/">Preview documentation (proof-gated)</a></li>'; fi
+              if [[ -f pages/archive/index.html ]]; then printf '%s\n' '<li><a href="/anno-docimal/archive/">Documentation archive</a></li>'; fi
+              printf '%s\n' '</ul>'
+              if [[ ${#snapshot_entries[@]} -eq 0 ]]; then
+                printf '%s\n' '<p>No public documentation snapshot has been published yet.</p>'
+              else
+                printf '%s\n' '<h2>Published snapshots</h2><ul>'
+                for public_record in "${snapshot_entries[@]}"; do
+                  IFS=$'\t' read -r public_version public_status <<< "$public_record"
+                  printf '<li><a href="/anno-docimal/%s/">%s</a> (%s)</li>\n' "$public_version" "$public_version" "$public_status"
+                done
+                printf '%s\n' '</ul>'
+              fi
+              printf '%s\n' '</body></html>'
+            } > pages/index.html
+          }
+
           case "$STATUS" in
             public-rc)
               write_alias preview "$VERSION" 'Preview documentation (proof-gated)' 'This alias names one publicly proven release candidate.'
@@ -273,10 +315,12 @@ jobs:
             mkdir -p pages/status
             cp -R rendered/status/. pages/status/
           fi
+          write_root_discovery
           git -C pages config user.name github-actions[bot]
           git -C pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git -C pages add "$SNAPSHOT_PATH"
           git -C pages add .nojekyll
+          git -C pages add index.html
           if [[ "$STATUS" != pending ]]; then git -C pages add status; fi
           if [[ "$STATUS" == public-rc ]]; then git -C pages add preview; fi
           if [[ "$STATUS" == current ]]; then git -C pages add stable "$maintained_line"; fi
@@ -312,7 +356,7 @@ jobs:
           path: written-pages
           fetch-depth: 1
           persist-credentials: false
-      - name: Read back the canonical commit and source manifest
+      - name: Read back the canonical commit, source manifest, and root discovery page
         shell: bash
         env:
           PUSHED_COMMIT: ${{ env.pushed_commit }}
@@ -326,8 +370,13 @@ jobs:
           test "$(git -C written-pages rev-parse HEAD)" = "$PUSHED_COMMIT"
           staged_manifest="rendered/$RENDER_PATH/source-manifest.json"
           written_manifest="written-pages/$SNAPSHOT_PATH/source-manifest.json"
+          staged_root="pages/index.html"
+          written_root="written-pages/index.html"
           test -f "$written_manifest"
+          test -f "$staged_root"
+          test -f "$written_root"
           cmp -- "$staged_manifest" "$written_manifest"
+          cmp -- "$staged_root" "$written_root"
           jq -e --arg revision "$REVISION" --arg version "$VERSION" --arg status "$STATUS" \
             '.source.revision == $revision and .documentation.version == $version and .documentation.status == $status' \
             "$written_manifest" >/dev/null

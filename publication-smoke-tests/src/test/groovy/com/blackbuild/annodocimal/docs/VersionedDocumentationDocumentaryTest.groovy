@@ -62,7 +62,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         writerJob.contains('PAGES_WRITER_APP_PRIVATE_KEY')
         writerJob.contains('Require the requested source to be current master')
         writerJob.contains('Assert the staged artifact is bound to the requested source')
-        writerJob.contains('Read back the canonical commit and source manifest')
+        writerJob.contains('Read back the canonical commit, source manifest, and root discovery page')
         writerJob.contains('cp -R "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"')
         !writerJob.contains('mv "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"')
         writerJob.indexOf('cp -R "rendered/$RENDER_PATH" "pages/$SNAPSHOT_PATH"') <
@@ -120,6 +120,31 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         documentation.contains('`/pending/<version>/<full-source-sha>/`')
         documentation.contains('VersionedDocumentationDocumentaryTest.keeps public documentation routing immutable and proof-gated')
         documentation.contains('exact tagged historical source')
+    }
+
+    @Issue('71')
+    @Tag('documentary')
+    @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#root-documentation-discovery')
+    def 'makes the Pages root a safe public documentation discovery page'() {
+        given: 'the checked-in protected publication contract and its public documentation'
+        File repository = new File(System.getProperty('annodocimal.repository.root'))
+        String publicationWorkflow = new File(repository, '.github/workflows/publish-versioned-documentation.yml').text
+        String documentation = new File(repository, 'docs/versioned-documentation.md').text
+        String writerJob = job(publicationWorkflow, 'write-canonical-immutable-snapshot')
+
+        expect: 'the mutable root derives labelled routes only from the public ledger and is included in write proof'
+        writerJob.contains('write_root_discovery()')
+        writerJob.contains('jq -e \'select(.status == "current" or .status == "public-rc")\'')
+        writerJob.contains('pages/index.html')
+        writerJob.contains('No public documentation snapshot has been published yet.')
+        writerJob.contains('git -C pages add index.html')
+        writerJob.contains('staged_root="pages/index.html"')
+        writerJob.contains('written_root="written-pages/index.html"')
+        writerJob.contains('cmp -- "$staged_root" "$written_root"')
+        documentation.contains('## Root documentation discovery')
+        documentation.contains('No public documentation snapshot has been published')
+        documentation.contains('yet.`')
+        documentation.contains('VersionedDocumentationDocumentaryTest.makes the Pages root a safe public documentation discovery page')
     }
 
     def 'demonstrates an immutable exact-site rehearsal'() {

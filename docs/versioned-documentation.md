@@ -67,10 +67,24 @@ and asset, Javadocs, and fragments. Markdown URLs, missing targets, missing anch
 
 The protected release deployment adds exactly one previously absent `/<version>/` or
 `/pending/<version>/<full-source-sha>/` tree to `gh-pages`. Pending evidence does not touch root `status/`. A public deployment
-may update only root status records and its explicitly proof-gated alias pages, never a snapshot or manifest. An archived
+may update only root status records, the root discovery page, and its explicitly proof-gated alias pages, never a snapshot or manifest. An archived
 deployment may additionally regenerate only the `/archive/` discovery index. [Issue #45](https://github.com/blackbuild/anno-docimal/issues/45)
 owns release authorization, public-artifact proof, metadata links, recovery, and supersession; this renderer has no
 artifact-publication authority.
+
+## Root documentation discovery
+
+The mutable Pages root `/` is a writer-owned discovery page, not a documentation snapshot or release claim. On every
+protected documentation write it deterministically reads the public root status ledger and links only to validated
+`current` and `public-rc` immutable snapshot routes. It also offers the existing writer-owned `/stable/`, `/preview/`,
+and `/archive/` routes with their labels. Pending evidence is never listed, and a status record without a matching
+immutable source manifest is ignored.
+
+An empty public ledger renders the safe, non-redirecting message `No public documentation snapshot has been published
+yet.` It creates no alias, status record, or release authority. The root is deliberately excluded from each immutable
+snapshot's `source-manifest.json`; the protected writer instead stages and byte-compares the mutable root page during
+its post-push read-back alongside the immutable source-manifest check. The executable happy path is
+`VersionedDocumentationDocumentaryTest.makes the Pages root a safe public documentation discovery page`.
 
 The release workflow defaults to artifact-only validation. It renders, crawls, and uploads the complete site but skips
 the protected canonical writer job. Public statuses additionally require the matching version tag; pending proof precedes
