@@ -86,6 +86,12 @@ snapshot's `source-manifest.json`; the protected writer instead stages and byte-
 its post-push read-back alongside the immutable source-manifest check. The executable happy path is
 `VersionedDocumentationDocumentaryTest.makes the Pages root a safe public documentation discovery page`.
 
+If the root alone is absent or corrupt after a public publication, a maintainer may separately authorize `Repair
+protected Pages root documentation discovery`. It accepts only an exact current-`master` SHA, uses the same
+`annodocimal-pages-writer` App and environment, regenerates `index.html` from the existing ledger, rejects any other
+`gh-pages` diff, and byte-compares the root after its push. It neither renders nor changes a snapshot, manifest, status
+record, alias, or pending path.
+
 The release workflow defaults to artifact-only validation. It renders, crawls, and uploads the complete site but skips
 the protected canonical writer job. Public statuses additionally require the matching version tag; pending proof precedes
 publication and therefore does not. Render and crawl jobs have only read permission and never receive the canonical

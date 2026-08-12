@@ -122,7 +122,7 @@ Record each failed step, exact SHA/version, attempted registry transaction, visi
 | Tag or GitHub Release creation fails after proof | Retry only the idempotent release-record operation against the exact existing tag and CHANGES-derived text. Never move or recreate a conflicting tag. |
 | Immutable snapshot write fails before remote commit | Retry only after proving the path is absent. If it exists, read back its manifest; never overwrite it. |
 | Public snapshot exists but proof-gated aliases or status/successor record fail | **Safe retry.** Re-run only the guarded mutable advance with the same recorded proof and manifest. Do not render or replace the immutable snapshot. |
-| Mutable root discovery page is absent or fails its read-back check | On the next separately authorized protected Pages write, regenerate it from the existing public ledger and verify its byte-identical read-back. Never rewrite an immutable snapshot, its manifest, or a pending tree; record the correction against related issue #71 while #45 retains release ownership. |
+| Mutable root discovery page is absent or fails its read-back check | Separately authorize the protected root-discovery repair against exact current `master`. It regenerates and byte-verifies only the root from the existing public ledger. Never rewrite an immutable snapshot, its manifest, or a pending tree; record the correction against related issue #71 while #45 retains release ownership. |
 
 ## Local non-publishing rehearsal
 

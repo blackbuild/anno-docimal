@@ -1,5 +1,11 @@
 # Changes
 
+## Unreleased
+
+- Restored the mutable GitHub Pages root as a proof-gated documentation discovery entry. It lists only public immutable
+  snapshots and labelled public routes; pending release evidence remains unlisted. See
+  [versioned documentation](docs/versioned-documentation.md#root-documentation-discovery).
+
 ## 1.0.0 — 2026-08-12
 
 - `SourceProjectionTask` now accepts a cacheable `referencedClassesClasspath` of directories or JARs for resolving

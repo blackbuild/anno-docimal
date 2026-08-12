@@ -47,6 +47,7 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         File repository = new File(System.getProperty('annodocimal.repository.root'))
         String publicationWorkflow = new File(repository, '.github/workflows/publish-versioned-documentation.yml').text
         String rehearsalWorkflow = new File(repository, '.github/workflows/rehearse-versioned-documentation.yml').text
+        String repairWorkflow = new File(repository, '.github/workflows/repair-pages-root-documentation.yml').text
         String documentation = new File(repository, 'docs/versioned-documentation.md').text
         String writerJob = job(publicationWorkflow, 'write-canonical-immutable-snapshot')
         String renderJob = job(publicationWorkflow, 'validate-and-render')
@@ -80,6 +81,13 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         !ordinaryPublicationJobs.contains('PAGES_WRITER_')
         !ordinaryPublicationJobs.contains('create-github-app-token')
         !publicationWorkflow.contains('environment:\n      name: github-pages')
+
+        and: 'a root-only repair retains the same writer boundary and rejects every other Pages mutation'
+        repairWorkflow.contains('name: annodocimal-pages-writer')
+        repairWorkflow.contains('actions/create-github-app-token@v1')
+        repairWorkflow.contains('git -C pages diff --exit-code -- . \':!index.html\'')
+        repairWorkflow.contains('cmp -- pages/index.html written-pages/index.html')
+        !repairWorkflow.contains('environment:\n      name: github-pages')
 
         and: 'the disposable rehearsal remains credential-free and artifact-only'
         !rehearsalWorkflow.contains('github-pages')
@@ -133,10 +141,8 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         String writerJob = job(publicationWorkflow, 'write-canonical-immutable-snapshot')
 
         expect: 'the mutable root derives labelled routes only from the public ledger and is included in write proof'
-        writerJob.contains('write_root_discovery()')
-        writerJob.contains('jq -e \'select(.status == "current" or .status == "public-rc")\'')
+        writerJob.contains('renderRootDocumentationDiscovery -PdocumentationPagesDirectory="$GITHUB_WORKSPACE/pages"')
         writerJob.contains('pages/index.html')
-        writerJob.contains('No public documentation snapshot has been published yet.')
         writerJob.contains('git -C pages add index.html')
         writerJob.contains('staged_root="pages/index.html"')
         writerJob.contains('written_root="written-pages/index.html"')
@@ -145,6 +151,44 @@ class VersionedDocumentationDocumentaryTest extends Specification {
         documentation.contains('No public documentation snapshot has been published')
         documentation.contains('yet.`')
         documentation.contains('VersionedDocumentationDocumentaryTest.makes the Pages root a safe public documentation discovery page')
+    }
+
+    @Issue('71')
+    @Tag('documentary')
+    @See('https://github.com/blackbuild/anno-docimal/blob/master/docs/versioned-documentation.md#root-documentation-discovery')
+    def 'renders root discovery from only public manifest-bound snapshots'() {
+        given: 'a Pages ledger with public, pending, and malformed entries'
+        File pages = Files.createTempDirectory('pages-root-discovery-').toFile()
+        new File(pages, 'status').mkdirs()
+        status(pages, '1.0.0', 'current')
+        manifest(pages, '1.0.0', 'current')
+        status(pages, '1.1.0-rc.1', 'public-rc')
+        manifest(pages, '1.1.0-rc.1', 'public-rc')
+        status(pages, '1.2.0-rc.1', 'pending')
+        manifest(pages, '1.2.0-rc.1', 'pending')
+        status(pages, '0.9.0', 'current')
+        manifest(pages, '0.9.0', 'archived')
+        new File(pages, 'stable').mkdirs(); new File(pages, 'stable/index.html').text = 'stable'
+        new File(pages, 'preview').mkdirs(); new File(pages, 'preview/index.html').text = 'preview'
+
+        when: 'the writer renders its mutable root from the existing ledger'
+        RootDocumentationDiscoveryRenderer.render(pages)
+
+        then: 'only public, manifest-bound routes are labelled and listed'
+        String root = new File(pages, 'index.html').text
+        root.contains('/anno-docimal/stable/')
+        root.contains('/anno-docimal/preview/')
+        root.contains('/anno-docimal/1.0.0/')
+        root.contains('/anno-docimal/1.1.0-rc.1/')
+        !root.contains('1.2.0-rc.1')
+        !root.contains('0.9.0')
+
+        when: 'the ledger has no public manifest-bound snapshot'
+        new File(pages, 'status').deleteDir()
+        RootDocumentationDiscoveryRenderer.render(pages)
+
+        then: 'the root remains safe and non-redirecting'
+        new File(pages, 'index.html').text.contains('No public documentation snapshot has been published yet.')
     }
 
     def 'demonstrates an immutable exact-site rehearsal'() {
@@ -321,6 +365,16 @@ tasks.register('renderVersionedDocumentation', RenderVersionedDocumentationTask)
 
     private static String gradleString(File file) {
         file.absolutePath.replace('\\', '\\\\').replace("'", "\\'")
+    }
+
+    private static void status(File pages, String version, String status) {
+        new File(pages, "status/${version}.json").text = """{ "schemaVersion": 1, "version": "$version", "status": "$status" }"""
+    }
+
+    private static void manifest(File pages, String version, String status) {
+        File directory = new File(pages, version)
+        directory.mkdirs()
+        new File(directory, 'source-manifest.json').text = """{ "documentation": { "version": "$version", "status": "$status" } }"""
     }
 
     private static String job(String workflow, String name) {

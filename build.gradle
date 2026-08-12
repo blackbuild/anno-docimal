@@ -1,5 +1,6 @@
 import com.blackbuild.annodocimal.docs.RenderVersionedDocumentationTask
 import com.blackbuild.annodocimal.docs.PreviewRenderedDocumentationTask
+import com.blackbuild.annodocimal.docs.RootDocumentationDiscoveryRenderer
 import com.blackbuild.annodocimal.docs.VersionedDocumentationRenderer
 import com.blackbuild.annodocimal.docs.VerifyRenderedDocumentationSiteTask
 import com.blackbuild.annodocimal.docs.VerifyVersionedDocumentationRendererTask
@@ -394,6 +395,15 @@ tasks.register('publicRcSmoke') {
     group = 'verification'
     description = 'Runs exact-version consumer validation against public repositories only.'
     dependsOn ':publication-smoke-tests:publicRcSmoke'
+}
+
+def documentationPagesDirectory = providers.gradleProperty('documentationPagesDirectory').map { file(it) }
+tasks.register('renderRootDocumentationDiscovery') {
+    group = 'documentation'
+    description = 'Renders the mutable Pages root from public manifest-bound status records.'
+    inputs.dir(documentationPagesDirectory)
+    outputs.file(documentationPagesDirectory.map { new File(it, 'index.html') })
+    doLast { RootDocumentationDiscoveryRenderer.render(documentationPagesDirectory.get()) }
 }
 
 def releaseRehearsalVersion = providers.gradleProperty('release.version')

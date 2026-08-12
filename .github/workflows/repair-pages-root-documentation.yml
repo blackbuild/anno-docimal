@@ -1,0 +1,88 @@
+name: Repair protected Pages root documentation discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact lowercase current master commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  repair-root-discovery:
+    runs-on: ubuntu-latest
+    environment:
+      name: annodocimal-pages-writer
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require an exact current master repair source
+        shell: bash
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: |
+          set -euo pipefail
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse "$REVISION^{commit}")" = "$REVISION"
+          test "$(git ls-remote --exit-code origin refs/heads/master | awk '{print $1}')" = "$REVISION"
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Render only the mutable root discovery page
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew renderRootDocumentationDiscovery -PdocumentationPagesDirectory="$GITHUB_WORKSPACE/pages"
+          git -C pages diff --exit-code -- . ':!index.html'
+          git -C pages add index.html
+          git -C pages diff --cached --quiet && exit 1
+          git -C pages config user.name github-actions[bot]
+          git -C pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C pages commit -m "Repair Pages root documentation discovery"
+          echo "pushed_commit=$(git -C pages rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Require protected writer credentials
+        shell: bash
+        env:
+          PAGES_WRITER_APP_ID: ${{ secrets.PAGES_WRITER_APP_ID }}
+          PAGES_WRITER_APP_PRIVATE_KEY: ${{ secrets.PAGES_WRITER_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$PAGES_WRITER_APP_ID"
+          test -n "$PAGES_WRITER_APP_PRIVATE_KEY"
+      - name: Mint the dedicated Pages writer token
+        id: pages-writer-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PAGES_WRITER_APP_ID }}
+          private-key: ${{ secrets.PAGES_WRITER_APP_PRIVATE_KEY }}
+      - name: Write the canonical root discovery repair
+        shell: bash
+        env:
+          PAGES_WRITER_TOKEN: ${{ steps.pages-writer-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          git -C pages push "https://x-access-token:${PAGES_WRITER_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: written-pages
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Read back the canonical root discovery repair
+        shell: bash
+        env:
+          PUSHED_COMMIT: ${{ env.pushed_commit }}
+        run: |
+          set -euo pipefail
+          test "$(git -C written-pages rev-parse HEAD)" = "$PUSHED_COMMIT"
+          cmp -- pages/index.html written-pages/index.html
