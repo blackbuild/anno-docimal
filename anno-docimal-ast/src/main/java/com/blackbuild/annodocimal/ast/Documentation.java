@@ -176,9 +176,8 @@ public final class Documentation {
         }
         StringBuilder content = new StringBuilder(firstContent);
         index++;
-        while (index < lines.size()) {
+        while (index < lines.size() && (code || !isParagraphBoundary(lines.get(index)))) {
             String line = lines.get(index);
-            if (!code && isParagraphBoundary(line)) break;
             int closingIndex = line.indexOf(closing);
             if (closingIndex >= 0) {
                 if (!content.isEmpty()) content.append('\n');
