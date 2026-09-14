@@ -185,6 +185,7 @@ public final class Documentation {
                 index++;
                 break;
             }
+            if (!code && isParagraphBoundary(line)) break;
             if (!content.isEmpty()) content.append('\n');
             content.append(line);
             index++;
@@ -193,6 +194,12 @@ public final class Documentation {
         if (code) builder.codeBlock(value);
         else builder.paragraph(value);
         return index;
+    }
+
+    private static boolean isParagraphBoundary(String line) {
+        return line.startsWith("@")
+                || startsDelimitedBlock(line, PARAGRAPH_OPEN)
+                || startsDelimitedBlock(line, CODE_BLOCK_OPEN);
     }
 
     private static void parseTags(List<String> lines, int index, Builder builder) {
