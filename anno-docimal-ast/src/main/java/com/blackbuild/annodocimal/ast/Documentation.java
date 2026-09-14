@@ -178,6 +178,7 @@ public final class Documentation {
         index++;
         while (index < lines.size()) {
             String line = lines.get(index);
+            if (!code && isParagraphBoundary(line)) break;
             int closingIndex = line.indexOf(closing);
             if (closingIndex >= 0) {
                 if (!content.isEmpty()) content.append('\n');
@@ -185,7 +186,6 @@ public final class Documentation {
                 index++;
                 break;
             }
-            if (!code && isParagraphBoundary(line)) break;
             if (!content.isEmpty()) content.append('\n');
             content.append(line);
             index++;

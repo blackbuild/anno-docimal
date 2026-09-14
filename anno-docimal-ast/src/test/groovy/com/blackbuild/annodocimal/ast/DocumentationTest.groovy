@@ -330,6 +330,8 @@ Additional detail.
         '<p>\nMultiple lines.\nRemain closed.</p>' | ['Multiple lines.\nRemain closed.']
         '<p>\nFirst legacy paragraph.\n<p>\nSecond legacy paragraph.' |
                 ['First legacy paragraph.', 'Second legacy paragraph.']
+        '<p>\nFirst legacy paragraph.\n<p>Second closed paragraph.</p>' |
+                ['First legacy paragraph.', 'Second closed paragraph.']
     }
 
     def "parses single-line blocks and empty input deterministically"() {

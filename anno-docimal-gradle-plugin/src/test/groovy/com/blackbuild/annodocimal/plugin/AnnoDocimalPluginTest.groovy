@@ -526,15 +526,7 @@ Additional detail.
         def moduleDirectory = new File(testProjectDir, 'repository/fixture/external/nested-api/1.0.0')
         moduleDirectory.mkdirs()
         def dependencyJar = new File(moduleDirectory, 'nested-api-1.0.0.jar')
-        new JarOutputStream(dependencyJar.newOutputStream()).withCloseable { output ->
-            classesDirectory.eachFileRecurse { file ->
-                if (!file.isFile()) return
-                def entry = new JarEntry(classesDirectory.toPath().relativize(file.toPath()).toString())
-                output.putNextEntry(entry)
-                output.write(file.bytes)
-                output.closeEntry()
-            }
-        }
+        writeJar(classesDirectory, dependencyJar)
         new File(moduleDirectory, 'nested-api-1.0.0.pom').text = '''
             <project xmlns="http://maven.apache.org/POM/4.0.0">
               <modelVersion>4.0.0</modelVersion>
@@ -578,20 +570,24 @@ Additional detail.
         assert compiler.run(null, null, null, '-d', referencedClasses.absolutePath,
                 new File(dependencyDirectory, 'Outer.java').absolutePath) == 0
         def referencedJar = new File(testProjectDir, 'referenced.jar')
-        new JarOutputStream(referencedJar.newOutputStream()).withCloseable { output ->
-            referencedClasses.eachFileRecurse { file ->
-                if (!file.isFile()) return
-                def entry = new JarEntry(referencedClasses.toPath().relativize(file.toPath()).toString())
-                output.putNextEntry(entry)
-                output.write(file.bytes)
-                output.closeEntry()
-            }
-        }
+        writeJar(referencedClasses, referencedJar)
         def classesDirectory = new File(testProjectDir, 'classes')
         classesDirectory.mkdirs()
         assert compiler.run(null, null, null, '-classpath', referencedJar.absolutePath, '-d', classesDirectory.absolutePath,
                 new File(schemaDirectory, 'Schema_DSL.java').absolutePath) == 0
         removeReferencedNestedMetadata(new File(classesDirectory, 'schema/Schema_DSL.class'))
+    }
+
+    private static void writeJar(File classesDirectory, File target) {
+        new JarOutputStream(target.newOutputStream()).withCloseable { output ->
+            classesDirectory.eachFileRecurse { file ->
+                if (!file.isFile()) return
+                def entry = new JarEntry(classesDirectory.toPath().relativize(file.toPath()).toString())
+                output.putNextEntry(entry)
+                output.write(file.bytes)
+                output.closeEntry()
+            }
+        }
     }
 
     private static void removeReferencedNestedMetadata(File schemaClass) {
