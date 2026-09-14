@@ -25,6 +25,7 @@ package com.blackbuild.annodocimal.plugin
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.testfixtures.ProjectBuilder
 import shadow.asm.ClassReader
 import shadow.asm.ClassWriter
@@ -149,6 +150,28 @@ class AnnoDocimalPluginTest extends Specification {
 
         then:
         result.output.contains("Cannot classify referenced declaration containing '\$': external.Outer.Nested")
+    }
+
+    @Issue("99")
+    def "default plugin projects nested dependency signatures into Javadoc"() {
+        given:
+        prepareDefaultPluginConsumerProject()
+
+        when:
+        def result = runMirrorTask('javadoc')
+
+        then:
+        result.task(':createClassStubs').outcome == TaskOutcome.SUCCESS
+        result.task(':javadoc').outcome == TaskOutcome.SUCCESS
+
+        and:
+        def source = new File(testProjectDir, 'build/generated/sources/annodocimal/main/consumer/DummyConsumer.java').text
+        source.contains('Outer.Nested create(String input)')
+        !source.contains('Outer\$Nested')
+        source.contains('Creates a nested value.')
+
+        and:
+        new File(testProjectDir, 'build/docs/javadoc/consumer/DummyConsumer.html').isFile()
     }
 
     @Issue("94")
@@ -423,6 +446,83 @@ class AnnoDocimalPluginTest extends Specification {
         compileReferencedClasspathFixture()
     }
 
+    private void prepareDefaultPluginConsumerProject() {
+        new File(testProjectDir, 'settings.gradle').text = "rootProject.name = 'default-plugin-consumer-test'"
+        new File(testProjectDir, 'build.gradle').text = """
+            plugins {
+                id 'com.blackbuild.annodocimal.groovy-plugin'
+            }
+
+            repositories {
+                maven { url = uri('repository') }
+                mavenCentral()
+            }
+
+            dependencies {
+                compileOnly files('${System.getProperty('anno.docimal.annotations.jar')}')
+                implementation 'org.apache.groovy:groovy:4.0.32'
+                implementation 'fixture.external:nested-api:1.0.0'
+            }
+
+            java {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+        """.stripIndent()
+
+        compileNestedApiDependency()
+
+        def sourceDirectory = new File(testProjectDir, 'src/main/groovy/consumer')
+        sourceDirectory.mkdirs()
+        new File(sourceDirectory, 'DummyConsumer.groovy').text = """
+            package consumer
+
+            import com.blackbuild.annodocimal.annotations.AnnoDoc
+            import fixture.external.Outer.Nested
+
+            class DummyConsumer {
+                @AnnoDoc('Creates a nested value.')
+                Nested create(String input) {
+                    null
+                }
+            }
+        """.stripIndent()
+    }
+
+    private void compileNestedApiDependency() {
+        def sourceDirectory = new File(testProjectDir, 'nested-api-source/fixture/external')
+        sourceDirectory.mkdirs()
+        def source = new File(sourceDirectory, 'Outer.java')
+        source.text = '''
+            package fixture.external;
+
+            public class Outer {
+                public static class Nested {
+                }
+            }
+        '''.stripIndent()
+
+        def compiler = ToolProvider.systemJavaCompiler
+        assert compiler != null
+        def classesDirectory = new File(testProjectDir, 'nested-api-classes')
+        classesDirectory.mkdirs()
+        assert compiler.run(null, null, null, '--release', '17', '-d', classesDirectory.absolutePath,
+                source.absolutePath) == 0
+
+        def moduleDirectory = new File(testProjectDir, 'repository/fixture/external/nested-api/1.0.0')
+        moduleDirectory.mkdirs()
+        def dependencyJar = new File(moduleDirectory, 'nested-api-1.0.0.jar')
+        writeJar(classesDirectory, dependencyJar)
+        new File(moduleDirectory, 'nested-api-1.0.0.pom').text = '''
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+              <modelVersion>4.0.0</modelVersion>
+              <groupId>fixture.external</groupId>
+              <artifactId>nested-api</artifactId>
+              <version>1.0.0</version>
+            </project>
+        '''.stripIndent()
+    }
+
     private void compileReferencedClasspathFixture(String nestedBody = '') {
         def sourcesDirectory = new File(testProjectDir, 'fixture-sources')
         def schemaDirectory = new File(sourcesDirectory, 'schema')
@@ -456,20 +556,24 @@ class AnnoDocimalPluginTest extends Specification {
         assert compiler.run(null, null, null, '-d', referencedClasses.absolutePath,
                 new File(dependencyDirectory, 'Outer.java').absolutePath) == 0
         def referencedJar = new File(testProjectDir, 'referenced.jar')
-        new JarOutputStream(referencedJar.newOutputStream()).withCloseable { output ->
-            referencedClasses.eachFileRecurse { file ->
-                if (!file.isFile()) return
-                def entry = new JarEntry(referencedClasses.toPath().relativize(file.toPath()).toString())
-                output.putNextEntry(entry)
-                output.write(file.bytes)
-                output.closeEntry()
-            }
-        }
+        writeJar(referencedClasses, referencedJar)
         def classesDirectory = new File(testProjectDir, 'classes')
         classesDirectory.mkdirs()
         assert compiler.run(null, null, null, '-classpath', referencedJar.absolutePath, '-d', classesDirectory.absolutePath,
                 new File(schemaDirectory, 'Schema_DSL.java').absolutePath) == 0
         removeReferencedNestedMetadata(new File(classesDirectory, 'schema/Schema_DSL.class'))
+    }
+
+    private static void writeJar(File classesDirectory, File target) {
+        new JarOutputStream(target.newOutputStream()).withCloseable { output ->
+            classesDirectory.eachFileRecurse { file ->
+                if (!file.isFile()) return
+                def entry = new JarEntry(classesDirectory.toPath().relativize(file.toPath()).toString())
+                output.putNextEntry(entry)
+                output.write(file.bytes)
+                output.closeEntry()
+            }
+        }
     }
 
     private static void removeReferencedNestedMetadata(File schemaClass) {

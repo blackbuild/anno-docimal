@@ -176,7 +176,7 @@ public final class Documentation {
         }
         StringBuilder content = new StringBuilder(firstContent);
         index++;
-        while (index < lines.size()) {
+        while (index < lines.size() && (code || !isParagraphBoundary(lines.get(index)))) {
             String line = lines.get(index);
             int closingIndex = line.indexOf(closing);
             if (closingIndex >= 0) {
@@ -193,6 +193,12 @@ public final class Documentation {
         if (code) builder.codeBlock(value);
         else builder.paragraph(value);
         return index;
+    }
+
+    private static boolean isParagraphBoundary(String line) {
+        return line.startsWith("@")
+                || startsDelimitedBlock(line, PARAGRAPH_OPEN)
+                || startsDelimitedBlock(line, CODE_BLOCK_OPEN);
     }
 
     private static void parseTags(List<String> lines, int index, Builder builder) {

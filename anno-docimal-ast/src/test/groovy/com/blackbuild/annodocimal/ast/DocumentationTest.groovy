@@ -23,6 +23,7 @@
  */
 package com.blackbuild.annodocimal.ast
 
+import spock.lang.Issue
 import spock.lang.Specification
 
 import java.util.Optional
@@ -286,6 +287,51 @@ continues too.</p>
 @return the generated result
 @throws IllegalStateException when source is invalid
 @since 1.0'''
+    }
+
+    @Issue("100")
+    def "legacy unmatched paragraphs stop before semantic block tags"() {
+        when:
+        def documentation = Documentation.parse('''Creates a value.
+
+<p>
+Additional detail.
+
+@param input the input value
+@return the created value
+@throws IllegalStateException when creation fails
+@since 1.0''')
+
+        then:
+        documentation.summary == Optional.of('Creates a value.')
+        documentation.blocks*.text == ['Additional detail.']
+        documentation.parameters == [input: 'the input value']
+        documentation.returnDescription == Optional.of('the created value')
+        documentation.exceptions == [IllegalStateException: 'when creation fails']
+        documentation.tags*.name == ['since']
+        documentation.render() == '''Creates a value.
+
+<p>Additional detail.</p>
+
+@param input the input value
+@return the created value
+@throws IllegalStateException when creation fails
+@since 1.0'''
+    }
+
+    @Issue("100")
+    def "closed and repeated legacy paragraphs remain separate blocks"() {
+        expect:
+        Documentation.parse(source).blocks*.text == expected
+
+        where:
+        source                                  | expected
+        '<p>Single line.</p>'                   | ['Single line.']
+        '<p>\nMultiple lines.\nRemain closed.</p>' | ['Multiple lines.\nRemain closed.']
+        '<p>\nFirst legacy paragraph.\n<p>\nSecond legacy paragraph.' |
+                ['First legacy paragraph.', 'Second legacy paragraph.']
+        '<p>\nFirst legacy paragraph.\n<p>Second closed paragraph.</p>' |
+                ['First legacy paragraph.', 'Second closed paragraph.']
     }
 
     def "parses single-line blocks and empty input deterministically"() {
