@@ -38,7 +38,6 @@ dependencies {
     // all dependencies are compile time dependencies (for AST "runtime" is compile time of a client project")
     api project(path: ':anno-docimal-generator', configuration: "shadow")
     compileOnly libs.jspecify
-    testImplementation project(':anno-docimal-ast')
     testImplementation libs.spock.g3
 }
 

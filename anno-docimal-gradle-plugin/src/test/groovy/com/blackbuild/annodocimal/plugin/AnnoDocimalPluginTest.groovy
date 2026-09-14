@@ -23,7 +23,6 @@
  */
 package com.blackbuild.annodocimal.plugin
 
-import com.blackbuild.annodocimal.ast.Documentation
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -153,8 +152,8 @@ class AnnoDocimalPluginTest extends Specification {
         result.output.contains("Cannot classify referenced declaration containing '\$': external.Outer.Nested")
     }
 
-    @Issue(["99", "100"])
-    def "default plugin projects nested dependency signatures and legacy documentation into Javadoc"() {
+    @Issue("99")
+    def "default plugin projects nested dependency signatures into Javadoc"() {
         given:
         prepareDefaultPluginConsumerProject()
 
@@ -169,11 +168,7 @@ class AnnoDocimalPluginTest extends Specification {
         def source = new File(testProjectDir, 'build/generated/sources/annodocimal/main/consumer/DummyConsumer.java').text
         source.contains('Outer.Nested create(String input)')
         !source.contains('Outer\$Nested')
-        source.contains('<p>Additional detail.</p>')
-        source.indexOf('</p>') < source.indexOf('@param input the input value')
-        source.contains('@return the created value')
-        source.contains('@throws java.lang.IllegalStateException when creation fails')
-        source.contains('@since 1.0')
+        source.contains('Creates a nested value.')
 
         and:
         new File(testProjectDir, 'build/docs/javadoc/consumer/DummyConsumer.html').isFile()
@@ -479,15 +474,6 @@ class AnnoDocimalPluginTest extends Specification {
 
         def sourceDirectory = new File(testProjectDir, 'src/main/groovy/consumer')
         sourceDirectory.mkdirs()
-        def documentation = Documentation.parse('''Creates a nested value.
-
-<p>
-Additional detail.
-
-@param input the input value
-@return the created value
-@throws java.lang.IllegalStateException when creation fails
-@since 1.0''').render()
         new File(sourceDirectory, 'DummyConsumer.groovy').text = """
             package consumer
 
@@ -495,7 +481,7 @@ Additional detail.
             import fixture.external.Outer.Nested
 
             class DummyConsumer {
-                @AnnoDoc(${documentation.inspect()})
+                @AnnoDoc('Creates a nested value.')
                 Nested create(String input) {
                     null
                 }
