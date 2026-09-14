@@ -170,8 +170,7 @@ public final class Documentation {
         int closingInFirstLine = firstContent.indexOf(closing);
         if (closingInFirstLine >= 0) {
             String value = firstContent.substring(0, closingInFirstLine).strip();
-            if (code) builder.codeBlock(value);
-            else builder.paragraph(value);
+            appendDelimitedBlock(builder, value, code);
             return index + 1;
         }
         StringBuilder content = new StringBuilder(firstContent);
@@ -190,9 +189,13 @@ public final class Documentation {
             index++;
         }
         String value = content.toString().strip();
+        appendDelimitedBlock(builder, value, code);
+        return index;
+    }
+
+    private static void appendDelimitedBlock(Builder builder, String value, boolean code) {
         if (code) builder.codeBlock(value);
         else builder.paragraph(value);
-        return index;
     }
 
     private static boolean isParagraphBoundary(String line) {
