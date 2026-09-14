@@ -41,6 +41,7 @@ public class AnnoDocimalBasePlugin implements Plugin<Project> {
             SourceSet mainSourceSet = project.getExtensions().getByType(JavaPluginExtension.class)
                     .getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
             task.getClassesDirectories().from(mainSourceSet.getOutput().getClassesDirs());
+            task.getReferencedClassesClasspath().from(mainSourceSet.getCompileClasspath());
             task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("generated/sources/annodocimal/main"));
         });
 
