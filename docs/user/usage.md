@@ -210,6 +210,11 @@ immutable and builders are mutable, non-thread-safe snapshots. Public inputs rej
 use `Optional`, and JSpecify marks the supported Java types non-null by default. See the
 [authoring migration guide](migration/0.x-to-1.0-authoring-language.md) for template and clean-cut details.
 
+`Documentation.parse` accepts both explicitly closed `<p>...</p>` blocks and the traditional Javadoc form where `<p>`
+starts a paragraph without a matching closing tag. In that legacy form, the next Javadoc block tag or body block ends
+the paragraph. Rendering supplies the normalized `</p>` before `@param`, `@return`, `@throws`, and other tags, so those
+tags retain their semantic categories.
+
 ## Source projection, Javadoc, and IDE mirrors
 
 `SourceProjector` projects one caller-selected top-level class file to deterministic Java source or one managed
@@ -219,8 +224,9 @@ applies signature closure. It is not a decompiler. The full fidelity, inclusion,
 [source-projection.md](source-projection.md).
 
 The neutral `com.blackbuild.annodocimal.base-plugin` applies neither Java nor Groovy. When a Java model is present, it
-registers the conventional `createClassStubs` `SourceProjectionTask` over all main class directories and makes
-`javadoc` consume its output. This is a Javadoc convenience, not an IDE source-set registration.
+registers the conventional `createClassStubs` `SourceProjectionTask` over all main class directories, supplies the main
+source set's compile classpath for referenced-declaration resolution, and makes `javadoc` consume its output. This is a
+Javadoc convenience, not an IDE source-set registration.
 
 For an independently managed IDE-only source mirror, register `SourceProjectionTask` directly. The task owns its
 output directory, so the mirror must not be compiled, packaged, or published as a second API:

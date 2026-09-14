@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- The conventional `createClassStubs` task now resolves referenced declarations from the main source set's compile
+  classpath automatically. Nested public dependency types therefore project correctly without per-consumer task
+  configuration; independently registered `SourceProjectionTask` instances retain their explicit classpath contract.
+
+- `Documentation.parse` again accepts legacy Javadoc `<p>` separators without an explicit `</p>`. A following block tag
+  or body block ends the paragraph, preserving parameter, return, exception, and generic tags as semantic entries and
+  rendering a valid normalized closing tag.
+
 - Restored the mutable GitHub Pages root as a proof-gated documentation discovery entry. It lists only public immutable
   snapshots and labelled public routes; pending release evidence remains unlisted. See
   [versioned documentation](docs/versioned-documentation.md#root-documentation-discovery).
